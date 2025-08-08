@@ -1,0 +1,17 @@
+approach_name: tabula_8b
+
+module_path: "approaches/benchmark_approaches_src/tabula_8b"
+class_name: TabuLA8BEmbedder
+
+# --------- TabuLA-8B specific parameters --------
+# Model name - should point to the TabuLA-8B model on Hugging Face
+model_name: "mlfoundations/tabula-8b"
+
+# Device to run the model on (cuda/cpu)
+device: ~
+
+# Maximum sequence length for tokenization
+max_length: ~
+
+# Batch size for processing
+batch_size: ~ 

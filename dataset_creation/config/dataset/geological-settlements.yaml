@@ -1,0 +1,6 @@
+dataset_name: "geological-settlements"
+
+primary_key_column: "id"
+
+url: "https://dbs.uni-leipzig.de/files/datasets/geographicalSettelments.zip"
+

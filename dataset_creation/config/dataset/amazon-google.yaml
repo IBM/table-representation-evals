@@ -1,0 +1,6 @@
+dataset_name: "amazon-google"
+
+primary_key_column: "id"
+
+url: "http://pages.cs.wisc.edu/~anhai/data1/deepmatcher_data/Structured/Amazon-Google/amazon_google_exp_data.zip"
+

@@ -1,0 +1,8 @@
+defaults:
+  - dataset: ~
+  - _self_
+
+raw_datasets_dir: ~
+output_dir: ~
+
+table_row_limit: ~

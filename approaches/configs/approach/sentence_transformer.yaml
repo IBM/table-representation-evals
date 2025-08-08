@@ -1,0 +1,10 @@
+approach_name: sentence_transformer
+
+module_path: "approaches/benchmark_approaches_src/sentence_transformer" # please provide the foldername where you implement your approach
+class_name: SentenceTransformerEmbedder # please provide the class name that you used in approach.py
+
+
+# --------- approach specific parameters --------
+# add all further parameters that your approach needs here
+# but if they are hyperparameters, set them in the experiment config!
+embedding_model: ~ 

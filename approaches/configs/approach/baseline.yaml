@@ -1,0 +1,9 @@
+approach_name: baseline
+
+module_path: approaches/benchmark_approaches_src/baseline # please provide the foldername where you implement your approach
+class_name: BaselineEmbedder  # please provide the class name that you used in approach.py
+
+
+# --------- approach specific parameters --------
+# add all further parameters that your approach needs here
+# but if they are hyperparameters, set them in the experiment config!

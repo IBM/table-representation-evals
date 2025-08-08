@@ -1,0 +1,10 @@
+/data
+/created_datasets
+
+/outputs
+
+.DS_Store
+.vscode
+
+*.egg-info
+*.pyc

@@ -1,0 +1,13 @@
+/*results*/*
+/*outputs*
+/run
+
+*.egg-info
+*.pyc
+
+.DS_Store
+.vscode
+
+/config
+__MACOSX
+/datasets

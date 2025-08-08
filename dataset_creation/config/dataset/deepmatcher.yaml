@@ -1,0 +1,16 @@
+dataset_name: "deepmatcher"
+
+primary_key_column: "id"
+
+url: "http://pages.cs.wisc.edu/~anhai/data1/deepmatcher_data/Structured.zip"
+
+sub_datasets:
+  [
+  Amazon-Google,  
+  DBLP-GoogleScholar,
+  DBLP-ACM,
+  Beer,
+  Fodors-Zagats,
+  iTunes-Amazon,
+  Walmart-Amazon,
+  ]

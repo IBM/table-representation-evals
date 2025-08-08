@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["benchmark_approaches_src"]
+
+[project]
+name = "benchmark_approaches_src"
+version = "0.0.1"
+authors = [  
+  { name="Liane Vogel", email="liane.vogel@cs.tu-darmstadt.de" },
+  { name="Kavitha Srinivas", email="kavitha.srinivas@ibm.com" },
+  { name="Niharika DSouza", email="Niharika.DSouza@ibm.com" },
+  { name="Oktie Hassanzadeh", email="hassanzadeh@us.ibm.com" },
+  { name="Sola Shirai", email="solashirai@ibm.com" },
+  { name="Horst Samulowitz", email="samulowitz@us.ibm.com" },
+]
+description = "Evaluating on benchmark for tabular embeddings"
+readme = "README.md"

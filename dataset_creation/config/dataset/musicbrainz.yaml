@@ -1,0 +1,7 @@
+dataset_name: "musicbrainz"
+
+primary_key_column: "TID"
+
+# 20k version
+url: "https://dbs.uni-leipzig.de/files/datasets/saeedi/musicbrainz-20-A01.csv.dapo"
+

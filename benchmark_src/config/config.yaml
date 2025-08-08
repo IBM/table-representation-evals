@@ -1,0 +1,39 @@
+defaults:
+  - _self_
+  - task: ~ # TODO: task needs to contain name of folder inside dataset dir that includes the data for this task
+  - approach: ~
+  - experiment: ~
+  - override hydra/launcher: joblib
+
+benchmark_output_dir: ~
+benchmark_datasets_dir: ~
+dataset_name: ~
+
+# for test purposes, you can limit the number of testcases to run
+test_case_limit: null # int or null
+
+hydra:
+  mode: MULTIRUN
+  searchpath:
+    - approaches/configs
+  job:
+    chdir: True
+    config:
+      override_dirname:
+        exclude_keys:
+          - approach
+          - dataset_name
+          - task
+          - experiment
+  run:
+    dir: results/${benchmark_output_dir}/${approach.approach_name}/${sanitize_dirname:${hydra:job.override_dirname}}/${task.task_name}/${dataset_name}
+  sweep:
+    dir: results
+    subdir: ${benchmark_output_dir}/${approach.approach_name}/${sanitize_dirname:${hydra:job.override_dirname}}/${task.task_name}/${dataset_name} 
+  # required for better process isolation:
+  launcher:
+    n_jobs: 2
+    prefer: processes # use processes instead of threads
+    backend: multiprocessing # use multiprocessing backend instead of loky
+  sweeper:
+    max_batch_size: 1
