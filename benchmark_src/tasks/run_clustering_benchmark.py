@@ -13,10 +13,11 @@ from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddi
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
 from benchmark_src.utils import gather_results, framework
 from benchmark_src.tasks import component_utils
-import hdbscan
+import faiss
+import numpy as np
+from sklearn.metrics import silhouette_score
 
 logger = logging.getLogger(__name__)
-
 
 def load_benchmark_data(cfg):
     dataset_name = str(Path(get_original_cwd()) / Path(cfg.benchmark_datasets_dir) / cfg.dataset_name) + '.csv'
@@ -25,35 +26,72 @@ def load_benchmark_data(cfg):
 
 
 @monitor_resources()
-def run_inference_based_on_row_embeddings(min_clusters, row_embedding_component, test_table):
+def run_inference_based_on_row_embeddings(cluster_ranges, cfg):
     # get row embeddings and assert they have the correct format and shape
-    logger.info(f"Starting to get row embeddings for the {len(test_table)} rows")
+    # instantiate the embedding approach class
+
     row_file = "row_embeddings.pkl"
     if not os.path.exists(row_file):
-        print('creating row embeddings')
+        embedding_approach_class = framework.get_approach_class(cfg)
+        embedder = embedding_approach_class(cfg)
+
+        test_table = load_benchmark_data(cfg)
+        logger.info(f"Starting to get row embeddings for the {len(test_table)} rows")
+
+        logger.info(f"Loaded the clustering data")
+
+        ## load the needed component
+        row_embedding_component = embedder._load_component("row_embedding_component", "RowEmbeddingComponent",
+                                                           RowEmbeddingInterface)
+
+        ## setup model
+        _, resource_metrics_setup = component_utils.run_model_setup(component=row_embedding_component,
+                                                                    input_table=test_table, dataset_information=None)
+
         test_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=test_table)
+        component_utils.assert_row_embedding_format(row_embeddings=test_row_embeddings, input_table=test_table)
+
         with open("row_embeddings.pkl", "wb") as file:
             pickle.dump(test_row_embeddings, file)
     else:
         print('re-using row embeddings')
         with open(row_file, "rb") as file:
             test_row_embeddings = pickle.load(file)
-
-    component_utils.assert_row_embedding_format(row_embeddings=test_row_embeddings, input_table=test_table)
+        resource_metrics_setup = None
 
     X_test = test_row_embeddings
     logger.info(f"Starting the clustering")
-    #hdb = sklearn.cluster.HDBSCAN(min_cluster_size=min_clusters)
-    hdb = hdbscan.HDBSCAN()
-    hdb.fit(X_test)
+
+    niter = 20
+    verbose = True
+    d = len(X_test[0])
+
+    scores = {}
+
+    for k in cluster_ranges:
+        print('starting with k=', k)
+        kmeans = faiss.Kmeans(d, k, niter=niter, verbose=verbose)
+        x = np.asarray(X_test)
+        kmeans.train(x)
+        _, I = kmeans.index.search(x, 1)
+        cluster_labels = I.flatten().tolist()
+        scores[k] = (silhouette_score(x, cluster_labels, metric='euclidean', sample_size=1000), cluster_labels)
+
+    best_k_val = -1
+    best_k = -1
+    for k in scores:
+        if scores[k][0] > best_k:
+            best_k_val = scores[k][0]
+            best_k = k
+
 
     logger.info(f"Computing the metrics")
     metric_res = {}
-    metric_res['silhouette'] = float(sklearn.metrics.silhouette_score(X_test, hdb.labels_, metric='euclidean'))
-    metric_res['calinski_harabasz'] = float(sklearn.metrics.calinski_harabasz_score(X_test, hdb.labels_))
-    metric_res['davies_bouldin'] = float(sklearn.metrics.davies_bouldin_score(X_test, hdb.labels_))
-    metric_res['pred_labels'] = hdb.labels_.tolist()
-    return metric_res
+    metric_res['silhouette'] = best_k_val
+    metric_res['calinski_harabasz'] = float(sklearn.metrics.calinski_harabasz_score(X_test, scores[best_k][1]))
+    metric_res['davies_bouldin'] = float(sklearn.metrics.davies_bouldin_score(X_test, scores[best_k][1]))
+    metric_res['pred_labels'] = scores[best_k][1]
+    return (metric_res, resource_metrics_setup)
 
 
 def main(cfg: DictConfig):
@@ -62,25 +100,18 @@ def main(cfg: DictConfig):
     logger.debug(cfg)
     multiprocessing.set_start_method("spawn", force=True) 
 
-    # instantiate the embedding approach class
-    embedding_approach_class = framework.get_approach_class(cfg)
-    embedder = embedding_approach_class(cfg)
-
-    test_table = load_benchmark_data(cfg)
-    logger.info(f"Loaded the clustering data")
-
-    ## load the needed component
-    row_embedding_component = embedder._load_component("row_embedding_component", "RowEmbeddingComponent", RowEmbeddingInterface)
-
-    ## setup model
-    _, resource_metrics_setup = component_utils.run_model_setup(component=row_embedding_component, input_table=test_table, dataset_information=None)
-
     # run inference with model
     logger.info(f"Running clustering based on row embeddings")
-    result_metrics, resource_metrics_task = run_inference_based_on_row_embeddings(row_embedding_component=row_embedding_component, test_table=test_table, min_clusters=20)
+    cluster_ranges =[1000]
+#    result_metrics, resource_metrics_task, resource_metrics_setup = run_inference_based_on_row_embeddings(cluster_ranges=cluster_ranges, cfg=cfg)
 
+    result, resource_metrics_task = run_inference_based_on_row_embeddings(cluster_ranges=cluster_ranges, cfg=cfg)
+    result_metrics, resource_metrics_setup = result
+    
     # save resource metrics to disk
-    save_resource_metrics_to_disk(cfg=cfg, resource_metrics_setup=resource_metrics_setup, resource_metrics_task=resource_metrics_task)
+    if resource_metrics_setup:
+        save_resource_metrics_to_disk(cfg=cfg, resource_metrics_setup=resource_metrics_setup, resource_metrics_task=resource_metrics_task)
+
 
     # save results to disk
     # save prediction labels to a seperate file:

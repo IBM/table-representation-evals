@@ -13,3 +13,4 @@ xlsxwriter
 xgboost
 openml
 hdbscan
+faiss-cpu
