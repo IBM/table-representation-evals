@@ -1,0 +1,3 @@
+[submodule "ContextAwareJoin"]
+	path = ContextAwareJoin
+	url = git@github.com:IBM/ContextAwareJoin.git
