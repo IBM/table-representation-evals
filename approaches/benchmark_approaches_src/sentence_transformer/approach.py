@@ -47,20 +47,10 @@ class SentenceTransformerEmbedder(BaseTabularEmbeddingApproach):
         """
         # --- YOUR IMPLEMENTATION GOES HERE ---
         pass
-    
-    def preprocessing(self, input_table: pd.DataFrame):
-        """
-        Linearize the rows into strings
-        """
-        # convert all rows to strings
 
-        all_rows = []
-        for _, row in tqdm(input_table.iterrows()):
-            table_row_string = approach_utils.convert_row_to_string(row)
-            all_rows.append(table_row_string)
 
-        preprocessed_data = all_rows # return the preprocessed_data in which ever format you like
-        return preprocessed_data
+    def preprocessing(self, input_table: pd.DataFrame, component):
+        return approach_utils.create_preprocessed_data(input_table, component)
 
     
     def load_trained_model(self):
