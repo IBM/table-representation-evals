@@ -33,7 +33,7 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
             Returns: 
                 np.ndarray: the matrix of the row embeddings with shape [#rows, embedding_dimension]
         """
-        all_rows = self.approach_instance.preprocessing(input_table=input_table)
+        all_rows = self.approach_instance.preprocessing(input_table=input_table, component=self)
         # encode the rows
         row_embeddings = self.approach_instance.model.encode(all_rows, show_progress_bar=True)
         return row_embeddings
