@@ -225,9 +225,9 @@ def create_preprocessed_data(input_table: pd.DataFrame, component:BaseTabularEmb
         preprocessed_data = all_rows  # return the preprocessed_data in which ever format you like
 
     elif isinstance(component, ColumnEmbeddingInterface):
-        all_columns = []
+        all_columns = {}
         for c in tqdm(input_table.columns):
-            all_columns.append(get_column_values(input_table[c], c))
+            all_columns[c] = get_column_values(input_table[c], c)
         preprocessed_data = all_columns
 
     return preprocessed_data

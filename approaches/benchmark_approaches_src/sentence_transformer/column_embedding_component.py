@@ -8,8 +8,7 @@ from benchmark_src.approach_interfaces.column_embedding_interface import ColumnE
 class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
 
     def __init__(self, approach_instance):
-        self.approach_instance = approach_instance # with the approach instance you can call functions implemented in your CustomTabularEmbeddingApproach class 
-
+        self.approach_instance = approach_instance # with the approach instance you can call functions implemented in your CustomTabularEmbeddingApproach class
 
     def setup_model_for_task(self, input_table: pd.DataFrame, dataset_information: dict):
         """
@@ -20,7 +19,6 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
                 dataset_information: dict   Additional information about the dataset, look into dataset for details
         """
         self.approach_instance.load_trained_model()
-
 
     def create_column_embeddings_for_table(self, input_table: pd.DataFrame):
         """
