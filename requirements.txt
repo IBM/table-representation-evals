@@ -6,7 +6,7 @@ omegaconf==2.3.0
 openai==1.93.1
 pandas==2.3.0
 psutil==7.0.0
-sentence_transformers==4.1.0
+sentence_transformers
 tqdm==4.67.1
 gritlm
 xlsxwriter
