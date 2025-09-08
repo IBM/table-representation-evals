@@ -14,3 +14,4 @@ xgboost
 openml
 hdbscan
 faiss-cpu
+skrub

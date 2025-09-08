@@ -31,14 +31,11 @@ class BaseTabularEmbeddingApproach(ABC):
 
     def _load_component(self, module_file: str, class_name: str, interface: type):
         """
-        Description
+        Attempts to load a given component from the approach. Raises errors when the component is not implemented or does not implement the Interface correctly. 
         """
         try:
             module_path = self._approach_path / f"{module_file}.py"
             spec = importlib.util.spec_from_file_location(module_file, module_path)
-            if spec is None:
-                print(f"Component {class_name} is not implemented by appoach.")
-                raise NotImplementedError
             
             module = importlib.util.module_from_spec(spec)
             sys.modules[module_file] = module
@@ -48,14 +45,16 @@ class BaseTabularEmbeddingApproach(ABC):
             component_instance = ComponentClass(approach_instance=self)
 
             if not isinstance(component_instance, interface):
-                raise TypeError(f"Component '{class_name}' does not implement '{interface.__name__}'")
+                raise TypeError(f"Component '{class_name}' does not implement the interface '{interface.__name__}'")
 
             print(f"BaseEmbeddingApproach: Loaded component: {class_name}")
             self._loaded_components[module_file] = component_instance
 
             return component_instance
-        except (ImportError, AttributeError, FileNotFoundError) as e:
-            print(f"BaseEmbeddingApproach: Error loading component '{module_file}': {e}")
+        
+        except FileNotFoundError as e:
+            raise NotImplementedError(f"Component {class_name} is not implemented by appoach. Please check the settings in the yaml config or implement the component.")
+        
         except TypeError as e:
-            print(f"BaseEmbeddingApproach: Component validation failed for '{class_name}': {e}")
+            raise TypeError(f"BaseEmbeddingApproach: Component validation failed for '{class_name}': {e}")
 
