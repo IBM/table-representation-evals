@@ -41,7 +41,7 @@ BEGIN {
     split(datasets_string, datasets_array, " ")
 
     # Loop through the datasets for the current task
-    for (i in datasets_array) {
+    for (i = 1; i in datasets_array; i++) {
         dataset = datasets_array[i]
         print "  Running benchmark for dataset:", dataset
         # Execute the benchmark script for each task/dataset combination

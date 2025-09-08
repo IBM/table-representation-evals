@@ -1,6 +1,9 @@
 /*results*/*
 /*outputs*
+/created_datasets
+
 /run
+/build
 
 *.egg-info
 *.pyc

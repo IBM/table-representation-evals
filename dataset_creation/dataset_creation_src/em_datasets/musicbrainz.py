@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 import logging
 import shutil
 
-from dataset_preparation.em_dataset import EM_Dataset
+from em_datasets.em_dataset import EM_Dataset
 
 import utils
 

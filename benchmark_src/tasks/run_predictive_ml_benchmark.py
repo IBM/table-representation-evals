@@ -84,7 +84,6 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
 
         Returns:
             model
-            num_classes
             idx_of_positive_label
     """
     logger.debug(f"Called run_task_based_on_row_embeddings")
@@ -97,7 +96,6 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
 
     X_train = train_row_embeddings
 
-    num_classes = 0
     idx_positive_label = -1
 
     if task_type == "classification":
@@ -108,12 +106,10 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
         y_train = label_encoder.fit_transform(train_labels)
         logger.debug(f"Mapping of labels: {list(label_encoder.classes_)}")
 
-        num_classes = len(list(label_encoder.classes_))
-        assert num_classes > 1
+        assert dataset_information['num_classes'] > 1
 
         # train model depending on problem_type
-        if num_classes == 2:
-            assert num_classes == 2
+        if dataset_information['num_classes'] == 2:
             for idx, class_label in enumerate(list(label_encoder.classes_)):
                 class_label = str(class_label)
                 if class_label.lower() in POSITIVE_LABELS:
@@ -129,11 +125,11 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
 
             model_xgb.fit(X_train, y_train)    
         else:
-            assert num_classes > 2
+            assert dataset_information['num_classes'] > 2
 
             model_xgb = xgb.XGBClassifier(
                 objective="multi:softprob",  # Use multi:softprob for multiclass probabilities
-                num_class=num_classes,      # Specify the number of classes
+                num_class=dataset_information['num_classes'],      # Specify the number of classes
                 n_estimators=100,
             )
 
@@ -165,7 +161,7 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
               "KNeighbors": model_knn,
               "LinearRegression": model_lin_reg}
 
-    return models, num_classes, idx_positive_label
+    return models, idx_positive_label
 
 @monitor_resources()
 def run_inference_based_on_row_embeddings(models, row_embedding_component, test_table, task_type, num_classes=None, idx_positive_label=None):

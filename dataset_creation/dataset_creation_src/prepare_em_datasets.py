@@ -14,7 +14,7 @@ def main(cfg:DictConfig):
     logger.info(f"Got config: {cfg}")
     cfg.output_dir = Path(cfg.output_dir)
 
-    assert Path(cfg['raw_datasets_dir']).exists(), f"Couldn't find raw_datasets_dir {cfg['raw_datasets_dir']}"
+    assert Path(cfg['raw_datasets_dir']).exists(), f"Couldn't find raw_datasets_dir {cfg['raw_datasets_dir']}, please make sure that the folder exists"
 
     Path.mkdir(cfg.output_dir, exist_ok=True) # Several datasets are saved in the same folder
     

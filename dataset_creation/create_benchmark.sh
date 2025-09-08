@@ -3,7 +3,7 @@
 ############## adapt these parameters! ###################
 
 # where do you want the raw datasets to be downloaded/saved to?
-raw_datasets_dir="../../raw_datasets"
+raw_datasets_dir="../raw_datasets"
 
 # where do you want the created datasets be saved to?
 ## Foldername needs to be new to not override previously created datasets
@@ -22,5 +22,5 @@ datasets=(
 ##########################################################
 
 for dataset in "${datasets[@]}"; do
-    python dataset_creation_src/create_benchmark.py output_dir=$output_dir dataset=$dataset raw_datasets_dir=$raw_datasets_dir table_row_limit=$table_row_limit
+    python dataset_creation/dataset_creation_src/prepare_em_datasets.py output_dir=$output_dir dataset=$dataset raw_datasets_dir=$raw_datasets_dir table_row_limit=$table_row_limit
 done
