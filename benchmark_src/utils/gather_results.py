@@ -202,46 +202,64 @@ def gather_results(results_folder: Path):
     # create a single dataframe
     gathered_results_df = pd.DataFrame(data)
 
-    print(gathered_results_df.columns)
+    # end if there are no results to gather
+    if len(gathered_results_df) == 0:
+        print(f'No results found to be gathered, please check if results.json files were created in the folder: *{results_folder}*')
+        return
 
-    # for baseline 
-    # Group by 'configuration', 'task', and 'dataset' to find the baseline for each group
-    grouped = gathered_results_df.groupby(["approach", "configuration", "task", "dataset"])
+    ###########################################################################
+    # prepare baseline values as added column in the results dataframe
+    ###########################################################################
+    # keep only baseline rows
+    baseline_only = gathered_results_df.loc[gathered_results_df['approach'] == 'baseline']
 
+    # restrict to columns that contain performance scores
+    baseline_cols = [col for col in performance_cols if col in gathered_results_df.columns]
+
+    # compute first non-null baseline value per (task, dataset)
+    baseline_df = (
+        baseline_only
+        .groupby(["task", "dataset"], as_index=False)[baseline_cols]
+        .first()
+        .rename(columns={col: f"baseline_{col}" for col in baseline_cols})
+    )
+
+    # merge baseline values as column into results dataframe
+    len_df_before_merge = len(gathered_results_df)
+    gathered_results_df = gathered_results_df.merge(baseline_df, on=["task", "dataset"], how="left")
+    len_df_after_merge = len(gathered_results_df)
+
+    if len_df_before_merge != len_df_after_merge:
+        print(f"Length of df changed after merge, please check the code")
+        print(f"{len_df_before_merge} before - {len_df_after_merge} after")
+        return
+
+    # compute ratios for each col
     for col, col_type in performance_cols.items():
         if col in gathered_results_df.columns:
-            # get the values for the baseline of each group
-            baseline_values = grouped.apply(lambda x: next(iter(x[x['approach'] == 'baseline'][col].dropna()), np.nan))
+            baseline_col = f"baseline_{col}"
 
-            # Convert the baseline Series back to a DataFrame with the same index as the original
-            baseline_df = baseline_values.reset_index(name='baseline_value')
-            baseline_df = baseline_df.drop(columns=['approach', 'configuration'])
-            baseline_df = baseline_df.dropna()
-            print(baseline_df.dropna())
-            len_df_before_merge = len(gathered_results_df)
-            gathered_results_df = gathered_results_df.merge(baseline_df, on=["task", "dataset"], how='left')
-            len_df_after_merge = len(gathered_results_df)
-
-            print(f"{len_df_before_merge} before - {len_df_after_merge} after")
-
-            gathered_results_df.to_csv(results_folder/f"all_results_with_baseline_value_{col}.csv", index=False)
-
-            # Calculate the ratio of the approach performance to the baseline
-            if col_type == 'higher_is_better':
-                    gathered_results_df[f'{col}_ratio_to_baseline'] = np.where(
-                        gathered_results_df[col].notna() & gathered_results_df['baseline_value'].notna() & (gathered_results_df['baseline_value'] != 0),
-                        gathered_results_df[col] / gathered_results_df['baseline_value'],
-                        np.nan
-                    )
-            elif col_type == 'lower_is_better':
-                gathered_results_df[f'{col}_ratio_to_baseline'] = np.where(
-                    gathered_results_df[col].notna() & gathered_results_df['baseline_value'].notna() & (gathered_results_df['baseline_value'] != 0),
-                    gathered_results_df['baseline_value'] / gathered_results_df[col],  # Invert the ratio for 'lower is better'
-                    np.nan
+            if col_type == "higher_is_better":
+                gathered_results_df[f"{col}_ratio_to_baseline"] = np.where(
+                    gathered_results_df[col].notna()
+                    & gathered_results_df[baseline_col].notna()
+                    & (gathered_results_df[baseline_col] != 0),
+                    gathered_results_df[col] / gathered_results_df[baseline_col],
+                    np.nan,
                 )
 
-            # Drop the temporary baseline_value column
-            gathered_results_df = gathered_results_df.drop(columns=['baseline_value'])
+            elif col_type == "lower_is_better":
+                gathered_results_df[f"{col}_ratio_to_baseline"] = np.where(
+                    gathered_results_df[col].notna()
+                    & gathered_results_df[baseline_col].notna()
+                    & (gathered_results_df[baseline_col] != 0),
+                    gathered_results_df[baseline_col] / gathered_results_df[col],
+                    np.nan,
+                )
+
+    # drop all baseline_* columns, only keep the ratios in the final df
+    baseline_cols_prefixed = [f"baseline_{col}" for col in performance_cols if col in gathered_results_df.columns]
+    gathered_results_df = gathered_results_df.drop(columns=baseline_cols_prefixed)
 
     gathered_results_df.to_csv(results_folder/"all_results.csv", index=False)
 
@@ -289,6 +307,11 @@ def gather_resources(results_folder: Path):
         resource_df["configuration"] = configuration_str
 
         all_resource_dfs.append(resource_df)
+
+    # end if there are no results to gather
+    if len(all_resource_dfs) == 0:
+        print(f'No resource results found to be gathered, please check if resource_metrics_formatted.csv files were created in the folder: *{results_folder}*, if this is intentional just ignore this.')
+        return
 
     combined_df = pd.concat(all_resource_dfs)
     combined_df = combined_df.reset_index(drop=True)
@@ -338,14 +361,15 @@ def gather_resources(results_folder: Path):
 
 @hydra.main(version_base=None, config_name="results_config")
 def main(cfg: DictConfig) -> None:
-    assert cfg.results_folder_name != "", f"Please enter the foldername of the results folder"
+    assert cfg.results_folder_name != "", f"Error in gathering results: Please enter the foldername of the results folder"
     results_folder = Path(cfg.results_folder_name)
-    print(f"Using results folder: {results_folder}")
+    print(f"Gathering based on results folder: *{results_folder}*")
     assert results_folder.exists(), f"Could not find results folder at {results_folder}"
 
-    print(f"calling gather_results")
+    print(f"Calling gather_results")
     gather_results(results_folder)
 
+    print(f"Calling gather_resources")
     gather_resources(results_folder)
 
 
