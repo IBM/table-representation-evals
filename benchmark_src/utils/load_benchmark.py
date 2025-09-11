@@ -34,7 +34,7 @@ def load_testcase_more_similar_than(testcase_path: Path):
 
     assert similar_pair["a"]["qid"] == dissimilar_pair["a"]["qid"]
 
-    return similar_pair, dissimilar_pair
+    return testcase_dict
 
 def load_testcase_paths(dataset_path: Path, limit: int=None):
     """
