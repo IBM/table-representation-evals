@@ -42,7 +42,10 @@ def run_similarity_task_based_on_row_embeddings(row_embedding_component, input_t
     all_results = []
 
     for testcase_path in tqdm(testcase_paths):
-        similar_pair, dissimilar_pair = load_benchmark.load_testcase_more_similar_than(testcase_path)
+        testcase_dict = load_benchmark.load_testcase_more_similar_than(testcase_path)
+
+        similar_pair = testcase_dict["similar_pair"]
+        dissimilar_pair = testcase_dict["dissimilar_pair"]
 
         # find the necessary row embeddings of the three participating rows (a, b, c)
         row_a_index = input_table[input_table[pk_column] == similar_pair["a"]["qid"]].index[0]
@@ -58,19 +61,12 @@ def run_similarity_task_based_on_row_embeddings(row_embedding_component, input_t
         sim_ac = cosine_similarity(row_a_embedding.reshape(1, -1), row_c_embedding.reshape(1, -1))[0][0]
 
         # result is 1 if the similarity is higher for the similar pair than for the dissimilar pair
+        results_info = {'id': int(testcase_path.stem), 'difficulty': testcase_dict['difficulty'], 'category': testcase_dict['category']}
         if sim_ab > sim_ac:
-            all_results.append(True)
+            results_info['solved'] = True
         else:
-            all_results.append(False)
-                
-        if False:
-            print("#"*100)
-            print(f"Testcase ID: {testcase_id} - key column: {pk_column} - Input Row:")
-            print(testcase_input_df)
-            print("GT Output row:")
-            print(testcase_gt_output_df)
-            print("-"*100)
-            print(result)
+            results_info['solved'] = False
+        all_results.append(results_info)
 
     return all_results
 
@@ -102,7 +98,15 @@ def main(cfg: DictConfig):
 
 
     # compute and save results
-    accuracy = sum(all_results) / len(all_results)
-    result_metrics = {"accuracy": accuracy}
-    logger.info(f"Accuracy: {accuracy}")
+    results_df = pd.DataFrame(all_results).set_index('id')
+    results_df.sort_index(inplace=True)
+    results_df.to_csv('results_per_datapoint.csv')
+    overall_accuracy = float(results_df['solved'].mean())
+    accuracy_by_difficulty = {
+        f"accuracy_{diff}": acc 
+        for diff, acc in results_df.groupby('difficulty')['solved'].mean().to_dict().items()
+    }
+    result_metrics = {"accuracy": overall_accuracy}
+    result_metrics.update(accuracy_by_difficulty)
+    logger.info(result_metrics)
     gather_results.save_results(cfg=cfg, metrics=result_metrics)

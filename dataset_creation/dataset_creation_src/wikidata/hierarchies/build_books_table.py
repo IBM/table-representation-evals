@@ -12,8 +12,6 @@ import hierarchy_utils, wikidata_utils
 SAVE_DIR = Path("data/wikidata_genres/")
 RESOURCES_DIR = Path("resources")
 
-PERCENTAGE_NULL_ACCEPTED = 0.95 # it's okay if x% of cells in the column are empty, remove cols with even higher sparsity
-
 creation_random = 48573948
 
 def get_properties_for_books(entity_qids):
@@ -81,23 +79,6 @@ def get_properties_for_books(entity_qids):
         #print(book_id, "--", pid, p_label, "--", obj_id, obj_label)
 
     return book_information
-
-def prune_sparse_columns(dataframe, null_threshold: float):
-    """
-    Prunes the dataframe in the following ways:
-        - removes too sparse columns where more than null_threshold percent values are missing
-
-        Args:
-            dataframe (Dataframe): The dataframe to be filtered
-            null_threshold (float): Percentage of null values in a column, columns with a higher percentage get deleted
-
-        Returns:
-            dataframe: The filtered dataframe
-    """
-    min_num_values = int(len(dataframe) * (1 - null_threshold))
-    print(f"Columns must have at least {min_num_values} values to be kept")
-    dataframe = dataframe.dropna(axis="columns", thresh=min_num_values)
-    return dataframe
 
 
 def get_books_information(book_qid_list):
@@ -167,6 +148,8 @@ def build_books_table(all_genres, books_per_genre, book_label_lookup):
             pass
 
     print(f"Total found books: {sum([len(x) for x in books.values()])} with {len(books.keys())} genres")
+    
+    ############ TODO: this filtering should be done later.... ########################
     all_books = []
     for book_list in books.values():
         # TODO: parameterize how many books 
@@ -174,6 +157,7 @@ def build_books_table(all_genres, books_per_genre, book_label_lookup):
         chosen_books = book_list[:20]
         all_books.extend(chosen_books)
     print(f"Chose {len(all_books)} books in total")
+    ####################################################################################
 
      # collect all properties for each book (#TODO: cache the information)
     book_information = get_books_information(all_books)
