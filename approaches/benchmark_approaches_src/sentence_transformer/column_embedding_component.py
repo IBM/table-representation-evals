@@ -22,7 +22,7 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
 
     def create_column_embeddings_for_table(self, input_table: pd.DataFrame):
         """
-        Create an embedding for each row of the given table and return it as a numpy array.
+        Create an embedding for each column of the given table and return it as a numpy array.
 
             Args:
                 input_table: pd.DataFrame   The table to work with
@@ -31,6 +31,6 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
                 np.ndarray: the matrix of the row embeddings with shape [#rows, embedding_dimension]
         """
         all_columns = self.approach_instance.preprocessing(input_table=input_table, component=self)
-        # encode the rows
-        column_embeddings = self.approach_instance.model.encode(all_columns, show_progress_bar=True)
-        return column_embeddings
+        # encode the columns
+        column_embeddings = self.approach_instance.model.encode(list(all_columns.values()), show_progress_bar=True)
+        return column_embeddings, all_columns.keys()

@@ -5,7 +5,7 @@ import logging
 import sys
 import traceback
 
-from benchmark_src.tasks import run_row_similarity_benchmark, run_predictive_ml_benchmark, run_more_similar_than_benchmark, run_clustering_benchmark
+from benchmark_src.tasks import run_row_similarity_benchmark, run_column_similarity_benchmark, run_predictive_ml_benchmark, run_more_similar_than_benchmark, run_clustering_benchmark
 from benchmark_src.utils.framework import register_resolvers
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,8 @@ def main(cfg: DictConfig):
                 run_more_similar_than_benchmark.main(cfg)
             elif cfg.task.task_name == "clustering":
                 run_clustering_benchmark.main(cfg)
+            elif cfg.task.task_name == "column_similarity_search":
+                run_column_similarity_benchmark.main(cfg)
             else:
                 logger.error("Unknown task:", cfg.task)
         except Exception as e:
