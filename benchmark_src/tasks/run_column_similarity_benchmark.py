@@ -78,15 +78,14 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     all_columns = {}
 
     if not os.path.exists(f'{results_file}/{datalake}.pkl'):
+        logger.info(f"Starting to get column embeddings for datalake {datalake} columns")
+        ## load the needed component
+        column_embedding_component = embedder._load_component("column_embedding_component", "ColumnEmbeddingComponent",
+                                                              ColumnEmbeddingInterface)
+        ## setup model
+        _, resource_metrics_setup = component_utils.run_model_setup(component=column_embedding_component,
+                                                                    input_table=None, dataset_information=None)
         for table in table2dfs:
-            logger.info(f"Starting to get column embeddings for datalake {datalake} columns")
-            ## load the needed component
-            column_embedding_component = embedder._load_component("column_embedding_component", "ColumnEmbeddingComponent",
-                                                               ColumnEmbeddingInterface)
-            ## setup model
-            _, resource_metrics_setup = component_utils.run_model_setup(component=column_embedding_component,
-                                                                        input_table=None, dataset_information=None)
-
             all_columns[table] = {}
             column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=table2dfs[table])
             for idx, c in enumerate(column_names):
