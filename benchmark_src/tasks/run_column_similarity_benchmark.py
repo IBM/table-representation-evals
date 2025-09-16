@@ -75,6 +75,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     embedder = embedding_approach_class(cfg)
 
     table2dfs, gt_data, datalake = load_benchmark_data(cfg)
+
     all_columns = {}
 
     if not os.path.exists(f'{results_file}/{datalake}.pkl'):
@@ -85,7 +86,8 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         ## setup model
         _, resource_metrics_setup = component_utils.run_model_setup(component=column_embedding_component,
                                                                     input_table=None, dataset_information=None)
-        for table in table2dfs:
+
+        for idx, table in enumerate(table2dfs):
             all_columns[table] = {}
             column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=table2dfs[table])
             for idx, c in enumerate(column_names):
@@ -102,44 +104,38 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     i = 0
     for table in all_columns:
         for column in all_columns[table]:
-            all_indexes[(table, column)] = i
+            all_indexes[i] = table, column
             i += 1
             all_cols.append(all_columns[table][column])
     arr = np.asarray(all_cols)
-    index = faiss.IndexFlatL2(arr[0].size())
+
+    index = faiss.IndexFlatL2(arr[0].size)
     index.add(arr)
 
-    all_gt = []
-    for mapping in gt_data:
-        source_table = mapping['source']['filename']
-        source_column = mapping['source']['col']
-        source = all_indexes[(source_table, source_column)]
 
-        for target in mapping['joinable_list']:
-            target_table = target['filename']
-            target_column = target['col']
-            target = all_indexes[(target_table, target_column)]
-            all_gt.append((source, target))
+    search_sources = []
 
+    for k in gt_data:
+        table = k.split('.')[0]
+        col = k.split('.')[1:]
+        search_sources.append(all_columns[table][col])
 
     k = 4  # TBD how do we set k from config
-    search_sources = []
-    for source, _ in all_gt:
-        search_sources.append(arr[source])
+
     D, I = index.search(search_sources, k)
 
     result = []
     for x, i in enumerate(I):
-        source_t, source_col = all_gt[i]
+        source_table, source_col = all_indexes[x]
         joinable_list = []
         for y, neighbor in enumerate(I[i]):
-            target_t, target_col = all_gt[neighbor]
-            r = {"filename": target_t,
-                 "col": f"{target_t}.{target_col}",
+            target_table, target_col = all_indexes[neighbor]
+            r = {"filename": target_table,
+                 "col": target_col,
                  "score": float(D[x][y])}
             joinable_list.append(r)
-        result.append({"source": {"filename": source_t, "col": f"{source_t}.{source_col}"},
-                  "joinable_list": joinable_list})
+        result.append({"source": {"filename": source_table, "col": source_col,
+                  "joinable_list": joinable_list}})
 
 
     dict = {}
