@@ -87,11 +87,14 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         _, resource_metrics_setup = component_utils.run_model_setup(component=column_embedding_component,
                                                                     input_table=None, dataset_information=None)
 
-        for idx, table in enumerate(table2dfs):
-            all_columns[table] = {}
+        for table in table2dfs:
+            t = os.path.basename(table).replace('.csv', '')
+            print('at table', t)
+            all_columns[t] = {}
             column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=table2dfs[table])
             for idx, c in enumerate(column_names):
-                all_columns[table][c] = column_embeddings[idx]
+                c = t + '.' + c
+                all_columns[t][c] = column_embeddings[idx]
         with open(f'{results_file}/{datalake}.pkl', "wb") as file:
             pickle.dump(all_columns, file)
     else:
@@ -104,6 +107,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     i = 0
     for table in all_columns:
         for column in all_columns[table]:
+            print('column', column)
             all_indexes[i] = table, column
             i += 1
             all_cols.append(all_columns[table][column])
@@ -117,8 +121,9 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
     for k in gt_data:
         table = k.split('.')[0]
-        col = k.split('.')[1:]
-        search_sources.append(all_columns[table][col])
+        search_sources.append(all_columns[table][k])
+
+    search_sources = np.asarray(search_sources)
 
     k = 4  # TBD how do we set k from config
 
