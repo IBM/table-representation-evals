@@ -1,0 +1,30 @@
+# @package _global_
+defaults:
+  - override /approach: sentence_transformer
+
+hydra:
+  verbose: True # set to True for debug outprints, set to False for Info prints only
+  sweeper:
+    params:
+     approach.embedding_model:  all-MiniLM-L6-v2
+
+benchmark_output_dir: "tmp"
+benchmark_datasets_dir: "/Users/kavithasrinivas/ibmcode/embedding_benchmarks_ks/datasets/row_similarity_data_max_100_rows"
+
+benchmark_tasks:
+  ####################################
+  ###### Row Similarity Search
+  ####################################
+  row_similarity_search: # comment out the tasks you do not want to evaluate on
+    datasets:   # comment out the datasets that you do not want to evaluate on
+      #- Amazon-Google
+      - Beer
+      # - DBLP-ACM
+      # - DBLP-GoogleScholar
+      # - Fodors-Zagats
+      # - geological-settlements
+      # - iTunes-Amazon
+      # - MusicBrainz
+      # - Walmart-Amazon
+    task_parameters:
+      run_similarity_search_based_on: "row_embeddings" # needs to be either "row_embeddings" or "custom_function"

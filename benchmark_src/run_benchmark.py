@@ -23,7 +23,7 @@ def main(cfg: DictConfig):
     current_directory = Path.cwd()
 
     if (current_directory / "results.json").is_file():
-        logger.info(f"Already have a result file for this configuration in the given output directory.")
+        logger.info(f'Already have a result file for this configuration in the given output directory.{current_directory / "results.json"}')
     else:
         try:
             if cfg.task.task_name == "row_similarity_search":
