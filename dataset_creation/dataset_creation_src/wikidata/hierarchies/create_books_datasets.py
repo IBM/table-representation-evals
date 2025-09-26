@@ -112,33 +112,35 @@ def filter_table_columns(book_table: pd.DataFrame):
 
     return book_table
 
-
-def create_column_name_variations(initial_books_table, name_prefix, hierarchy):
-    ################## combined names ########################################
-    books_table = initial_books_table.copy()
-    combined_names_folder = DATASET_DIR / (name_prefix + '_combined_names')
-    combined_names_folder.mkdir(exist_ok=True)
+def save_dataset_variation(books_table: pd.DataFrame, name_prefix: str, variation_name: str, testcases: list):
+    dataset_name = name_prefix + variation_name
+    dataset_save_dir = DATASET_DIR / dataset_name
+    dataset_save_dir.mkdir(exist_ok=True)
     # save input_table
-    books_table.to_csv(combined_names_folder / 'input_table.csv', index=False)
-    # create testcases
-    create_testcases_more_similar_than.create_testcases(book_table=book_table, hierarchy=hierarchy, dataset_save_dir=combined_names_folder)
+    books_table.to_csv(dataset_save_dir / 'input_table.csv', index=False)
+    # save testcases
+    create_testcases_more_similar_than.save_testcases(testcases, dataset_save_dir)
+    create_statistics(dataset_name=dataset_name, 
+                    input_table_df=book_table, 
+                    testcases=testcases,
+                    save_path=dataset_save_dir,
+                    primary_key_column="QID"
+                    )
+
+def create_column_name_variations(initial_books_table, name_prefix, hierarchy, testcases):
+    ################## combined names ########################################
+    variation_name = '_combined_names'
+    save_dataset_variation(initial_books_table, name_prefix, variation_name, testcases)
 
     ################## simple names ########################################
+    variation_name = '_simple_names'
     books_table = initial_books_table.copy()
-    simple_names_folder = DATASET_DIR / (name_prefix + '_simple_names')
-    simple_names_folder.mkdir(exist_ok=True)
-    # simplify names 
     simple_col_names = [col.split('___')[0] for col in books_table.columns]
     books_table.columns = simple_col_names
-    # save input_table
-    books_table.to_csv(simple_names_folder / 'input_table.csv', index=False)
-    # create testcases
-    create_testcases_more_similar_than.create_testcases(book_table=book_table, hierarchy=hierarchy, dataset_save_dir=simple_names_folder)
-
+    save_dataset_variation(books_table, name_prefix, variation_name, testcases)
     ################## complex names ########################################
+    variation_name = '_complex_names'
     books_table = initial_books_table.copy()
-    complex_names_folder = DATASET_DIR / (name_prefix + '_complex_names')
-    complex_names_folder.mkdir(exist_ok=True)
     # complex names 
     complex_col_names = []
     for col in books_table.columns:
@@ -148,20 +150,46 @@ def create_column_name_variations(initial_books_table, name_prefix, hierarchy):
         else:
             complex_col_names.append(split[0])
     books_table.columns = complex_col_names
+    save_dataset_variation(books_table, name_prefix, variation_name, testcases)
+    ################## numbered column names ########################################
+    variation_name = '_numbered_names'
+    books_table = initial_books_table.copy()
+    # number the columns names 
+    new_col_names = ['QID'] + [f'column_{i}' for i in range(len(books_table.columns))[1:]]
+    books_table.columns = new_col_names
+    save_dataset_variation(books_table, name_prefix, variation_name, testcases)
 
-    # save input_table
-    books_table.to_csv(complex_names_folder / 'input_table.csv', index=False)
-    # create testcases
-    create_testcases_more_similar_than.create_testcases(book_table=book_table, hierarchy=hierarchy, dataset_save_dir=complex_names_folder)
+def create_statistics(dataset_name, input_table_df, save_path, primary_key_column, testcases):
+    statistics_dict = {
+        "dataset_name": dataset_name,
+        "input_table_num_rows": len(input_table_df),
+        "input_table_num_cols": len(input_table_df.columns),
+        "primary_key_column": primary_key_column,
+        "datatypes": input_table_df.dtypes.astype("str").to_dict(),
+    }
 
+    num_empty_cells = float((input_table_df.isnull().sum()).sum())
+    sparsity = float(num_empty_cells / input_table_df.size)
+    statistics_dict["num_empty_cells"] = num_empty_cells
+    statistics_dict["sparsity"] = sparsity
+    statistics_dict["num_testcases"] = len(testcases)
 
+    # Count easy and medium testcases
+    num_easy = sum(1 for tc in testcases if tc.get("difficulty") == "easy")
+    num_medium = sum(1 for tc in testcases if tc.get("difficulty") == "medium")
+    statistics_dict["num_easy_testcases"] = num_easy
+    statistics_dict["num_medium_testcases"] = num_medium
+
+    with open(save_path / "dataset_information.json", "w") as file:
+        json.dump(statistics_dict, file, indent=2)
 
 
 if __name__ == "__main__":
-    #create_variations()
-
     # load main books table
     book_table = pd.read_csv(SAVE_DIR / "books_table_more_similar_than.csv", low_memory=False)
+    # load the created hierarchy from disk
+    with open(SAVE_DIR / "hierarchy_for_more_similar_than.json", "r") as file:
+        hierarchy = json.load(file)
     
     # re-order the first columns
     first_columns = ["QID", "label", "author___P50", "description___None"]
@@ -172,30 +200,38 @@ if __name__ == "__main__":
     # delete rows of books where authors wrote fiction and non-fiction books
     book_table = check_authors_genres(book_table)
 
+    # shuffle the table
+    book_table = book_table.sample(frac=1, random_state=creation_random)
+    # create pandas dataframe and save to disk
+    book_table.to_csv(SAVE_DIR / "books_table_more_similar_than_prepared.csv", index=False)
+
+    # create testcases only once
+    testcases = create_testcases_more_similar_than.create_testcases(
+        book_table=book_table,
+        hierarchy=hierarchy
+    )
+
+    #################### full table (without filtering columns) ############################################
+    # create variations of the table before filtering 
+    create_column_name_variations(initial_books_table=book_table, name_prefix=f'wikidata_books_{len(book_table.columns)}cols', hierarchy=hierarchy, testcases=testcases)
+
+    #################### full table (after filtering columns) ############################################
     # filter table columns (TODO: later also create other versions)
     book_table = filter_table_columns(book_table)
-    
+    print(f"Have {len(book_table.columns)} columns after filtering")
+    # create variations of the table after filtering
+    create_column_name_variations(initial_books_table=book_table, name_prefix=f'wikidata_books_{len(book_table.columns)}cols', hierarchy=hierarchy, testcases=testcases)
+
+
+    #################### table with 29 columns ############################################
     # prune columns
     book_table = prune_sparse_columns(book_table, 0.95)
     print(f"Have {len(book_table.columns)} columns after removing too sparse columns")
 
-    # shuffle the table
-    book_table = book_table.sample(frac=1, random_state=creation_random)
-    # create pandas dataframe and save to disk
-    book_table.to_csv(SAVE_DIR / "books_table_more_similar_than_cleaned.csv", index=False)
-
-    #print(book_table)
-
-    # load the created hierarchy from disk
-    with open(SAVE_DIR / "hierarchy_for_more_similar_than.json", "r") as file:
-        hierarchy = json.load(file)
-
-    #################### table with 29 columns ############################################
-
     # create variations of the table with 29 columns
-    create_column_name_variations(initial_books_table=book_table, name_prefix='wikidata_books', hierarchy=hierarchy)
+    create_column_name_variations(initial_books_table=book_table, name_prefix=f'wikidata_books_{len(book_table.columns)}cols', hierarchy=hierarchy, testcases=testcases)
 
-    #################### table with just 10 columns ############################################
+    #################### table with just 9  (only 25% empty cells in a column) ############################################
 
     # prune columns
     smaller_book_table = prune_sparse_columns(book_table, 0.25)
@@ -203,5 +239,17 @@ if __name__ == "__main__":
     print(smaller_book_table)
     print(smaller_book_table.columns)
 
+    # create variations of the table with 9 columns
+    create_column_name_variations(initial_books_table=smaller_book_table, name_prefix=f'wikidata_books_{len(smaller_book_table.columns)}cols', hierarchy=hierarchy, testcases=testcases)
+    
+    #################### table with just 3 columns ############################################
+
+    # prune columns
+    columns_to_keep = ['QID', 'label', 'author___P50', 'genre___P136']
+    smallest_book_table = smaller_book_table[columns_to_keep]
+    print(f"Have {len(smallest_book_table.columns)} columns after removing too sparse columns")
+    print(smallest_book_table)
+    print(smallest_book_table.columns)
+
     # create variations of the table with 29 columns
-    create_column_name_variations(initial_books_table=smaller_book_table, name_prefix='wikidata_books_9cols', hierarchy=hierarchy)
+    create_column_name_variations(initial_books_table=smallest_book_table, name_prefix=f'wikidata_books_{len(smallest_book_table.columns)}cols', hierarchy=hierarchy, testcases=testcases)

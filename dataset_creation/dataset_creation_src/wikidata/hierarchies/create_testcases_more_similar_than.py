@@ -9,53 +9,24 @@ import hierarchy_utils
 DATASET_DIR = Path("created_datasets/row_similarity_data_full/wikidata_books/")
 SAVE_DIR = Path("created_datasets/wikidata_genres/")
 
-random.seed(34234)
+creation_random = random.Random(34234)
 
-## TEMP, not here
-def create_statistics(dataset_name, input_table_df, num_testcases, save_path, primary_key_column):
-    statistics_dict = {"dataset_name": dataset_name,
-                       "input_table_num_rows": len(input_table_df),
-                       "input_table_num_cols": len(input_table_df.columns),
-                       "primary_key_column": primary_key_column
-                       }
-    
-    # get datatypes of columns
-    statistics_dict["datatypes"] = input_table_df.dtypes.astype("str").to_dict()
-
-    # compute table sparsity
-    num_empty_cells = float((input_table_df.isnull().sum()).sum())
-    sparsity = float(num_empty_cells / input_table_df.size)
-    statistics_dict["num_empty_cells"] = num_empty_cells
-    statistics_dict["sparsity"] = sparsity
-    statistics_dict["num_testcases"] = num_testcases
-
-
-    with open(save_path / "dataset_information.json", "w") as file:
-        json.dump(statistics_dict, file, indent=2)
 
 
 def select_book_from_opposite_highlevel_genre(all_genres_in_table, grouped_books, opposite_qids):
     """
-    Select a fiction or non-fiction book 
+    Select a fiction or non-fiction book from the opposite high-level genre.
+    Always returns a valid (qid, genre) pair.
     """
-    
-    # Select one random QID from the opposite high-level genre
-    selected_qid_opposite_genre = random.choice(opposite_qids)
-    # get a qid
-    if selected_qid_opposite_genre in all_genres_in_table:
-        try:
-            books_in_opposite_genre = list(grouped_books.get_group(selected_qid_opposite_genre)["QID"])
-            if books_in_opposite_genre:
-                # 3. Select a random book (QID) from that genre's group
-                selected_qid_opposite_book = random.choice(books_in_opposite_genre)
-        except:
-            selected_qid_opposite_book = None
-    else:
-        print(f"{selected_qid_opposite_genre} not in {sorted(all_genres_in_table)}")
-        pass # for these no books were retrieved from wikidata
-        selected_qid_opposite_book = None
-        selected_qid_opposite_genre = None
-            
+    # Filter opposite_qids to those present in grouped_books
+    valid_opposite_genres = [g for g in sorted(opposite_qids) if g in grouped_books.groups]
+    if not valid_opposite_genres:
+        print(f'No valid opposite genres..')
+        raise NotImplementedError("No valid opposite genres found in the book table.")
+
+    selected_qid_opposite_genre = creation_random.choice(valid_opposite_genres)
+    books_in_opposite_genre = list(grouped_books.get_group(selected_qid_opposite_genre)["QID"])
+    selected_qid_opposite_book = creation_random.choice(sorted(books_in_opposite_genre))
 
     return selected_qid_opposite_book, selected_qid_opposite_genre
 
@@ -70,7 +41,7 @@ def create_easy_same_genre_testcases(group, genre, genre_col, group_ids, all_gen
     for _ in range(weight):
         if all_pairs_in_genre:
             # Select a random pair from the unique pairs
-            selected_pair = random.choice(all_pairs_in_genre)
+            selected_pair = creation_random.choice(sorted(all_pairs_in_genre))
 
             selected_qid_opposite_book, selected_qid_opposite_genre = select_book_from_opposite_highlevel_genre(all_genres_in_table=all_genres_in_table, grouped_books=grouped_books, opposite_qids=opposite_qids)
 
@@ -105,10 +76,10 @@ def create_medium_sibling_genre_testcases(group, genre, genre_col, group_ids, al
     for _ in range(weight):
         
         # Select a random book id from the group
-        selected_book = random.choice(group_ids)
+        selected_book = creation_random.choice(sorted(group_ids))
 
         # select a sibling genre
-        selected_sibling_genre = random.choice(genre_siblings)
+        selected_sibling_genre = creation_random.choice(sorted(genre_siblings))
         #print(f"Selected sibling: {selected_sibling_genre}")
 
         # Due to casing a few genres are no longer found (TODO: do not change casing when creating hierarchy)
@@ -117,7 +88,7 @@ def create_medium_sibling_genre_testcases(group, genre, genre_col, group_ids, al
         except:
             continue
         #print(f"Sibling books: {books_from_sibling_genre}")
-        sibling_book = random.choice(books_from_sibling_genre)
+        sibling_book = creation_random.choice(sorted(books_from_sibling_genre))
         #print(f"Selected sibling book: {sibling_book}")
 
         selected_qid_opposite_book, selected_qid_opposite_genre = select_book_from_opposite_highlevel_genre(all_genres_in_table=all_genres_in_table, grouped_books=grouped_books, opposite_qids=opposite_qids)
@@ -142,7 +113,9 @@ def create_medium_sibling_genre_testcases(group, genre, genre_col, group_ids, al
 
     return testcases
     
-def create_testcases(book_table: pd.DataFrame, hierarchy: dict, dataset_save_dir: Path):
+def create_testcases(book_table: pd.DataFrame, hierarchy: dict):
+    print("#######################################")
+    print(f'Creating testcases for book_table {len(book_table)} rows')
     # get all genres
     all_genres = hierarchy_utils.get_all_keys(hierarchy)
     all_fiction = hierarchy_utils.get_all_keys(hierarchy['genre___Q483394']['fiction___Q8253'])
@@ -161,25 +134,38 @@ def create_testcases(book_table: pd.DataFrame, hierarchy: dict, dataset_save_dir
     if genre_col is None or author_col is None or description_col is None:
         raise ValueError(f"Could not find description, genre or author column in input_table.csv, {book_table.columns}")
 
+    # sort by qid to have a consistent order
+    book_table = book_table.sort_values("QID").reset_index(drop=True)
+
     book_table = book_table[
     (book_table[author_col].notna()) & (book_table[author_col] != "") &
     (book_table[description_col].notna()) & (book_table[description_col] != "")
     ]
 
+    # Build a deterministic genre-to-group mapping
+    genre_to_group = {}
+    unique_genres = sorted(set(book_table[genre_col].dropna().unique()), key=lambda x: str(x).lower())
+    for genre in unique_genres:
+        genre_to_group[genre] = book_table[book_table[genre_col] == genre].sort_values("QID").reset_index(drop=True)
+
+    # Use sorted_genres for all further processing
+    sorted_genres = unique_genres
+
+
     grouped_books = book_table.groupby([genre_col])
+    #sorted_genres = sorted(grouped_books.groups.keys(), key=lambda x: str(x).lower())
 
     # filter all_fiction and all_nonfiction for the genres actually included in the books table
-    all_genres_in_table = [x.lower() for x in grouped_books.groups]
-    all_fiction = [x for x in all_fiction if x.lower() in all_genres_in_table]
-    all_nonfiction = [x for x in all_nonfiction if x.lower() in all_genres_in_table]
+    all_genres_in_table = sorted([x.lower() for x in grouped_books.groups])
+    all_fiction = sorted([x for x in all_fiction if x.lower() in all_genres_in_table])
+    all_nonfiction = sorted([x for x in all_nonfiction if x.lower() in all_genres_in_table])
 
     print(f"{len(grouped_books)} genres")
     testcases = []
 
-    for genre, group in grouped_books:
-        genre = genre[0]
-        #print(f"Genre is {genre}")
-        group_ids = list(group["QID"])
+    for genre in sorted_genres:
+        group = genre_to_group[genre]
+        group_ids = sorted(list(group["QID"]))
 
         # Determine the opposite high-level genre
         current_genre_is_fiction = (genre.lower() in all_fiction)
@@ -202,31 +188,29 @@ def create_testcases(book_table: pd.DataFrame, hierarchy: dict, dataset_save_dir
             ###############################################################################
             # see if the genre has any siblings (TODO: split by ___ search then in the genre names)
             genre_name_in_hierarchy = [x for x in all_genres if genre.lower()+"_" in x.lower()]
-            if not len(genre_name_in_hierarchy) == 1:
+
+            if not genre_name_in_hierarchy:
                 print(f"Got {genre_name_in_hierarchy} while looking for {genre}, skipping for now")
                 continue
-            genre_siblings = hierarchy_utils.find_siblings(nested_dict=hierarchy, target_key=genre_name_in_hierarchy[0])
+
+            # Use the shortest match (most specific), or just the first
+            target_genre_for_siblings = min(genre_name_in_hierarchy, key=len)
+            #print(f'using {target_genre_for_siblings} as target for siblings search for genre {genre}')
+            genre_siblings = hierarchy_utils.find_siblings(nested_dict=hierarchy, target_key=target_genre_for_siblings)
             #print(f"Have the following siblings: {genre_siblings} to {genre} ")
             if genre_siblings:
                 genre_siblings = [x.split("___")[0] for x in genre_siblings]
                 testcases += create_medium_sibling_genre_testcases(group=group, genre=genre, genre_col=genre_col, group_ids=group_ids,  all_genres_in_table=all_genres_in_table, grouped_books=grouped_books, opposite_qids=opposite_qids, genre_siblings=genre_siblings)
 
-    # Save the generated test cases
-    (dataset_save_dir / "test_cases").mkdir(exist_ok=True)
-    for idx,  testcase in enumerate(testcases):
-       with open(dataset_save_dir / "test_cases" / f"{idx}.json", "w") as file:
-           json.dump(testcase, file, indent=2)
-
     print(f"\nGenerated {len(testcases)} test cases.")
 
-    book_table = pd.read_csv(dataset_save_dir / "input_table.csv", low_memory=False)
-    create_statistics(dataset_name="wikidata_books", 
-                      input_table_df=book_table, 
-                      num_testcases=len(testcases),
-                      save_path=dataset_save_dir,
-                      primary_key_column="QID"
-                      )
+    return testcases
 
+def save_testcases(testcases, dataset_save_dir):
+    (dataset_save_dir / "test_cases").mkdir(exist_ok=True)
+    for idx,  testcase in enumerate(testcases):
+        with open(dataset_save_dir / "test_cases" / f"{idx}.json", "w") as file:
+            json.dump(testcase, file, indent=2)
 
 if __name__ == "__main__":
     book_table = pd.read_csv(DATASET_DIR / "input_table.csv", low_memory=False)
@@ -236,6 +220,8 @@ if __name__ == "__main__":
     with open(SAVE_DIR / "hierarchy_for_more_similar_than.json", "r") as file:
         hierarchy = json.load(file)
 
-    create_testcases(book_table, hierarchy, DATASET_DIR)
+    testcases = create_testcases(book_table, hierarchy, DATASET_DIR)
 
+    # Save the generated test cases
+    save_testcases(testcases, DATASET_DIR)
 
