@@ -18,15 +18,15 @@ benchmark_tasks:
   #################################### 
   row_similarity_search: # comment out the tasks you do not want to evaluate on
     datasets:   # comment out the datasets that you do not want to evaluate on 
-      - Amazon-Google
-      - Beer
-      - DBLP-ACM
-      - DBLP-GoogleScholar
-      - Fodors-Zagats
-      - geological-settlements
-      - iTunes-Amazon
-      - MusicBrainz
-      - Walmart-Amazon
+      - Amazon-Google # 4589 rows, 4 columns
+      - Beer # 7345 rows, 5 columns
+      - DBLP-ACM # 4910 rows, 5 columns
+      - DBLP-GoogleScholar # 66879 rows, 5 columns
+      - Fodors-Zagats # 864 rows, 7 columns
+      - geological-settlements # 3054 rows, 8 columns
+      - iTunes-Amazon # 62830 rows, 9 columns
+      - MusicBrainz # 19375 rows, 10 columns 
+      - Walmart-Amazon # 24628 rows, 6 columns
     task_parameters:
       run_similarity_search_based_on: <add_parameter> # needs to be either "row_embeddings" or "custom_function"
   #################################### 
@@ -110,4 +110,4 @@ benchmark_tasks:
       - superconductivity  # 21263 rows, 81 columns, [0/81] categorical
       - physiochemical_protein  # 45730 rows, 9 columns, [0/9] categorical
     task_parameters:
-      run_task_based_on: "custom_predictiveML_model"
+      run_task_based_on: <add_parameter> # needs to be either "row_embeddings" or "custom_function"
