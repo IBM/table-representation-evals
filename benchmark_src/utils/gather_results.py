@@ -84,7 +84,14 @@ def create_excel_files_per_dataset(averaged_data_df: pd.DataFrame, results_folde
         # Filter data for the current task
         task_df = averaged_data_df[averaged_data_df['task'] == task].copy()
 
-        excel_filename = results_folder / f"{task}_results.xlsx"
+        # create folder per task
+        task_folder = results_folder / to_slug(task)
+        task_folder.mkdir(exist_ok=True)
+
+        # save task df to disk
+        task_df.to_csv(task_folder / f"{task}_results.csv", index=False)
+
+        excel_filename = task_folder / f"{task}_results.xlsx"
         with pd.ExcelWriter(excel_filename, engine='xlsxwriter') as writer:
             unique_datasets = task_df['dataset'].unique()
 
@@ -180,7 +187,7 @@ def get_setup_infos(results_file: Path):
 
     return dataset_folder.name, task_folder.name, configuration_folder.name
 
-def gather_results(results_folder: Path):
+def gather_results(results_folder: Path, detailed_results_folder: Path):
     """
     Gathers all results.json files from the nested result directories into a single Pandas DataFrame.
     Assumes the structure: approach/configuration/task/dataset/results.json
@@ -269,9 +276,9 @@ def gather_results(results_folder: Path):
     aggregated_results_df.to_csv(results_folder/"all_results_aggregated.csv", index=False)
 
     # create an excel sheet for each individual task with one sheet per dataset
-    create_excel_files_per_dataset(aggregated_results_df, results_folder=results_folder)
+    create_excel_files_per_dataset(aggregated_results_df, results_folder=detailed_results_folder)
 
-def gather_resources(results_folder: Path):
+def gather_resources(results_folder: Path, detailed_results_folder: Path):
     all_resource_dfs = []
     for results_file in results_folder.rglob("*/resource_metrics_formatted.csv"):
         dataset_name, task_name, configuration_str = get_setup_infos(results_file)
@@ -331,7 +338,12 @@ def gather_resources(results_folder: Path):
     for task in unique_tasks:
         # Filter data for the current task
         task_df = combined_df[combined_df['task'] == task].copy()
-        excel_filename = results_folder / f"{task}_resources.xlsx"
+        
+        # create folder per task
+        task_folder = detailed_results_folder / to_slug(task)
+        task_folder.mkdir(exist_ok=True)
+
+        excel_filename = task_folder / f"{task}_resources.xlsx"
         with pd.ExcelWriter(excel_filename, engine='xlsxwriter') as writer:
             unique_datasets = task_df['dataset'].unique()
 
@@ -366,11 +378,15 @@ def main(cfg: DictConfig) -> None:
     print(f"Gathering based on results folder: *{results_folder}*")
     assert results_folder.exists(), f"Could not find results folder at {results_folder}"
 
+    detailed_results_folder = results_folder / "results_per_task"
+    detailed_results_folder = Path(detailed_results_folder)
+    detailed_results_folder.mkdir(parents=True, exist_ok=True)    
+
     print(f"Calling gather_results")
-    gather_results(results_folder)
+    gather_results(results_folder, detailed_results_folder)
 
     print(f"Calling gather_resources")
-    gather_resources(results_folder)
+    gather_resources(results_folder, detailed_results_folder)
 
 
 if __name__ == "__main__":
