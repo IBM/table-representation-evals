@@ -11,7 +11,7 @@ hydra:
     params:
       approach.n_estimators: 32 # Use fewer estimators for testing and to reduce memory usage
   launcher:
-    n_jobs: 1  # Use single job to avoid Apple Silicon PyTorch issues
+    n_jobs: 4  # Use single job to avoid Apple Silicon PyTorch issues
 
 benchmark_tasks:
   #################################### 

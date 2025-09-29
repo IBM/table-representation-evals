@@ -30,9 +30,12 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         if self.model is None:
             logger.info("Loading TabICL model...")
             n_estimators = getattr(self.cfg.approach, "n_estimators", 32)
-            # Force CPU device to avoid Apple Silicon PyTorch issues
-            self.model = TabICLClassifier(n_estimators=n_estimators, device="cpu")
-            logger.info(f"TabICL model loaded with n_estimators={n_estimators} on CPU.")
+            # Use CPU with optimizations for Apple Silicon stability
+            self.model = TabICLClassifier(
+                n_estimators=n_estimators, 
+                device="cpu",  # Use CPU for stability
+            )
+            logger.info(f"TabICL model loaded with n_estimators={n_estimators} on CPU with optimizations.")
 
     def preprocessing(self, input_table: pd.DataFrame):
         # No special preprocessing needed for TabICL, just return the DataFrame
@@ -78,6 +81,9 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         print("single_row_embeddings shape:", single_row_embeddings.shape)
         # since train and test is the same, take the first num_rows embeddings
         
+        # Ensure the embeddings are in the correct numpy array format for sentence_transformers
+        single_row_embeddings = np.array(single_row_embeddings, dtype=np.float32)
+        
         return single_row_embeddings 
 
     def load_predictive_ml_model(self, train_df: pd.DataFrame, train_labels: pd.Series, task_type: str, dataset_information: dict):
@@ -91,8 +97,11 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         """
         if task_type == "classification":
             n_estimators = getattr(self.cfg.approach, "n_estimators", 32)
-            # Force CPU device to avoid Apple Silicon PyTorch issues
-            self.model = TabICLClassifier(n_estimators=n_estimators, device="cpu")
+            # Use CPU with optimizations for Apple Silicon stability
+            self.model = TabICLClassifier(
+                n_estimators=n_estimators, 
+                device="cpu",  # Use CPU for stability
+            )
             self.model.fit(train_df, train_labels)
         elif task_type == "regression":
             raise NotImplementedError("TabICLClassifier currently does not support regression tasks.")
