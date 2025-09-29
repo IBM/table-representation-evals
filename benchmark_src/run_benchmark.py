@@ -5,8 +5,7 @@ import logging
 import sys
 import traceback
 
-# Import task modules conditionally to avoid ContextAwareJoin dependency issues
-# from benchmark_src.tasks import run_row_similarity_benchmark, run_column_similarity_benchmark, run_predictive_ml_benchmark, run_more_similar_than_benchmark, run_clustering_benchmark
+from benchmark_src.tasks import run_row_similarity_benchmark, run_column_similarity_benchmark, run_predictive_ml_benchmark, run_more_similar_than_benchmark, run_clustering_benchmark
 from benchmark_src.utils.framework import register_resolvers
 
 logger = logging.getLogger(__name__)
@@ -28,19 +27,14 @@ def main(cfg: DictConfig):
     else:
         try:
             if cfg.task.task_name == "row_similarity_search":
-                from benchmark_src.tasks import run_row_similarity_benchmark
                 run_row_similarity_benchmark.main(cfg)
             elif cfg.task.task_name == "predictive_ml":
-                from benchmark_src.tasks import run_predictive_ml_benchmark
                 run_predictive_ml_benchmark.main(cfg)
             elif cfg.task.task_name == "more_similar_than":
-                from benchmark_src.tasks import run_more_similar_than_benchmark
                 run_more_similar_than_benchmark.main(cfg)
             elif cfg.task.task_name == "clustering":
-                from benchmark_src.tasks import run_clustering_benchmark
                 run_clustering_benchmark.main(cfg)
             elif cfg.task.task_name == "column_similarity_search":
-                from benchmark_src.tasks import run_column_similarity_benchmark
                 run_column_similarity_benchmark.main(cfg)
             else:
                 logger.error("Unknown task:", cfg.task)

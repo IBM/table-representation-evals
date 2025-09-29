@@ -19,7 +19,7 @@ benchmark_tasks:
   #################################### 
   row_similarity_search:
     datasets:
-      #- Amazon-Google  # Small dataset for testing
+      - Amazon-Google  # Small dataset for testing
     task_parameters:
       run_similarity_search_based_on: "row_embeddings"  # Use row embeddings
   

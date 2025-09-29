@@ -21,7 +21,7 @@ import faiss
 import numpy as np
 import glob
 from tqdm import tqdm
-from ContextAwareJoin.src.myutils.utilities import load_dataframe, convert_to_dict_of_list, get_groundtruth_with_scores
+from src.myutils.utilities import load_dataframe, convert_to_dict_of_list, get_groundtruth_with_scores
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
