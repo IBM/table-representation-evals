@@ -1,0 +1,33 @@
+# @package _global_
+defaults:
+  - override /approach: tabicl
+  
+benchmark_output_dir: "benchmark_results_test"
+benchmark_datasets_dir: "/Users/niharika.dsouza/Projects/embedding_benchmarks/dataset_creation/created_datasets/row_similarity_data_full"
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.n_estimators: 32 # Use fewer estimators for testing and to reduce memory usage
+  launcher:
+    n_jobs: 1  # Use single job to avoid Apple Silicon PyTorch issues
+
+benchmark_tasks:
+  #################################### 
+  ###### Row Similarity Search
+  #################################### 
+  row_similarity_search:
+    datasets:
+      #- Amazon-Google  # Small dataset for testing
+    task_parameters:
+      run_similarity_search_based_on: "row_embeddings"  # Use row embeddings
+  
+  #################################### 
+  ###### Predictive ML
+  #################################### 
+  predictive_ml:
+    datasets:
+      - hazelnut-spread-contaminant-detection  # 2400 rows, 30 columns, [0/30] categorical
+    task_parameters:
+      run_task_based_on: "custom_predictiveML_model"  # Use TabICL for prediction

@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Set OpenMP library path for XGBoost on macOS
+export DYLD_LIBRARY_PATH="/opt/homebrew/Cellar/libomp/21.1.2/lib:$DYLD_LIBRARY_PATH"
+
 # Access the first command-line argument using $1
 EXPERIMENT_NAME="$1"
 ENV_NAME="$2"
