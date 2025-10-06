@@ -25,7 +25,18 @@ benchmark_tasks:
   #################################### 
   row_similarity_search:
     datasets:
-      - Amazon-Google  # Small dataset for testing
+      #################################### 
+      ## Entity Matching Datasets
+      #################################### 
+      - Amazon-Google  # 4589 rows, 4 columns
+      - Beer  # 7345 rows, 5 columns
+      - DBLP-ACM  # 4910 rows, 5 columns
+      - DBLP-GoogleScholar  # 66879 rows, 5 columns
+      - Fodors-Zagats  # 864 rows, 7 columns
+      - geological-settlements  # 3054 rows, 8 columns
+      - iTunes-Amazon  # 62830 rows, 9 columns
+      - MusicBrainz  # 19375 rows, 10 columns
+      - Walmart-Amazon  # 24628 rows, 6 columns
     task_parameters:
       run_similarity_search_based_on: "row_embeddings"  # Use row embeddings
   
