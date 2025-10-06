@@ -1,0 +1,32 @@
+# HyTrel approach configuration
+approach_name: "hytrel"
+module_path: "approaches/benchmark_approaches_src/hytrel"
+class_name: HyTrelEmbedder
+checkpoint_path: "/Users/niharika.dsouza/Projects/hypergraph-tabular-lm/checkpoints/contrast/contrast_model.pt"  # Path to pre-trained HyTrel contrast checkpoint
+
+# Use default HyTrel model configuration (from bert-base-uncased + custom tokens)
+# This matches the configuration used in HyTrel evaluation scripts
+model_config:
+  # Default BERT-base-uncased configuration
+  vocab_size: 30527  # Updated with custom tokens: ['[TAB]', '[HEAD]', '[CELL]', '[ROW]', "scinotexp"]
+  hidden_size: 768
+  num_layers: 12
+  num_attention_heads: 12
+  intermediate_size: 3072
+  max_position_embeddings: 512
+  type_vocab_size: 2
+  layer_norm_eps: 1e-12
+  hidden_dropout_prob: 0.1
+  attention_probs_dropout_prob: 0.1
+  pad_token_id: 0
+  
+  # HyTrel-specific configuration (from evaluation scripts)
+  pre_norm: false
+  activation_dropout: 0.1
+  gated_proj: false
+  num_hidden_layers: 12  # Required for Encoder
+  
+  # Additional attributes required by HyTrel layers
+  hidden_act: "gelu"
+
+embedding_dim: 768

@@ -15,3 +15,6 @@ openml
 hdbscan
 faiss-cpu
 skrub
+torch-geometric
+transformers
+scikit-learn
