@@ -102,7 +102,10 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
                 n_estimators=n_estimators, 
                 device="cpu",  # Use CPU for stability
             )
-            self.model.fit(train_df, train_labels)
+            
+            # Preprocess the training data to handle categorical/string columns
+            train_df_processed = self._preprocess_for_tabicl(train_df)
+            self.model.fit(train_df_processed, train_labels)
         elif task_type == "regression":
             raise NotImplementedError("TabICLClassifier currently does not support regression tasks.")
         else:
@@ -118,7 +121,9 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             np.ndarray or pd.DataFrame: Predictions as required by the benchmark framework.
         """
         if task_type == "classification":
-            proba_tuple = self.model.predict_proba(test_df)
+            # Preprocess the test data to handle categorical/string columns
+            test_df_processed = self._preprocess_for_tabicl(test_df)
+            proba_tuple = self.model.predict_proba(test_df_processed)
             
             # TabICL returns logits, not probabilities - need to convert using softmax
             if isinstance(proba_tuple, tuple):
@@ -133,4 +138,30 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         elif task_type == "regression":
             raise NotImplementedError("TabICLClassifier currently does not support regression tasks.")
         else:
-            raise ValueError(f"Unknown task_type: {task_type}") 
+            raise ValueError(f"Unknown task_type: {task_type}")
+
+    def _preprocess_for_tabicl(self, input_table: pd.DataFrame) -> pd.DataFrame:
+        """
+        Preprocess the input table for TabICL model by converting categorical/string columns to numerical codes.
+        
+        Args:
+            input_table (pd.DataFrame): Input table to preprocess
+            
+        Returns:
+            pd.DataFrame: Preprocessed table with numerical values only
+        """
+        input_table_clean = input_table.copy()
+        
+        # Handle string columns by converting to categorical codes
+        for col in input_table_clean.columns:
+            if input_table_clean[col].dtype == 'object':
+                # Convert string columns to categorical codes
+                input_table_clean[col] = pd.Categorical(input_table_clean[col]).codes
+            elif input_table_clean[col].dtype == 'category':
+                # Convert categorical columns to codes
+                input_table_clean[col] = input_table_clean[col].cat.codes
+        
+        # Handle NaN values by filling them
+        input_table_clean = input_table_clean.fillna(0)  # Fill NaN with 0
+        
+        return input_table_clean 

@@ -1,3 +1,6 @@
 [submodule "ContextAwareJoin"]
 	path = ContextAwareJoin
 	url = https://github.com/IBM/ContextAwareJoin.git
+[submodule "approaches/benchmark_approaches_src/hytrel/hytrel_src"]
+	path = approaches/benchmark_approaches_src/hytrel/hytrel_src
+	url = https://github.com/awslabs/hypergraph-tabular-lm.git

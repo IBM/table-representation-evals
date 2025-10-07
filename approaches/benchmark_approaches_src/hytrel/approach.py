@@ -294,8 +294,20 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         Returns:
             pd.DataFrame: Preprocessed table ready for HyTrel processing
         """
-        # Handle missing values
-        input_table_clean = input_table.fillna("")
+        # Create a copy to avoid modifying the original
+        input_table_clean = input_table.copy()
+        
+        # Handle categorical columns first
+        for col in input_table_clean.columns:
+            if input_table_clean[col].dtype.name == 'category':
+                # Add empty string as a category if it doesn't exist
+                if "" not in input_table_clean[col].cat.categories:
+                    input_table_clean[col] = input_table_clean[col].cat.add_categories([""])
+                # Fill NaN values with empty string
+                input_table_clean[col] = input_table_clean[col].fillna("")
+            else:
+                # For non-categorical columns, fill NaN values with empty string
+                input_table_clean[col] = input_table_clean[col].fillna("")
         
         # Convert all columns to string for tokenization
         for col in input_table_clean.columns:
