@@ -8,6 +8,7 @@ defaults:
 benchmark_output_dir: ~
 benchmark_datasets_dir: ~
 dataset_name: ~
+cache_dir: ~
 
 # for test purposes, you can limit the number of testcases to run
 test_case_limit: null # int or null
