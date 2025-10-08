@@ -1,5 +1,6 @@
 import pandas as pd
 import logging
+import torch
 
 from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
 
@@ -39,6 +40,7 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
         all_rows = self.approach_instance.preprocessing(input_table=input_table)
         logger.debug(f"GritLM: Preprocessed the rows, next encode them. Have {len(all_rows)} rows")
         # encode the rows
-        row_embeddings = self.approach_instance.model.encode(all_rows, instruction=self.gritlm_instruction(""), show_progress_bar=True)
+        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+            row_embeddings = self.approach_instance.model.encode(all_rows, instruction=self.gritlm_instruction(""), show_progress_bar=True)
         logger.debug(f"Done creating the row embeddings")
         return row_embeddings

@@ -34,27 +34,23 @@ BEGIN {
     current_task = substr($0, 6)
     print "Processing task:", current_task
 }
-/^DATASETS:/ {
+/^DATASET:/ {
     # Extract the datasets string
-    datasets_string = substr($0, 10)
-    # Split the datasets string by space
-    split(datasets_string, datasets_array, " ")
+    current_dataset = substr($0, 9)
+}
+/^VARIATION:/ {
+    variation = substr($0, 11)
+    print "  Running benchmark for variation:", variation
 
-    # Loop through the datasets for the current task
-    for (i = 1; i in datasets_array; i++) {
-        dataset = datasets_array[i]
-        print "  Running benchmark for dataset:", dataset
-        # Execute the benchmark script for each task/dataset combination
-        # Use the Awk variable 'experiment_var' in the system command
-        command = "python benchmark_src/run_benchmark.py experiment=" experiment_var " task=\"" current_task "\" dataset_name=\"" dataset "\""
-        result = system(command)
-        if (result != 0) {
-                    exit_on_error = 1 # Set flag if command fails
-                    break # Exit the inner loop (datasets)
-                }
-            }
-    if (exit_on_error == 1) {
-        exit 1 # Exit awk if a command failed in the loop
+    # Execute benchmark script for this variation
+    command = "python benchmark_src/run_benchmark.py experiment=" experiment_var \
+              " task=\"" current_task "\"" \
+              " dataset_name=\"" variation "\""
+
+    result = system(command)
+    if (result != 0) {
+        exit_on_error = 1
+        exit 1
     }
 }
 END {
@@ -63,6 +59,9 @@ END {
     }
 }
 '
+
+echo "-------------------------------------"
+echo "Completed the experiments, gathering the results next"
 
 python benchmark_src/utils/gather_results.py results_folder_name=$RESULTS_FOLDER_NAME
 

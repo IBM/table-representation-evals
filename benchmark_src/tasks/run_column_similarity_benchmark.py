@@ -6,8 +6,8 @@ import json
 import pickle
 import os
 import ContextAwareJoin
-from ContextAwareJoin.src.myutils.evaluation import compute_mrr_from_list, compute_map_from_list, compute_ndcg, \
-    compute_precision_recall_at_k
+from ContextAwareJoin.src.myutils.evaluation import compute_mrr_from_list, compute_map_from_list, compute_ndcg, compute_precision_recall_at_k
+from ContextAwareJoin.src.myutils.utilities import convert_to_dict_of_list
 from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
 from benchmark_src.utils import gather_results, framework
@@ -39,6 +39,7 @@ def load_benchmark_data(cfg):
             if not dirnames:
                 leaf_dirs.append(dirpath)
         return leaf_dirs
+
 
     test_cases = {}
     if cfg.dataset_name.lower() == "valentine":
@@ -108,6 +109,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     _, resource_metrics_setup = component_utils.run_model_setup(component=column_embedding_component,
                                                                     input_table=None, dataset_information=None)
 
+<<<<<<< HEAD
     for table2dfs, gt_data, dataset in test_cases:
         if not os.path.exists(f'{results_file}/{dataset}.pkl'):
             for table in table2dfs:
@@ -162,6 +164,38 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 joinable_list.append(r)
             result.append({"source": {"filename": source_table, "col": source_col,
                       "joinable_list": joinable_list}})
+=======
+        for table in table2dfs:
+            t = os.path.basename(table).replace('.csv', '')
+            
+            all_columns[t] = {}
+            column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=table2dfs[table])
+            for idx, c in enumerate(column_names):
+                c = t + '.' + c
+                all_columns[t][c] = column_embeddings[idx]
+        with open(f'{results_file}/{datalake}.pkl', "wb") as file:
+            pickle.dump(all_columns, file)
+    else:
+        with open(f'{results_file}/{datalake}.pkl', "rb") as file:
+            all_columns = pickle.load(file)
+            resource_metrics_setup = None
+
+    all_cols = []
+    all_indexes = {}
+    i = 0
+    for table in all_columns:
+        for column in all_columns[table]:
+            all_indexes[i] = table, column
+            i += 1
+            all_cols.append(all_columns[table][column])
+    arr = np.asarray(all_cols)
+
+    assert len(all_cols) == len(all_indexes)
+    print('size of all indexes', len(all_indexes))    
+
+    index = faiss.IndexFlatL2(arr[0].size)
+    index.add(arr)
+>>>>>>> 9d40a91357d545a140865e5ae6434e2ce5ed03dc
 
 
         dict = {}
@@ -170,6 +204,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             dict[json_line['source']['col']] = {i['col']: 1 for i in json_line['joinable_list']}
         result = dict
 
+<<<<<<< HEAD
         result = convert_to_dict_of_list(result)
         gt_with_score = get_groundtruth_with_scores(gt_data)
         missing_queries =  set(gt_data.keys())-set(result.keys())
@@ -181,16 +216,57 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         metric_res[dataset] = {'MRR': MRR, 'MAP': MAP, 'NDCG': NDCG, 'Precision':Precision, 'Recall': Recall}
 
     return metric_res, resource_metrics_setup
+=======
+    search_source_cols = list(gt_data.keys())
+    for k in search_source_cols:
+        table = k.split('.')[0]
+        search_sources.append(all_columns[table][k])
+
+    print('size of search_sources', len(search_sources))
+
+    search_sources = np.asarray(search_sources)
+
+    k = 11  # TBD how do we set k from config
+
+    D, I = index.search(search_sources, k)
+
+    result = {}
+    print('gt data')
+
+    for x, i in enumerate(I):
+        source_col = search_source_cols[x]
+        result[source_col] = []
+        for y, neighbor in enumerate(i):
+            target_table, target_col = all_indexes[neighbor]
+            result[source_col].append(target_col)
+            #assert source_col in gt_data, source_col
+            print('source_col', source_col)
+            print('expected', gt_data[source_col])
+            print('target', target_col)
+        if x > 5:
+            break
+
+            
+    MRR = compute_mrr_from_list(gt_data, result, k)
+    MAP = compute_map_from_list(gt_data, result, k)
+    #NDCG = compute_ndcg(gt_data, result, k=k)
+    Precision, Recall  = compute_precision_recall_at_k(gt_data, result, k)
+    #metric_res[datalake] = {'MRR': MRR, 'MAP': MAP, 'NDCG': NDCG, 'Precision':Precision, 'Recall': Recall}
+    metric_res[datalake] = {'MRR': MRR, 'MAP': MAP, 'Precision':Precision, 'Recall': Recall}
+    print(metric_res)
+    
+    return (metric_res, resource_metrics_setup)
+>>>>>>> 9d40a91357d545a140865e5ae6434e2ce5ed03dc
 
 
 def main(cfg: DictConfig):
-    logger.debug(f"Started clustering")
+    logger.debug(f"Started embedding")
     logger.debug(f"Received cfg:")
     logger.debug(cfg)
     multiprocessing.set_start_method("spawn", force=True) 
 
     # run inference with model
-    logger.info(f"Running clustering based on row embeddings")
+    logger.info(f"Running column similarity based on column embeddings")
     cluster_ranges =[1000]
 
     result, resource_metrics_task = run_inference_based_on_column_embeddings(cluster_ranges=cluster_ranges, cfg=cfg)
