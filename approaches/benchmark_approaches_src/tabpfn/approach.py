@@ -30,8 +30,22 @@ class TabPFNEmbedder(BaseTabularEmbeddingApproach):
             logger.info(f"TabPFN models loaded with device={device}.")
 
     def preprocessing(self, input_table: pd.DataFrame):
-        # TabPFN handles preprocessing internally, just return the DataFrame
-        return input_table
+        """Preprocess data for TabPFN by converting categorical columns to numerical."""
+        # TabPFN requires all features to be numerical
+        processed_table = input_table.copy()
+        
+        # Convert categorical columns to numerical codes
+        for col in processed_table.columns:
+            if processed_table[col].dtype == 'object' or processed_table[col].dtype.name == 'category':
+                # Use label encoding for categorical columns
+                processed_table[col] = pd.Categorical(processed_table[col]).codes
+                # Handle any remaining NaN values
+                processed_table[col] = processed_table[col].fillna(-1)
+        
+        # Fill any remaining NaN values with 0
+        processed_table = processed_table.fillna(0)
+        
+        return processed_table
 
     def get_row_embeddings(self, input_table: pd.DataFrame):
         """
@@ -39,14 +53,17 @@ class TabPFNEmbedder(BaseTabularEmbeddingApproach):
         """
         self.load_trained_model()
         
+        # Preprocess the input table
+        processed_table = self.preprocessing(input_table)
+        
         # Create dummy labels for fitting (required for TabPFN)
-        y_dummy = np.zeros(len(input_table))
+        y_dummy = np.zeros(len(processed_table))
         
         # Fit the model to enable embedding extraction
-        self.model.fit(input_table, y_dummy)
+        self.model.fit(processed_table, y_dummy)
         
         # Extract embeddings using TabPFN's get_embeddings method
-        embeddings = self.model.get_embeddings(input_table, data_source='test')
+        embeddings = self.model.get_embeddings(processed_table, data_source='test')
         
         # Handle ensemble output: average across ensemble members
         if len(embeddings.shape) == 3:  # (n_estimators, n_samples, embedding_dim)
@@ -66,13 +83,16 @@ class TabPFNEmbedder(BaseTabularEmbeddingApproach):
         """
         self.load_trained_model()
         
+        # Preprocess the training data
+        processed_train_df = self.preprocessing(train_df)
+        
         if task_type == "classification":
             self.model = self.classifier
-            self.model.fit(train_df, train_labels)
+            self.model.fit(processed_train_df, train_labels)
             logger.info("TabPFN classifier fitted for classification task.")
         elif task_type == "regression":
             self.model = self.regressor
-            self.model.fit(train_df, train_labels)
+            self.model.fit(processed_train_df, train_labels)
             logger.info("TabPFN regressor fitted for regression task.")
         else:
             raise ValueError(f"Unknown task_type: {task_type}")
@@ -86,13 +106,16 @@ class TabPFNEmbedder(BaseTabularEmbeddingApproach):
         Returns:
             np.ndarray: Predictions as required by the benchmark framework.
         """
+        # Preprocess the test data
+        processed_test_df = self.preprocessing(test_df)
+        
         if task_type == "classification":
             # For classification, return probabilities for all classes
-            proba = self.model.predict_proba(test_df)
+            proba = self.model.predict_proba(processed_test_df)
             return proba  # Return all class probabilities
                 
         elif task_type == "regression":
             # For regression, return the predicted values
-            return self.model.predict(test_df)
+            return self.model.predict(processed_test_df)
         else:
             raise ValueError(f"Unknown task_type: {task_type}") 

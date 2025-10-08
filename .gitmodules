@@ -4,3 +4,6 @@
 [submodule "approaches/benchmark_approaches_src/hytrel/hytrel_src"]
 	path = approaches/benchmark_approaches_src/hytrel/hytrel_src
 	url = https://github.com/awslabs/hypergraph-tabular-lm.git
+[submodule "approaches/benchmark_approaches_src/contexttab/contexttab_src"]
+	path = approaches/benchmark_approaches_src/contexttab/contexttab_src
+	url = https://github.com/SAP-samples/contexttab.git
