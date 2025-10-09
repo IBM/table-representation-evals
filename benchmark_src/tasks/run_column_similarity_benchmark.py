@@ -47,7 +47,6 @@ def load_benchmark_data(cfg):
     else:
         leaf_dirs = [dataset_dir]
 
-
     for dataset in leaf_dirs:
         datalake_tables = glob.glob(f"{dataset}/**/*{file_format}", recursive=True)
         # for column similarity tasks, groups of tables are in datalakes
@@ -63,8 +62,12 @@ def load_benchmark_data(cfg):
             except:
                 print("Cannot find table", table)
 
-        gt = glob.glob(f"{dataset_dir}/**/gt.*", recursive=True)
-        gt = [x for x in gt if x.endswith('json') or x.endswith('jsonl') or x.endswith('pickle')]
+        if cfg.dataset_name.lower() == "valentine":
+            gt = glob.glob(f"{dataset}/*mapping.json", recursive=True)
+        else:
+            gt = glob.glob(f"{dataset}/**/gt.*", recursive=True)
+            gt = [x for x in gt if x.endswith('json') or x.endswith('jsonl') or x.endswith('pickle')]
+
         assert len(gt) == 1
         gt = gt[0]
 
@@ -78,15 +81,15 @@ def load_benchmark_data(cfg):
             raise NotImplementedError
         test_cases[dataset] = table2dfs, gt_data, dataset.replace('/', '_')
 
+
     return test_cases
 
 
 @monitor_resources()
 def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     # get column embeddings and assert they have the correct format and shape
-    # instantiate the embedding approach class
-
-    results_file = os.path.join(cfg.benchmark_output_dir, "all_column_embeddings")
+    # instantiate the embedding approach clas
+    results_file = os.path.join(cfg.cache_dir, "all_column_embeddings")
     if not os.path.exists(results_file):
         os.makedirs(results_file)
 
@@ -97,20 +100,16 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     embedder = embedding_approach_class(cfg)
 
     test_cases = load_benchmark_data(cfg)
-
-    all_columns = {}
-
-    if not os.path.exists(f'{results_file}/{datalake}.pkl'):
-        logger.info(f"Starting to get column embeddings for datalake {datalake} columns")
-        ## load the needed component
     column_embedding_component = embedder._load_component("column_embedding_component", "ColumnEmbeddingComponent",
                                                               ColumnEmbeddingInterface)
     ## setup model
     _, resource_metrics_setup = component_utils.run_model_setup(component=column_embedding_component,
                                                                     input_table=None, dataset_information=None)
 
-<<<<<<< HEAD
-    for table2dfs, gt_data, dataset in test_cases:
+    for testcase in test_cases:
+        all_columns = {}
+        table2dfs, gt_data, dataset = test_cases[testcase]
+
         if not os.path.exists(f'{results_file}/{dataset}.pkl'):
             for table in table2dfs:
                 t = os.path.basename(table).replace('.csv', '')
@@ -141,10 +140,25 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         index = faiss.IndexFlatL2(arr[0].size)
         index.add(arr)
         search_sources = []
+        searched_indexes = []
 
-        for k in gt_data:
-            table = k.split('.')[0]
-            search_sources.append(all_columns[table][k])
+        new_gt = {}
+        if cfg.dataset_name == 'valentine':
+            for match in gt_data['matches']:
+                table = match['source_table']
+                column = table + '.' + match['source_column']
+                if column not in new_gt:
+                    new_gt[column] = []
+                l = new_gt[column]
+                searched_indexes.append((table, column))
+                search_sources.append(all_columns[table][column])
+                column = match['target_table'] + '.' + match['target_column']
+                l.append(column)
+        else:
+            new_gt = gt_data
+            for k in gt_data:
+                table = k.split('.')[0]
+                search_sources.append(all_columns[table][k])
 
         search_sources = np.asarray(search_sources)
 
@@ -152,111 +166,29 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
         D, I = index.search(search_sources, k)
 
-        result = []
+        result = {}
         for x, i in enumerate(I):
-            source_table, source_col = all_indexes[x]
+            source_table, source_col = searched_indexes[x]
             joinable_list = []
-            for y, neighbor in enumerate(I[i]):
+            result[source_col] = joinable_list
+            for y, neighbor in enumerate(i):
                 target_table, target_col = all_indexes[neighbor]
-                r = {"filename": target_table,
-                     "col": target_col,
-                     "score": float(D[x][y])}
+                r = target_col
                 joinable_list.append(r)
-            result.append({"source": {"filename": source_table, "col": source_col,
-                      "joinable_list": joinable_list}})
-=======
-        for table in table2dfs:
-            t = os.path.basename(table).replace('.csv', '')
-            
-            all_columns[t] = {}
-            column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=table2dfs[table])
-            for idx, c in enumerate(column_names):
-                c = t + '.' + c
-                all_columns[t][c] = column_embeddings[idx]
-        with open(f'{results_file}/{datalake}.pkl', "wb") as file:
-            pickle.dump(all_columns, file)
-    else:
-        with open(f'{results_file}/{datalake}.pkl', "rb") as file:
-            all_columns = pickle.load(file)
-            resource_metrics_setup = None
 
-    all_cols = []
-    all_indexes = {}
-    i = 0
-    for table in all_columns:
-        for column in all_columns[table]:
-            all_indexes[i] = table, column
-            i += 1
-            all_cols.append(all_columns[table][column])
-    arr = np.asarray(all_cols)
+        missing_queries = set(new_gt.keys())-set(result.keys())
 
-    assert len(all_cols) == len(all_indexes)
-    print('size of all indexes', len(all_indexes))    
+        logger.debug(f"Result file is missing {len(missing_queries)} queries out of {len(new_gt)}")
+        assert len(missing_queries) == 0, missing_queries
 
-    index = faiss.IndexFlatL2(arr[0].size)
-    index.add(arr)
->>>>>>> 9d40a91357d545a140865e5ae6434e2ce5ed03dc
+        MRR = compute_mrr_from_list(new_gt, result, k)
+        MAP = compute_map_from_list(new_gt, result, k)
+        Precision, Recall  = compute_precision_recall_at_k(new_gt, result, k)
+        metric_res[dataset] = {'MRR': MRR, 'MAP': MAP, 'Precision':Precision, 'Recall': Recall}
 
-
-        dict = {}
-        for line in result:
-            json_line = json.loads(line)
-            dict[json_line['source']['col']] = {i['col']: 1 for i in json_line['joinable_list']}
-        result = dict
-
-<<<<<<< HEAD
-        result = convert_to_dict_of_list(result)
-        gt_with_score = get_groundtruth_with_scores(gt_data)
-        missing_queries =  set(gt_data.keys())-set(result.keys())
-        logger.log(f"Result file is missing {len(missing_queries)} queries out of {len(gt_data)}")
-        MRR = compute_mrr_from_list(gt_data, result, k)
-        MAP = compute_map_from_list(gt_data, result, k)
-        NDCG = compute_ndcg(gt_with_score, result, k=k)
-        Precision, Recall  = compute_precision_recall_at_k(gt_data, result, k)
-        metric_res[dataset] = {'MRR': MRR, 'MAP': MAP, 'NDCG': NDCG, 'Precision':Precision, 'Recall': Recall}
+        print(dataset, 'MRR', "MAP", "Precision", "Recall", MRR, MAP, Precision, Recall)
 
     return metric_res, resource_metrics_setup
-=======
-    search_source_cols = list(gt_data.keys())
-    for k in search_source_cols:
-        table = k.split('.')[0]
-        search_sources.append(all_columns[table][k])
-
-    print('size of search_sources', len(search_sources))
-
-    search_sources = np.asarray(search_sources)
-
-    k = 11  # TBD how do we set k from config
-
-    D, I = index.search(search_sources, k)
-
-    result = {}
-    print('gt data')
-
-    for x, i in enumerate(I):
-        source_col = search_source_cols[x]
-        result[source_col] = []
-        for y, neighbor in enumerate(i):
-            target_table, target_col = all_indexes[neighbor]
-            result[source_col].append(target_col)
-            #assert source_col in gt_data, source_col
-            print('source_col', source_col)
-            print('expected', gt_data[source_col])
-            print('target', target_col)
-        if x > 5:
-            break
-
-            
-    MRR = compute_mrr_from_list(gt_data, result, k)
-    MAP = compute_map_from_list(gt_data, result, k)
-    #NDCG = compute_ndcg(gt_data, result, k=k)
-    Precision, Recall  = compute_precision_recall_at_k(gt_data, result, k)
-    #metric_res[datalake] = {'MRR': MRR, 'MAP': MAP, 'NDCG': NDCG, 'Precision':Precision, 'Recall': Recall}
-    metric_res[datalake] = {'MRR': MRR, 'MAP': MAP, 'Precision':Precision, 'Recall': Recall}
-    print(metric_res)
-    
-    return (metric_res, resource_metrics_setup)
->>>>>>> 9d40a91357d545a140865e5ae6434e2ce5ed03dc
 
 
 def main(cfg: DictConfig):
