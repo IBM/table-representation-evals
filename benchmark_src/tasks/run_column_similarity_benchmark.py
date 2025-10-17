@@ -18,6 +18,7 @@ import glob
 from tqdm import tqdm
 from ContextAwareJoin.src.myutils.utilities import load_dataframe, convert_to_dict_of_list, get_groundtruth_with_scores
 from pathlib import Path
+import statistics
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
         search_sources = np.asarray(search_sources)
 
-        k = 4  # TBD how do we set k from config
+        k = 2  # TBD how do we set k from config
 
         D, I = index.search(search_sources, k)
 
@@ -181,14 +182,27 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         logger.debug(f"Result file is missing {len(missing_queries)} queries out of {len(new_gt)}")
         assert len(missing_queries) == 0, missing_queries
 
-        MRR = compute_mrr_from_list(new_gt, result, k)
-        MAP = compute_map_from_list(new_gt, result, k)
-        Precision, Recall  = compute_precision_recall_at_k(new_gt, result, k)
+        MRR = compute_mrr_from_list(new_gt, result, 1)
+        MAP = compute_map_from_list(new_gt, result, 1)
+        Precision, Recall  = compute_precision_recall_at_k(new_gt, result, 1)
         metric_res[dataset] = {'MRR': MRR, 'MAP': MAP, 'Precision':Precision, 'Recall': Recall}
 
         print(dataset, 'MRR', "MAP", "Precision", "Recall", MRR, MAP, Precision, Recall)
 
-    return metric_res, resource_metrics_setup
+    result = {}
+    for dataset in metric_res:
+        for key in metric_res[dataset]:
+            if key not in result:
+                result[key] = []
+            result[key].append(metric_res[dataset][key])
+
+    print('Result', result)
+    summary_result = {}
+    for key in result:
+        summary_result[key + '_mean'] = statistics.mean(result[key])
+        summary_result[key + '_std'] = statistics.stdev(result[key])
+
+    return summary_result, resource_metrics_setup
 
 
 def main(cfg: DictConfig):
