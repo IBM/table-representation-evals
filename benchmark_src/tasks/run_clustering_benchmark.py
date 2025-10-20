@@ -11,7 +11,7 @@ import os
 
 from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
-from benchmark_src.utils import gather_results, framework
+from benchmark_src.utils import framework, result_utils
 from benchmark_src.tasks import component_utils
 import faiss
 import numpy as np
@@ -120,7 +120,7 @@ def main(cfg: DictConfig):
     # remove prediction labels from result metrics
     del result_metrics["pred_labels"]
     # save the other metrics to disk
-    gather_results.save_results(cfg=cfg, metrics=result_metrics)
+    result_utils.save_results(cfg=cfg, metrics=result_metrics)
 
     
 

@@ -10,7 +10,7 @@ from ContextAwareJoin.src.myutils.evaluation import compute_mrr_from_list, compu
 from ContextAwareJoin.src.myutils.utilities import convert_to_dict_of_list
 from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
-from benchmark_src.utils import gather_results, framework
+from benchmark_src.utils import framework, result_utils
 from benchmark_src.tasks import component_utils
 import faiss
 import numpy as np
@@ -223,7 +223,7 @@ def main(cfg: DictConfig):
         save_resource_metrics_to_disk(cfg=cfg, resource_metrics_setup=resource_metrics_setup, resource_metrics_task=resource_metrics_task)
 
     # save the other metrics to disk
-    gather_results.save_results(cfg=cfg, metrics=result_metrics)
+    result_utils.save_results(cfg=cfg, metrics=result_metrics)
 
     
 

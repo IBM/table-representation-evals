@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from tqdm import tqdm
 import pandas as pd
-import sentence_transformers
 import logging
 import multiprocessing
 
@@ -12,7 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
-from benchmark_src.utils import load_benchmark, benchmark_metrics, gather_results, framework
+from benchmark_src.utils import load_benchmark, framework, result_utils
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
 from benchmark_src.dataset_creation.wikidata_books import create_books_dataset
 from benchmark_src.dataset_creation.create_variations import create_dataset_variations
@@ -155,4 +154,4 @@ def main(cfg: DictConfig):
     result_metrics = {"accuracy": overall_accuracy}
     result_metrics.update(accuracy_by_difficulty)
     logger.info(result_metrics)
-    gather_results.save_results(cfg=cfg, metrics=result_metrics)
+    result_utils.save_results(cfg=cfg, metrics=result_metrics)
