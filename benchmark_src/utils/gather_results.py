@@ -10,6 +10,7 @@ import ast
 import logging
 import attrs
 from hydra.core.config_store import ConfigStore
+import hashlib
 
 from benchmark_src.utils import benchmark_metrics
 
@@ -38,6 +39,40 @@ performance_cols = {
     'KNeighbors_log_loss (↓)': 'lower_is_better'
 }
 
+def sanitize_sheet_name(name: str) -> tuple[str, str | None]:
+    """
+    Returns a valid Excel sheet name and optionally a hash (if name was truncated).
+    Truncates intelligently at @@ if present.
+    """
+    import re, hashlib
+
+    # Replace invalid characters
+    name_clean = re.sub(r'[\[\]\:\*\?\/\\]+', ' ', str(name))
+    name_clean = re.sub(r'\s+', ' ', name_clean).strip()
+
+    max_length = 31
+    hash_suffix = None
+
+    if len(name_clean) > max_length:
+        # Name too long -> compute short hash
+        hash_suffix = hashlib.md5(name.encode()).hexdigest()[:6]
+
+        # Try to truncate after @@
+        if '@@' in name_clean:
+            prefix = name_clean.split('@@')[0]
+        else:
+            prefix = name_clean
+
+        # Ensure prefix + '_' + hash fits Excel limit
+        max_prefix_length = max_length - len(hash_suffix) - 1
+        if len(prefix) > max_prefix_length:
+            prefix = prefix[:max_prefix_length]
+
+        sheet_name = f"{prefix}_{hash_suffix}"
+    else:
+        sheet_name = name_clean
+
+    return sheet_name, hash_suffix
 
 def save_results(cfg, metrics: dict):
     """
@@ -92,47 +127,51 @@ def create_excel_files_per_dataset(averaged_data_df: pd.DataFrame, results_folde
         task_df.to_csv(task_folder / f"{task}_results.csv", index=False)
 
         excel_filename = task_folder / f"{task}_results.xlsx"
+
         with pd.ExcelWriter(excel_filename, engine='xlsxwriter') as writer:
             unique_datasets = task_df['dataset'].unique()
 
             for dataset in unique_datasets:
-                # Filter data for the current dataset
                 dataset_df = task_df[task_df['dataset'] == dataset].copy()
-                # drop columns with all nans (result metrics from other tasks will be nan)
                 dataset_df = dataset_df.dropna(axis=1, how="all")
 
-                # Select columns that end with '_std'
                 std_cols = [col for col in dataset_df.columns if col.endswith('_std')]
                 dataset_df['Deterministic runs?'] = None
                 condition = dataset_df['# Runs'] > 1
-                # Check if all values in these columns are nearly zero for each row, but only if there was more than one run
                 dataset_df.loc[condition, 'Deterministic runs?'] = (dataset_df.loc[condition, std_cols].abs() < tolerance).all(axis=1)
 
-                # Combine mean and std columns into a single column with format "mean (std)"
+                # Combine mean and std columns
                 for col in dataset_df.columns:
                     if col.endswith('_mean'):
                         std_col = col.replace('_mean', '_std')
                         if std_col in dataset_df.columns:
                             new_col_name = col.replace('_mean', ' mean (std)')
-                            dataset_df[new_col_name] = dataset_df[col].round(mean_decimals).astype(str) + ' (' + dataset_df[std_col].round(std_decimals).astype(str) + ')'
-                            # Drop the original std and mean columns
+                            dataset_df[new_col_name] = (
+                                dataset_df[col].round(mean_decimals).astype(str) +
+                                ' (' +
+                                dataset_df[std_col].round(std_decimals).astype(str) +
+                                ')'
+                            )
                             dataset_df = dataset_df.drop(columns=[std_col, col])
 
-                # drop task and dataset columns
                 dataset_df = dataset_df.drop(columns=["task", "dataset"])
 
-                if len(dataset) > 31: # excel worksheet names must be <= 31 characters
-                    sheet_name = dataset[:31]
-                else:
-                    sheet_name = dataset
+                # Sanitize sheet name
+                sheet_name, _ = sanitize_sheet_name(dataset)
 
-                dataset_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                # Write the full dataset name in the first row, leave second row empty, then df
+                dataset_df.to_excel(writer, sheet_name=sheet_name, startrow=2, index=False)
+                worksheet = writer.sheets[sheet_name]
+                worksheet.write(0, 0, dataset)  # write full dataset name in first row
+
+                # Adjust column widths
                 for column in dataset_df:
                     column_length = max(dataset_df[column].astype(str).map(len).max(), len(column)) + 2
                     col_idx = dataset_df.columns.get_loc(column)
-                    writer.sheets[sheet_name].set_column(col_idx, col_idx, column_length)
+                    worksheet.set_column(col_idx, col_idx, column_length)
 
         print(f"Excel file created for task '{task}': {excel_filename}")
+
 
 def aggregate_results(df: pd.DataFrame, grouping_columns: list, rename: bool=False) -> pd.DataFrame:
     """
@@ -355,11 +394,9 @@ def gather_resources(results_folder: Path, detailed_results_folder: Path):
 
                 multi_index_cols = [x if isinstance(x, tuple) else ("Info", x) for x in dataset_df.columns]
                 dataset_df.columns = pd.MultiIndex.from_tuples(multi_index_cols, names=["Stage", "Metric"])
-
-                if len(dataset) > 31: # excel worksheet names must be <= 31 characters
-                    sheet_name = dataset[:31]
-                else:
-                    sheet_name = dataset
+                
+                # excel worksheet names must be <= 31 characters and cannot include certain characters
+                sheet_name, _ = sanitize_sheet_name(dataset)
 
                 dataset_df.to_excel(writer, sheet_name=sheet_name)
 
