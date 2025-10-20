@@ -1,0 +1,8 @@
+approach_name: tabicl
+
+module_path: "approaches/benchmark_approaches_src/tabicl"
+class_name: TabICLEmbedder
+
+# --------- TabICL specific parameters --------
+# Number of estimators for the ensemble (default: 32)
+n_estimators: 32

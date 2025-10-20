@@ -13,5 +13,8 @@ device: ~
 # Maximum sequence length for tokenization
 max_length: ~
 
-# Batch size for processing
-batch_size: ~ 
+# Batch size for processing (recommended: 1 for few-shot prompting)
+batch_size: ~
+
+# Number of few-shot examples to use (default: 10)
+n_few_shot_examples: 10 
