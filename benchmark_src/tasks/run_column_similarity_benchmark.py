@@ -5,9 +5,14 @@ from hydra.utils import get_original_cwd
 import json
 import pickle
 import os
-import ContextAwareJoin
-from ContextAwareJoin.src.myutils.evaluation import compute_mrr_from_list, compute_map_from_list, compute_ndcg, compute_precision_recall_at_k
-from ContextAwareJoin.src.myutils.utilities import convert_to_dict_of_list
+import sys
+# Add ContextAwareJoin to Python path
+context_aware_join_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ContextAwareJoin')
+if context_aware_join_path not in sys.path:
+    sys.path.insert(0, context_aware_join_path)
+
+from src.myutils.evaluation import compute_mrr_from_list, compute_map_from_list, compute_ndcg, compute_precision_recall_at_k
+from src.myutils.utilities import convert_to_dict_of_list
 from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
 from benchmark_src.utils import gather_results, framework
@@ -16,7 +21,7 @@ import faiss
 import numpy as np
 import glob
 from tqdm import tqdm
-from ContextAwareJoin.src.myutils.utilities import load_dataframe, convert_to_dict_of_list, get_groundtruth_with_scores
+from src.myutils.utilities import load_dataframe, convert_to_dict_of_list, get_groundtruth_with_scores
 from pathlib import Path
 import statistics
 

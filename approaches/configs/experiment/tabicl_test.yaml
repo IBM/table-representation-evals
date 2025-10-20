@@ -1,0 +1,95 @@
+# @package _global_
+defaults:
+  - override /approach: tabicl
+  
+benchmark_output_dir: "benchmark_results_test"
+benchmark_datasets_dir: "/Users/niharika.dsouza/Projects/embedding_benchmarks/dataset_creation/created_datasets/row_similarity_data_full"
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.n_estimators: 32 # Use fewer estimators for testing and to reduce memory usage
+  launcher:
+    n_jobs: 10  # Use single job to avoid Apple Silicon PyTorch issues
+
+benchmark_tasks:
+  #################################### 
+  ###### Row Similarity Search
+  ####################################
+ row_similarity_search:
+    datasets:
+      #################################### 
+      ## Entity Matching Datasets
+      #################################### 
+      - Amazon-Google  # 4589 rows, 4 columns
+      - Beer  # 7345 rows, 5 columns
+      - DBLP-ACM  # 4910 rows, 5 columns
+      - DBLP-GoogleScholar  # 66879 rows, 5 columns
+      - Fodors-Zagats  # 864 rows, 7 columns
+      - geological-settlements  # 3054 rows, 8 columns
+      - iTunes-Amazon  # 62830 rows, 9 columns
+      - MusicBrainz  # 19375 rows, 10 columns
+      - Walmart-Amazon  # 24628 rows, 6 columns
+    task_parameters:
+      run_similarity_search_based_on: "row_embeddings"  
+  #################################### 
+  ###### Predictive ML
+  #################################### 
+ predictive_ml:
+    datasets:
+      #################################### 
+      ## Binary-classification (with string columns)
+      #################################### 
+      - credit-g  # 1000 rows, 20 columns, [13/20] categorical
+      - Fitness_Club  # 1500 rows, 6 columns, [3/6] categorical
+      - Is-this-a-good-customer  # 1723 rows, 13 columns, [8/13] categorical
+      - Marketing_Campaign  # 2240 rows, 25 columns, [8/25] categorical
+      - seismic-bumps  # 2584 rows, 15 columns, [3/15] categorical
+      - coil2000_insurance_policies  # 9822 rows, 85 columns, [3/85] categorical
+      - Bank_Customer_Churn  # 10000 rows, 10 columns, [4/10] categorical
+      - E-CommereShippingData  # 10999 rows, 10 columns, [4/10] categorical
+      - online_shoppers_intention  # 12330 rows, 17 columns, [6/17] categorical
+      - in_vehicle_coupon_recommendation  # 12684 rows, 24 columns, [21/24] categorical
+      - HR_Analytics_Job_Change_of_Data_Scientists  # 19158 rows, 12 columns, [9/12] categorical
+      - bank-marketing  # 45211 rows, 13 columns, [7/13] categorical
+      - kddcup09_appetency  # 50000 rows, 212 columns, [38/212] categorical
+      - Diabetes130US  # 71518 rows, 47 columns, [39/47] categorical
+      - customer_satisfaction_in_airline  # 129880 rows, 21 columns, [16/21] categorical
+      
+      #################################### 
+      ## Binary-classification (without string columns)
+      #################################### 
+      - blood-transfusion-service-center  # 748 rows, 4 columns, [0/4] categorical
+      - diabetes  # 768 rows, 8 columns, [0/8] categorical
+      - qsar-biodeg  # 1054 rows, 41 columns, [5/41] categorical
+      - hazelnut-spread-contaminant-detection  # 2400 rows, 30 columns, [0/30] categorical
+      - Bioresponse  # 3751 rows, 1776 columns, [0/1776] categorical
+      - churn  # 5000 rows, 19 columns, [4/19] categorical
+      - polish_companies_bankruptcy  # 5910 rows, 64 columns, [0/64] categorical
+      - taiwanese_bankruptcy_prediction  # 6819 rows, 94 columns, [0/94] categorical
+      - NATICUSdroid  # 7491 rows, 86 columns, [86/86] categorical
+      - heloc  # 10459 rows, 23 columns, [0/23] categorical
+      - jm1  # 10885 rows, 21 columns, [0/21] categorical
+      - credit_card_clients_default  # 30000 rows, 23 columns, [3/23] categorical
+      - Amazon_employee_access  # 32769 rows, 9 columns, [9/9] categorical
+      - APSFailure  # 76000 rows, 170 columns, [0/170] categorical
+      - GiveMeSomeCredit  # 150000 rows, 10 columns, [0/10] categorical
+      
+      #################################### 
+      ## Multi-class Classification (with string columns)
+      #################################### 
+      - anneal  # 898 rows, 38 columns, num_classes=5 [32/38] categorical
+      - website_phishing  # 1353 rows, 9 columns, num_classes=3 [9/9] categorical
+      - splice  # 3190 rows, 60 columns, num_classes=3 [60/60] categorical
+      - students_dropout_and_academic_success  # 4424 rows, 36 columns, num_classes=3 [17/36] categorical
+      
+      #################################### 
+      ## Multi-class Classification (without string columns)
+      #################################### 
+      - maternal_health_risk  # 1014 rows, 6 columns, num_classes=3 [0/6] categorical
+      - MIC  # 1699 rows, 111 columns, num_classes=8 [94/111] categorical
+      - hiva_agnostic  # 3845 rows, 1617 columns, num_classes=3 [1617/1617] categorical
+      - SDSS17  # 78053 rows, 11 columns, num_classes=3 [2/11] categorical
+    task_parameters:
+      run_task_based_on: "custom_predictiveML_model"  # Use TabICL for prediction

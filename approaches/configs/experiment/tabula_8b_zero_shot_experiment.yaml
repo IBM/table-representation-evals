@@ -1,0 +1,44 @@
+# @package _global_
+defaults:
+  - override /approach: tabula_8b
+  
+benchmark_output_dir: "benchmark_results_A100_80GB"
+benchmark_datasets_dir: "../datasets/row_similarity_data_max_100_rows"
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.model_name: "mlfoundations/tabula-8b"
+      approach.device: "cuda"  # does not run on cpu..
+      approach.max_length: 512  # 512 is default
+      approach.batch_size: 1  # Process one row at a time for few-shot
+      approach.n_few_shot_examples: 10  # Number of training examples to use
+
+benchmark_tasks:
+  #################################### 
+  ###### Predictive ML (Few-Shot)
+  #################################### 
+  predictive_ml:
+    datasets:
+      #################################### 
+      ## Binary-classification (smaller datasets for zero-shot testing)
+      #################################### 
+      - blood-transfusion-service-center  # 748 rows, 4 columns, [0/4] categorical
+      - diabetes  # 768 rows, 8 columns, [0/8] categorical
+      - qsar-biodeg  # 1054 rows, 41 columns, [5/41] categorical
+      - hazelnut-spread-contaminant-detection  # 2400 rows, 30 columns, [0/30] categorical
+      #################################### 
+      ## Multi-class Classification (smaller datasets)
+      #################################### 
+      - anneal  # 898 rows, 38 columns, num_classes=5 [32/38] categorical
+      - website_phishing  # 1353 rows, 9 columns, num_classes=3 [9/9] categorical
+      - maternal_health_risk  # 1014 rows, 6 columns, num_classes=3 [0/6] categorical
+      #################################### 
+      ## Regression (smaller datasets)
+      #################################### 
+      - QSAR_fish_toxicity  # 907 rows, 6 columns, [0/6] categorical
+      - concrete_compressive_strength  # 1030 rows, 8 columns, [0/8] categorical
+      - airfoil_self_noise  # 1503 rows, 5 columns, [1/5] categorical
+    task_parameters:
+      run_task_based_on: "custom_predictiveML_model"  # Use custom model for zero-shot
