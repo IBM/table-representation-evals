@@ -1,8 +1,17 @@
 # @package _global_
 dataset_name: wikidata_books
 
+columns_to_always_keep: [QID, label]
+
 variations:
-  # missing_values: [0.0, 0.1, 0.2]
-  number_of_cols: [4, 9, 29, 123, 281]
-  column_naming: [simple, complex, numbered, combined]
-  #n_numerical_cols: [2, 4, 6]
+  variation_0:
+    column_naming: [original]
+  #variation_1:
+  #  number_of_cols: [4, 9, 29, 123, 281]
+  #  column_naming: [original, numbered]
+  variation_2:
+    number_of_cols: [12]
+    percentage_numerical: [0, 0.25, 0.5, 0.75, 1]
+  # TODO: 
+  #variation_x: 
+     #delete_columns: [["x"]]
