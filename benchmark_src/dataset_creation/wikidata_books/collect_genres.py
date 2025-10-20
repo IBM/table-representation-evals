@@ -4,7 +4,7 @@ from time import time
 import requests
 from tqdm import tqdm
 
-import wikidata_utils
+from benchmark_src.dataset_creation.wikidata_books import wikidata_utils
 
 def get_books_and_genres(wikidata_url):
     """

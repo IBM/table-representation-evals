@@ -4,7 +4,7 @@ import json
 import random 
 import itertools
 
-import hierarchy_utils
+from benchmark_src.dataset_creation.wikidata_books import hierarchy_utils
 
 DATASET_DIR = Path("created_datasets/row_similarity_data_full/wikidata_books/")
 SAVE_DIR = Path("created_datasets/wikidata_genres/")

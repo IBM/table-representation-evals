@@ -1,4 +1,4 @@
-import wikidata_utils
+from benchmark_src.dataset_creation.wikidata_books import wikidata_utils
 
 def get_leaves(hierarchy_to_search, original_hierarchy, leaves=[]):
     for genre, sub_hierarchy in hierarchy_to_search.items():
