@@ -17,4 +17,5 @@ faiss-cpu
 skrub
 torch-geometric
 transformers
+datasets
 scikit-learn
