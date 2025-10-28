@@ -247,30 +247,31 @@ class TabICL(nn.Module):
             inference_config = InferenceConfig()
 
         # Column-wise embedding -> Row-wise interaction
-        representations = self.row_interactor(
-            self.col_embedder(
+        col_embeddings = self.col_embedder(
                 X,
                 train_size=None if embed_with_test else train_size,
                 feature_shuffles=feature_shuffles,
                 mgr_config=inference_config.COL_CONFIG,
-            ),
-            mgr_config=inference_config.ROW_CONFIG,
-        )
+            )
 
-        self.representations = representations
-        # Remove debug print for embeddings shape
-        # print("embeddings shape: ", self.representations.shape)
+        row_representations = self.row_interactor(
+            col_embeddings,
+            mgr_config=inference_config.ROW_CONFIG
+        )
 
         # Dataset-wise in-context learning
         out = self.icl_predictor(
-            representations,
+            row_representations,
             y_train=y_train,
             return_logits=return_logits,
             softmax_temperature=softmax_temperature,
             mgr_config=inference_config.ICL_CONFIG,
         )
 
-        return out, representations
+        col_embeddings = col_embeddings[:,:-4,:] #exclude CLS tokens
+        col_embeddings = col_embeddings.mean(axis=1) #average across row cells
+
+        return out, row_representations, col_embeddings
 
     def forward(
         self,
@@ -332,7 +333,7 @@ class TabICL(nn.Module):
         if self.training:
             out = self._train_forward(X, y_train, d=d, embed_with_test=embed_with_test)
         else:
-            out, representations = self._inference_forward(
+            out, row_representations,col_embeddings = self._inference_forward(
                 X,
                 y_train,
                 feature_shuffles=feature_shuffles,
@@ -342,4 +343,4 @@ class TabICL(nn.Module):
                 inference_config=inference_config,
             )
 
-        return out, representations
+        return out, row_representations, col_embeddings

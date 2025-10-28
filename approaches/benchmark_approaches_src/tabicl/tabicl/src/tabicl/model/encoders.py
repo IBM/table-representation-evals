@@ -68,7 +68,7 @@ class Encoder(nn.Module):
                     activation=activation,
                     norm_first=norm_first,
                 )
-                for _ in range(num_blocks)
+                for i in range(num_blocks)
             ]
         )
 
@@ -167,7 +167,7 @@ class SetTransformer(nn.Module):
 
         if d_model % nhead != 0:
             raise ValueError(f"d_model ({d_model}) must be divisible by nhead ({nhead})")
-
+        
         self.blocks = nn.ModuleList(
             [
                 InducedSelfAttentionBlock(
@@ -179,7 +179,7 @@ class SetTransformer(nn.Module):
                     activation=activation,
                     norm_first=norm_first,
                 )
-                for _ in range(num_blocks)
+                for i in range(num_blocks)
             ]
         )
 

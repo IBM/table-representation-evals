@@ -30,59 +30,51 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         if self.model is None:
             logger.info("Loading TabICL model...")
             n_estimators = getattr(self.cfg.approach, "n_estimators", 32)
+            use_memory_efficient = getattr(self.cfg.approach, "use_memory_efficient_model", True)
+            
             # Use CPU with optimizations for Apple Silicon stability
-            self.model = TabICLClassifier(
-                n_estimators=n_estimators, 
-                device="cpu",  # Use CPU for stability
-            )
-            logger.info(f"TabICL model loaded with n_estimators={n_estimators} on CPU with optimizations.")
+            model_kwargs = {
+                "n_estimators": n_estimators,
+                "device": "cpu",
+            }
+            
+            # Memory optimization is now handled through subsampling in get_column_embeddings
+            if use_memory_efficient:
+                # Reduce batch size to minimize memory usage during inference
+                model_kwargs.update({
+                    "batch_size": 4,  # Reduce from default 8 to 4 for memory efficiency
+                })
+                logger.info(f"TabICL model loaded with n_estimators={n_estimators}, batch_size=4 on CPU with memory optimizations.")
+            else:
+                logger.info(f"TabICL model loaded with n_estimators={n_estimators} on CPU.")
+            
+            self.model = TabICLClassifier(**model_kwargs)
 
     def preprocessing(self, input_table: pd.DataFrame):
         # No special preprocessing needed for TabICL, just return the DataFrame
         return input_table
 
     def get_row_embeddings(self, input_table: pd.DataFrame):
-     
+        
         self.load_trained_model()
         print("input_table shape:", input_table.shape)
         
-        # Convert all columns to numerical values
-        input_table_clean = input_table.copy()
-        
-        # Handle string columns by converting to categorical codes
-        for col in input_table_clean.columns:
-            if input_table_clean[col].dtype == 'object':
-                # Convert string columns to categorical codes
-                input_table_clean[col] = pd.Categorical(input_table_clean[col]).codes
-            elif input_table_clean[col].dtype == 'category':
-                # Convert categorical columns to codes
-                input_table_clean[col] = input_table_clean[col].cat.codes
-        
-        # Handle NaN values by filling them
-        input_table_clean = input_table_clean.fillna(0)  # Fill NaN with 0
-        print("input_table_clean shape:", input_table_clean.shape)
-        print("Data types after conversion:", input_table_clean.dtypes)
-        
+        input_table_clean = self._preprocess_for_tabicl(input_table)
+
+        # Use the same data for both training and testing since we only want embeddings
         y = np.zeros(len(input_table_clean))
         self.model.fit(input_table_clean, y)
-        _, row_embeddings = self.model.predict_proba(input_table_clean)
+        _, row_embeddings, _ = self.model.predict_proba(input_table_clean)
         
-        num_rows = input_table.shape[0]
-        print("Raw row_embeddings shape:", row_embeddings.shape)
-        print("Expected num_rows:", num_rows)
+        # TabICL returns embeddings for both training and test samples
+        # We only want the test sample embeddings (second half of the output)
+        n_samples = len(input_table_clean)
+        test_embeddings = row_embeddings[n_samples:]  # Extract only test sample embeddings
         
-        # Handle ensemble members: reshape and average
-        # row_embeddings shape: (n_ensemble_members * n_samples, embedding_dim)
-        n_ensemble = row_embeddings.shape[1] // num_rows
-        print("Number of ensemble members:", n_ensemble)
+        print("single_row_embeddings shape:", test_embeddings.shape)
         
-        # Reshape to (n_ensemble_members, n_samples, embedding_dim) and average
-        single_row_embeddings = row_embeddings.reshape(n_ensemble*row_embeddings.shape[0], num_rows, -1).mean(axis=0)
-        print("single_row_embeddings shape:", single_row_embeddings.shape)
-        # since train and test is the same, take the first num_rows embeddings
-        
-        # Ensure the embeddings are in the correct numpy array format for sentence_transformers
-        single_row_embeddings = np.array(single_row_embeddings, dtype=np.float32)
+        # Ensure the embeddings are in the correct numpy array format
+        single_row_embeddings = np.array(test_embeddings, dtype=np.float32)
         
         return single_row_embeddings 
 
@@ -165,3 +157,52 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         input_table_clean = input_table_clean.fillna(0)  # Fill NaN with 0
         
         return input_table_clean 
+
+    def get_column_embeddings(self, input_table: pd.DataFrame) -> tuple:
+        """
+        Generate column embeddings using TabICL's ColEmbedding stage.
+        
+        Args:
+            input_table (pd.DataFrame): Input table with columns to embed
+            
+        Returns:
+            tuple: (column_embeddings, column_names) where column_embeddings has shape (num_columns, embedding_dim)
+        """
+        # Ensure model is loaded
+
+        # Set PyTorch to use single thread to avoid threading issues during model initialization
+        # This prevents segfaults that occur with nn.init.trunc_normal_() in multithreaded contexts
+        import torch
+        torch.set_num_threads(1)
+        #torch.set_num_interop_threads(1)
+        
+        self.load_trained_model()
+        
+        print("input_table shape:", input_table.shape)
+        
+        # Subsample rows for column embedding extraction 
+        if len(input_table) > max_rows_for_embeddings:
+            print(f"Subsampling from {len(input_table)} to {max_rows_for_embeddings} rows for column embeddings")
+            input_table = input_table.sample(n=max_rows_for_embeddings, random_state=42)
+        
+        # Convert all columns to numerical values
+        input_table_clean = self._preprocess_for_tabicl(input_table)
+        
+        print(f"input_table_clean shape after preprocessing: {input_table_clean.shape}")
+        print(f"Original columns: {len(input_table.columns)}, Clean table columns: {len(input_table_clean.columns)}")
+        
+        # Prepare dummy labels
+        y = np.zeros(len(input_table_clean))
+        
+        # Fit the model on each table individually
+        # Note: We need to fit for each table because the columns might be different
+        logger.info("Fitting model for column embeddings")
+        self.model.fit(input_table_clean, y)
+        
+        # Get column embeddings using the fitted model
+        _, _, column_embeddings = self.model.predict_proba(input_table_clean)
+        
+        print(f"column_embeddings shape: {column_embeddings.shape}")
+        
+        return column_embeddings, input_table_clean.columns
+
