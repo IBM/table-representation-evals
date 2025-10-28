@@ -326,34 +326,86 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         """
         self.load_trained_model()
         
+        # Get target embeddings (table + columns + rows)
+        target_embeddings, num_rows, num_cols = self._get_target_embeddings(input_table)
+        
+        # Extract row embeddings (indices num_cols+1 to num_cols+num_rows)
+        row_start_idx = 1 + num_cols
+        row_embeddings = target_embeddings[row_start_idx:row_start_idx + num_rows]
+        
+        # Validate size
+        if len(row_embeddings) != num_rows:
+            logger.warning(
+                f"Row embeddings size mismatch: expected {num_rows} rows, "
+                f"but got {len(row_embeddings)} embeddings."
+            )
+        
+        # Convert to numpy
+        row_embeddings = row_embeddings.cpu().numpy() if isinstance(row_embeddings, torch.Tensor) else row_embeddings
+        logger.info(f"Generated row embeddings with shape: {row_embeddings.shape}")
+        return row_embeddings
+
+    def get_column_embeddings(self, input_table: pd.DataFrame) -> tuple:
+        """Generate column embeddings using HyTrel model.
+        
+        Args:
+            input_table (pd.DataFrame): Input table with columns to embed
+            
+        Returns:
+            tuple: (column_embeddings, column_names) where column_embeddings has shape (num_columns, embedding_dim)
+        """
+        self.load_trained_model()
+        
+        # Get target embeddings (table + columns + rows)
+        target_embeddings, num_rows, num_cols = self._get_target_embeddings(input_table)
+        column_names = list(input_table.columns)
+        
+        # Extract column embeddings (indices 1 to num_cols, skip index 0 which is table)
+        column_embeddings = target_embeddings[1:num_cols + 1]
+        
+        # Validate size
+        if len(column_embeddings) != num_cols:
+            logger.warning(
+                f"Column embeddings size mismatch: expected {num_cols} columns, "
+                f"but got {len(column_embeddings)} embeddings."
+            )
+        
+        # Convert to numpy
+        column_embeddings = column_embeddings.cpu().numpy() if isinstance(column_embeddings, torch.Tensor) else column_embeddings
+        logger.info(f"Generated column embeddings with shape: {column_embeddings.shape}")
+        return column_embeddings, column_names
+
+    def _get_target_embeddings(self, input_table: pd.DataFrame) -> tuple:
+        """Get target embeddings from HyTrel model for the given table.
+        
+        Args:
+            input_table (pd.DataFrame): Input table
+            
+        Returns:
+            tuple: (target_embeddings, num_rows, num_cols) where target_embeddings is a torch.Tensor
+        """
         # Preprocess the input table
         input_table_clean = self.preprocessing(input_table)
-        
-        logger.info(f"Processing {len(input_table_clean)} rows for embedding generation")
         
         # Convert table to HyTrel hypergraph format
         bigraph = self._convert_table_to_hytrel_format(input_table_clean)
         
-        # Store dimensions for proper embedding extraction
-        actual_num_rows = len(input_table_clean)
-        actual_num_cols = len(input_table_clean.columns)
+        # Get dimensions
+        num_rows = len(input_table_clean)
+        num_cols = len(input_table_clean.columns)
         
-        # Generate embeddings
+        # Generate target embeddings using the model
         with torch.no_grad():
-            try:
-                embeddings = self._generate_embeddings(bigraph, actual_num_rows, actual_num_cols)
-                
-                # Convert to numpy array
-                if isinstance(embeddings, torch.Tensor):
-                    embeddings = embeddings.cpu().numpy()
-                
-                logger.info(f"Generated embeddings with shape: {embeddings.shape}")
-                return embeddings
-                
-            except Exception as e:
-                logger.error(f"Failed to generate embeddings: {e}")
-                # Return zero embeddings as fallback
-                return np.zeros((len(input_table_clean), DEFAULT_EMBEDDING_DIM), dtype=np.float32)
+            bigraph = bigraph.to(self.device)
+            outputs = self.model(bigraph)
+            
+            # Extract target embeddings (Encoder returns (embedding_s, embedding_t))
+            if isinstance(outputs, tuple):
+                _, target_embeddings = outputs
+            else:
+                target_embeddings = outputs
+        
+        return target_embeddings, num_rows, num_cols
 
     def _convert_table_to_hytrel_format(self, table: pd.DataFrame) -> BipartiteData:
         """Convert pandas DataFrame to HyTrel hypergraph format.
@@ -449,124 +501,4 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
                 edge_index.append([node_id, col_i + 1])  # connect to col-level hyper-edge
                 edge_index.append([node_id, row_i + 1 + len(header)])  # connect to row-level hyper-edge
 
-    def _generate_embeddings(self, bigraph: BipartiteData, actual_num_rows: int, actual_num_cols: int) -> torch.Tensor:
-        """Generate embeddings using the HyTrel model.
-        
-        Args:
-            bigraph (BipartiteData): HyTrel hypergraph representation
-            actual_num_rows (int): Number of rows in the original table
-            actual_num_cols (int): Number of columns in the original table
-            
-        Returns:
-            torch.Tensor: Row embeddings of shape (actual_num_rows, embedding_dim)
-        """
-        try:
-            # Move data to device
-            bigraph = bigraph.to(self.device)
-            
-            # Generate embeddings using the model
-            with torch.no_grad():
-                try:
-                    # Call the Encoder's forward method
-                    outputs = self.model(bigraph)
-                    target_embeddings = self._extract_target_embeddings(outputs)
-                    
-                    # Extract row embeddings from target embeddings
-                    row_embeddings = self._extract_row_embeddings(
-                        target_embeddings, actual_num_rows, actual_num_cols, bigraph.x_t.size(0)
-                    )
-                    
-                    return row_embeddings
-                    
-                except Exception as e:
-                    logger.warning(f"Model forward pass failed: {e}. Using fallback method.")
-                    return self._create_fallback_embeddings(actual_num_rows)
-                    
-        except Exception as e:
-            logger.error(f"Failed to generate embeddings: {e}")
-            return self._create_fallback_embeddings(actual_num_rows)
-
-    def _extract_target_embeddings(self, outputs) -> torch.Tensor:
-        """Extract target embeddings from model outputs.
-        
-        Args:
-            outputs: Model outputs (tuple or tensor)
-            
-        Returns:
-            torch.Tensor: Target embeddings
-        """
-        if isinstance(outputs, tuple):
-            # Encoder returns (embedding_s, embedding_t)
-            source_embeddings, target_embeddings = outputs
-        else:
-            # If single output, assume it's target embeddings
-            target_embeddings = outputs
-        
-        return target_embeddings
-
-    def _extract_row_embeddings(self, target_embeddings: torch.Tensor, actual_num_rows: int, 
-                               actual_num_cols: int, num_hyperedges: int) -> torch.Tensor:
-        """Extract row embeddings from target embeddings.
-        
-        In HyTrel's hypergraph structure:
-        - Index 0: table-level hyper-edge
-        - Indices 1 to num_cols: column-level hyper-edges  
-        - Indices num_cols+1 to num_cols+num_rows: row-level hyper-edges
-        
-        Args:
-            target_embeddings (torch.Tensor): Target embeddings from model
-            actual_num_rows (int): Number of rows in original table
-            actual_num_cols (int): Number of columns in original table
-            num_hyperedges (int): Total number of hyperedges
-            
-        Returns:
-            torch.Tensor: Row embeddings
-        """
-        # Row hyper-edges start after table (index 0) and column hyper-edges
-        row_hyperedge_start_idx = 1 + actual_num_cols
-        row_hyperedge_end_idx = min(row_hyperedge_start_idx + actual_num_rows, num_hyperedges)
-        
-        if row_hyperedge_start_idx < num_hyperedges and row_hyperedge_end_idx <= num_hyperedges:
-            # Extract row hyper-edge embeddings directly
-            row_embeddings = target_embeddings[row_hyperedge_start_idx:row_hyperedge_end_idx]
-        else:
-            # Fallback: use all target embeddings as single row
-            row_embeddings = target_embeddings[1:]  # Skip table hyper-edge
-        
-        # Ensure we have the correct number of row embeddings
-        return self._adjust_embedding_size(row_embeddings, actual_num_rows, target_embeddings)
-
-    def _adjust_embedding_size(self, row_embeddings: torch.Tensor, actual_num_rows: int, 
-                              target_embeddings: torch.Tensor) -> torch.Tensor:
-        """Adjust embedding size to match actual number of rows.
-        
-        Args:
-            row_embeddings (torch.Tensor): Current row embeddings
-            actual_num_rows (int): Desired number of rows
-            target_embeddings (torch.Tensor): Full target embeddings for fallback
-            
-        Returns:
-            torch.Tensor: Adjusted row embeddings
-        """
-        if len(row_embeddings) < actual_num_rows:
-            # Pad with the last available embedding
-            last_embedding = row_embeddings[-1] if len(row_embeddings) > 0 else target_embeddings[0]
-            padding = last_embedding.unsqueeze(0).repeat(actual_num_rows - len(row_embeddings), 1)
-            row_embeddings = torch.cat([row_embeddings, padding], dim=0)
-        elif len(row_embeddings) > actual_num_rows:
-            # Truncate to actual number of rows
-            row_embeddings = row_embeddings[:actual_num_rows]
-        
-        return row_embeddings
-
-    def _create_fallback_embeddings(self, actual_num_rows: int) -> torch.Tensor:
-        """Create fallback embeddings when model fails.
-        
-        Args:
-            actual_num_rows (int): Number of rows needed
-            
-        Returns:
-            torch.Tensor: Random embeddings as fallback
-        """
-        return torch.randn(actual_num_rows, DEFAULT_EMBEDDING_DIM, device=self.device)
 
