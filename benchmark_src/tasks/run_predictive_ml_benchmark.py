@@ -14,7 +14,7 @@ import sklearn.preprocessing
 from benchmark_src.approach_interfaces.predictive_ml_inferface import PredictiveMLInterface
 from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
-from benchmark_src.utils import load_benchmark, benchmark_metrics, gather_results, framework
+from benchmark_src.utils import framework, result_utils
 from benchmark_src.tasks import component_utils, tabarena_datasets
 
 
@@ -298,6 +298,6 @@ def main(cfg: DictConfig):
     save_resource_metrics_to_disk(cfg=cfg, resource_metrics_setup=resource_metrics_setup, resource_metrics_task=resource_metrics_task)
 
     # save results to disk
-    gather_results.save_results(cfg=cfg, metrics=result_metrics)
+    result_utils.save_results(cfg=cfg, metrics=result_metrics)
     
 

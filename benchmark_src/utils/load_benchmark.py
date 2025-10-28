@@ -9,10 +9,11 @@ DATA_PATH = Path("data/MusicBrainz")
 logger = logging.getLogger(__name__)
 
 
-def get_input_table(dataset_path: Path):
+def get_input_table(dataset_path: Path, verbose=False):
     input_table = pd.read_csv(dataset_path / "input_table.csv")
 
-    logger.info(f"Loaded dataset input table with {len(input_table)} rows and {len(input_table.columns)} attributes: {input_table.columns}")
+    if verbose:
+        logger.info(f"Loaded dataset input table with {len(input_table)} rows and {len(input_table.columns)} attributes: {input_table.columns}")
     return input_table
 
 def load_testcase(testcase_path: Path):

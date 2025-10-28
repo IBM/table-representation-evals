@@ -23,6 +23,15 @@ Make sure that you set the *run_similarity_search_based_on* parameter in the exp
 conda create -n <environment-name> python=<3.13> 
 ```
 
+Note: The benchmark uses Hugging Face Transformers which will cache models in the default location:
+- Linux/Mac: `~/.cache/huggingface`
+- Windows: `C:\Users\username\.cache\huggingface`
+
+To use a different cache location, set the `HF_HOME` environment variable:
+```bash
+export HF_HOME="/path/to/your/preferred/cache"
+```
+
 3) Install packages from requirements.txt
 
 ```

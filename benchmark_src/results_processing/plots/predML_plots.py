@@ -4,8 +4,8 @@ import seaborn as sns
 from pathlib import Path
 import altair as alt
 
-from benchmark_src.utils.gather_results import aggregate_results
-import benchmark_src.utils.plots.plot_utils as plot_utils
+from benchmark_src.results_processing.gather_results import aggregate_results
+from benchmark_src.results_processing.plots import plot_utils
 
 def create_binary_barplot_altair(df: pd.DataFrame, results_folder: Path, aggregated: bool, dataset_name, percentage_baseline: bool):
     print("############## Started binary classification barplot (Altair)")

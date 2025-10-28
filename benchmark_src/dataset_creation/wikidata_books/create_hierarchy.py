@@ -3,7 +3,7 @@ from collections import Counter
 import jsonlines
 from pathlib import Path
 
-import hierarchy_utils, visualize, wikidata_utils
+from benchmark_src.dataset_creation.wikidata_books import hierarchy_utils, visualize, wikidata_utils
 
 REPLACEMENTS = {
     # from: to

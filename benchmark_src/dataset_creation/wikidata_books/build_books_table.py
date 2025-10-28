@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import random
 
-import hierarchy_utils, wikidata_utils
+from benchmark_src.dataset_creation.wikidata_books import hierarchy_utils, wikidata_utils
 
 SAVE_DIR = Path("data/wikidata_genres/")
 RESOURCES_DIR = Path("resources")

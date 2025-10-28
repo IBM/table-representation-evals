@@ -11,7 +11,7 @@ import multiprocessing
 from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.row_similarity_task_interface import RowSimilaritySearchInterface
 from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
-from benchmark_src.utils import load_benchmark, benchmark_metrics, gather_results, framework
+from benchmark_src.utils import load_benchmark, benchmark_metrics, framework, result_utils
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
 
 logger = logging.getLogger(__name__)
@@ -136,4 +136,4 @@ def main(cfg: DictConfig):
 
     # compute and save results
     result_metrics = benchmark_metrics.compute_all_metrics(all_positions)
-    gather_results.save_results(cfg=cfg, metrics=result_metrics)
+    result_utils.save_results(cfg=cfg, metrics=result_metrics)

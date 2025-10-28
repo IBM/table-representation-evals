@@ -66,7 +66,7 @@ END {
 echo "-------------------------------------"
 echo "Completed the experiments, gathering the results next"
 
-python benchmark_src/utils/gather_results.py results_folder_name=$RESULTS_FOLDER_NAME
+python benchmark_src/results_processing/gather_results.py results_folder_name=$RESULTS_FOLDER_NAME
 
 echo "-------------------------------------"
 echo "Completed the run_benchmark.sh script"
