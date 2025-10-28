@@ -1,11 +1,11 @@
 from omegaconf import DictConfig
 import multiprocessing
 import logging
-from hydra.utils import get_original_cwd
 import json
 import pickle
 import os
 import sys
+from hydra.utils import get_original_cwd
 # Add ContextAwareJoin to Python path
 context_aware_join_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ContextAwareJoin')
 if context_aware_join_path not in sys.path:
@@ -24,6 +24,7 @@ from tqdm import tqdm
 from src.myutils.utilities import load_dataframe, convert_to_dict_of_list, get_groundtruth_with_scores
 from pathlib import Path
 import statistics
+from omegaconf import OmegaConf
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,16 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     _, resource_metrics_setup = component_utils.run_model_setup(component=column_embedding_component,
                                                                     input_table=None, dataset_information=None)
 
+    dataset_config_path = Path(get_original_cwd()) / Path("benchmark_src/config/dataset") / f"{cfg.dataset_name}.yaml"
+
+    if not dataset_config_path.exists():
+        print(os.getcwd())
+        print(f"Could not find dataset config path: {dataset_config_path}")
+    try:
+        dataset_cfg = OmegaConf.load(str(dataset_config_path))
+    except Exception as e:
+        print(f"Could not load dataset config: {e}")
+
     for testcase in test_cases:
         all_columns = {}
         table2dfs, gt_data, dataset = test_cases[testcase]
@@ -168,7 +179,8 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
         search_sources = np.asarray(search_sources)
 
-        k = 2  # TBD how do we set k from config
+        # check if there are columns
+        k = dataset_cfg.k
 
         D, I = index.search(search_sources, k)
 
