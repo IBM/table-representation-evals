@@ -33,6 +33,7 @@ if HYTREL_SRC_PATH not in sys.path:
 # Import HyTrel components
 try:
     from data import BipartiteData
+    from data import TableDataModule, CAP_TAG as HY_CAP_TAG, HEADER_TAG as HY_HEADER_TAG, ROW_TAG as HY_ROW_TAG, MISSING_CAP_TAG as HY_MISSING_CAP_TAG
     from model import Encoder
 except ImportError as e:
     raise ImportError(f"Failed to import HyTrel components: {e}. Please ensure hytrel_src is properly set up.")
@@ -104,44 +105,6 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         logger.info(f"HyTrelEmbedder initialized on device: {self.device}")
 
-    def _tokenize_word(self, word: str) -> Tuple[List[str], List[int]]:
-        """Tokenize a word using the same approach as HyTrel.
-        
-        Args:
-            word (str): Word to tokenize
-            
-        Returns:
-            Tuple[List[str], List[int]]: Tokenized wordpieces and attention mask
-        """
-        # Apply scientific notation to numbers (from HyTrel data.py)
-        number_pattern = re.compile(r"(\d+)\.?(\d*)")
-        
-        def number_repl(matchobj):
-            pre = matchobj.group(1).lstrip("0")
-            post = matchobj.group(2)
-            if pre and int(pre):
-                exponent = len(pre) - 1
-            else:
-                exponent = -re.search("(?!0)", post).start() - 1
-                post = post.lstrip("0")
-            return (pre + post).rstrip("0") + " scinotexp " + str(exponent)
-        
-        def apply_scientific_notation(line: str) -> str:
-            return re.sub(number_pattern, number_repl, line)
-        
-        # Apply scientific notation and tokenize
-        word = apply_scientific_notation(str(word))
-        wordpieces = self.tokenizer.tokenize(word)[:self.max_token_length]
-        
-        # Pad to max_token_length
-        if len(wordpieces) < self.max_token_length:
-            wordpieces.extend([PAD_TAG] * (self.max_token_length - len(wordpieces)))
-        
-        # Create attention mask
-        mask = [1] * len(wordpieces[:self.max_token_length]) + [0] * (self.max_token_length - len(wordpieces[:self.max_token_length]))
-        
-        return wordpieces, mask
-
     def load_trained_model(self):
         """Load the pre-trained HyTrel model."""
         if self.model is not None:
@@ -149,19 +112,79 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             
         logger.info("Loading HyTrel model...")
         try:
-            # Create model configuration
+            # Create model configuration and initialize Encoder per hytrel_src
             config = self._create_model_config()
-            
-            # Initialize model
             self.model = Encoder(config)
-            
-            # Load pre-trained weights if available
+
+            # Load pre-trained weights using the same logic as hytrel_src/evaluate_*.py
             checkpoint_path = getattr(self.cfg.approach, "checkpoint_path", None)
             if checkpoint_path and os.path.exists(checkpoint_path):
-                self._load_checkpoint(checkpoint_path)
+                logger.info(f"Loading checkpoint from: {checkpoint_path}")
+                # Inject OptimizerConfig into __main__ before loading to handle pickle references
+                self._inject_optimizer_config()
+                
+                # Load checkpoint - ensure __main__ module has OptimizerConfig for pickle
+                # This handles cases where pickle looks for OptimizerConfig in __main__
+                # (especially in joblib/loky subprocess contexts)
+                original_main = sys.modules.get('__main__', None)
+                import types
+                
+                # Ensure current __main__ has OptimizerConfig
+                if '__main__' in sys.modules:
+                    sys.modules['__main__'].OptimizerConfig = OptimizerConfig
+                else:
+                    # Create new __main__ if it doesn't exist
+                    main_module = types.ModuleType('__main__')
+                    main_module.OptimizerConfig = OptimizerConfig
+                    sys.modules['__main__'] = main_module
+                
+                try:
+                    state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device)
+                except (AttributeError, TypeError) as e:
+                    if "OptimizerConfig" in str(e):
+                        # If still failing, try adding to the specific module mentioned in error
+                        # Error format: "Can't get attribute 'OptimizerConfig' on <module 'MODULE_NAME' from ...>"
+                        error_str = str(e)
+                        import re
+                        # Extract module name from error message - look for pattern: module 'MODULE_NAME'
+                        mod_matches = re.findall(r"module ['\"]([^'\"]+)['\"]", error_str)
+                        for mod_name in mod_matches:
+                            if mod_name not in sys.modules:
+                                fake_mod = types.ModuleType(mod_name)
+                                fake_mod.OptimizerConfig = OptimizerConfig
+                                sys.modules[mod_name] = fake_mod
+                            elif not hasattr(sys.modules[mod_name], 'OptimizerConfig'):
+                                sys.modules[mod_name].OptimizerConfig = OptimizerConfig
+                        # Try loading again
+                        state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device)
+                    else:
+                        raise
+                from collections import OrderedDict
+                new_state_dict = OrderedDict()
+
+                if 'module' in state_dict:  # DeepSpeed format
+                    for k, v in state_dict['module'].items():
+                        if 'model' in k:
+                            name = k[13:]  # remove `module.model.`
+                            new_state_dict[name] = v
+                elif 'state_dict' in state_dict:  # PyTorch Lightning format
+                    for k, v in state_dict['state_dict'].items():
+                        if k.startswith('model.'):
+                            name = k[6:]  # remove `model.`
+                            new_state_dict[name] = v
+                        else:
+                            new_state_dict[k] = v
+                elif 'model_state_dict' in state_dict:  # Plain dict under key
+                    new_state_dict = state_dict['model_state_dict']
+                else:  # Direct state dict
+                    new_state_dict = state_dict
+
+                self.model.load_state_dict(new_state_dict, strict=True)
             else:
                 logger.warning("No pre-trained checkpoint found. Using randomly initialized model.")
-            
+                if checkpoint_path:
+                    logger.warning(f"Checkpoint path provided but file not found: {checkpoint_path}")
+
             # Move model to device and set to eval mode
             self.model.to(self.device)
             self.model.eval()
@@ -238,8 +261,9 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             logger.warning(f"Failed to load checkpoint {checkpoint_path}: {e}. Using randomly initialized model.")
 
     def _inject_optimizer_config(self):
-        """Inject OptimizerConfig into __main__ module for checkpoint compatibility."""
+        """Inject OptimizerConfig into __main__ module and builtins for checkpoint compatibility."""
         import types
+        import builtins
         
         # Create or get the __main__ module
         if '__main__' not in sys.modules:
@@ -250,6 +274,8 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         # Add OptimizerConfig to __main__ module
         main_module.OptimizerConfig = OptimizerConfig
+        # Also add to builtins so pickle can find it in any context
+        builtins.OptimizerConfig = OptimizerConfig
 
     def _load_deepspeed_checkpoint(self, state_dict: Dict[str, Any]):
         """Load DeepSpeed checkpoint format.
@@ -356,26 +382,32 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         """
         self.load_trained_model()
         
-        # Get target embeddings (table + columns + rows)
-        # _get_target_embeddings already preprocesses internally
-        target_embeddings, num_rows, num_cols = self._get_target_embeddings(input_table)
-        
-        # Get preprocessed column names to ensure they match the embedding order
+        # Preprocess to get the exact table used in embedding generation
         input_table_clean = self.preprocessing(input_table)
+        
+        # Limit to 1000 rows for column embeddings (as requested earlier)
+        if len(input_table_clean) > 1000:
+            input_table_clean = input_table_clean.head(1000)
+        
         column_names = list(input_table_clean.columns)
+        num_rows = len(input_table_clean)
+        num_cols = len(column_names)
         
-        # Extract column embeddings (indices 1 to num_cols, skip index 0 which is table)
-        column_embeddings = target_embeddings[1:num_cols + 1]
-        
-        # Validate size
-        if len(column_embeddings) != num_cols:
-            logger.warning(
-                f"Column embeddings size mismatch: expected {num_cols} columns, "
-                f"but got {len(column_embeddings)} embeddings."
-            )
-        
-        # Convert to numpy
-        column_embeddings = column_embeddings.cpu().numpy() if isinstance(column_embeddings, torch.Tensor) else column_embeddings
+        # Build hypergraph and forward using hytrel_src defaults
+        bigraph = self._convert_table_to_hytrel_format(input_table_clean)
+        with torch.no_grad():
+            bigraph = bigraph.to(self.device)
+            outputs = self.model(bigraph)
+            # hytrel_src.model.Encoder returns (embedding_s, embedding_t)
+            if isinstance(outputs, tuple):
+                _, embedding_t = outputs
+            else:
+                embedding_t = outputs
+
+        # Use target hyperedge embeddings for columns: indices 1..num_cols (index 0 is table)
+        column_embeddings_tensor = embedding_t[1:num_cols + 1]
+        column_embeddings = column_embeddings_tensor.detach().cpu().numpy()
+
         logger.info(f"Generated column embeddings with shape: {column_embeddings.shape}")
         return column_embeddings, column_names
 
@@ -409,100 +441,125 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             else:
                 target_embeddings = outputs
         
+        # Debug: Check target embeddings structure
+        logger.debug(f"Target embeddings shape: {target_embeddings.shape}, expected: (1 + {num_cols} + {num_rows}, embedding_dim)")
+        logger.debug(f"Target embeddings stats - min: {target_embeddings.min():.4f}, max: {target_embeddings.max():.4f}, "
+                    f"mean: {target_embeddings.mean():.4f}, std: {target_embeddings.std():.4f}")
+        
+        # Debug: Check if column embeddings (indices 1 to num_cols+1) are all identical
+        if num_cols > 1:
+            col_embs = target_embeddings[1:num_cols + 1]
+            first_col_emb = col_embs[0]
+            cols_identical = all(torch.allclose(first_col_emb, col_emb, atol=1e-5) for col_emb in col_embs[1:])
+            if cols_identical:
+                logger.warning(f"WARNING: All {num_cols} column embeddings are identical! Model may not be working correctly.")
+            else:
+                # Check pairwise similarities to see how similar they are
+                from torch.nn.functional import cosine_similarity
+                similarities = []
+                for i in range(min(3, num_cols)):
+                    for j in range(i+1, min(3, num_cols)):
+                        sim = cosine_similarity(col_embs[i:i+1], col_embs[j:j+1]).item()
+                        similarities.append(sim)
+                avg_sim = sum(similarities) / len(similarities) if similarities else 0
+                logger.debug(f"Column embeddings average cosine similarity: {avg_sim:.4f} (checked first {min(3, num_cols)} columns)")
+                if avg_sim > 0.95:
+                    logger.warning(f"WARNING: Column embeddings are very similar (avg similarity {avg_sim:.4f} > 0.95). "
+                                 "This will cause poor column similarity search performance.")
+        
         return target_embeddings, num_rows, num_cols
 
+
     def _convert_table_to_hytrel_format(self, table: pd.DataFrame) -> BipartiteData:
-        """Convert pandas DataFrame to HyTrel hypergraph format.
-        
-        This method creates a bipartite hypergraph where:
-        - Source nodes (s) represent individual cells
-        - Target nodes (t) represent hyperedges (table, columns, rows)
-        - Edges connect cells to their corresponding hyperedges
+        """Use hytrel_src's graph construction to build BipartiteData from a DataFrame.
         
         Args:
-            table (pd.DataFrame): Input table to convert
-            
-        Returns:
-            BipartiteData: HyTrel hypergraph representation
+            table: Input DataFrame
         """
-        # Convert table to list format
-        header = table.columns.tolist()
-        data = table.values.tolist()
+        # Use preprocessing to handle NaN and missing values
+        table_clean = self.preprocessing(table)
         
-        # Initialize lists for tokenized data
-        wordpieces_xs_all, mask_xs_all = [], []
-        wordpieces_xt_all, mask_xt_all = [], []
-        nodes, edge_index = [], []
+        # Import functions from parallel_clean
+        from parallel_clean import sanitize_text, clean_cell_value
+        from data import CAP_TAG, HEADER_TAG, ROW_TAG
         
-        # Table-level hyperedge (caption) - index 0
-        self._add_table_hyperedge(wordpieces_xt_all, mask_xt_all)
+        # Extract caption if available (from DataFrame attributes or metadata)
+        caption = None
+        # Check DataFrame.attrs for caption (pandas >= 1.3.0 supports metadata)
+        if hasattr(table_clean, 'attrs') and 'caption' in table_clean.attrs:
+            caption = table_clean.attrs['caption']
+        # Also check original table's attrs if it exists
+        elif hasattr(table, 'attrs') and 'caption' in table.attrs:
+            caption = table.attrs['caption']
         
-        # Header to hyper-edges (t nodes) - indices 1 to num_cols
-        self._add_column_hyperedges(header, wordpieces_xt_all, mask_xt_all)
+        # Build text format using the same logic as json2string, but without MAX_ROW_LEN limit
+        # Sanitize caption
+        cap = '' if caption is None else str(caption)
+        cap = sanitize_text(cap, entity='cap')
+        if not cap:
+            cap = HY_MISSING_CAP_TAG
         
-        # Row to hyper-edges (t nodes) - indices num_cols+1 to num_cols+num_rows
-        self._add_row_hyperedges(len(data), wordpieces_xt_all, mask_xt_all)
+        # Sanitize headers
+        headers = [sanitize_text(str(h), entity='header') for h in table_clean.columns]
+        header_text = ' | '.join(headers)
         
-        # Cell to nodes (s nodes)
-        self._add_cell_nodes(data, header, wordpieces_xs_all, mask_xs_all, nodes, edge_index)
+        # Sanitize cells using clean_cell_value (which calls sanitize_text)
+        cells_data = table_clean.values.tolist()
+        cells = [list(map(clean_cell_value, row)) for row in cells_data]
+        cells_text = [' | '.join(row) for row in cells]
         
-        # Convert to tensors
-        xs_ids = torch.tensor([self.tokenizer.convert_tokens_to_ids(x) for x in wordpieces_xs_all], dtype=torch.long)
-        xt_ids = torch.tensor([self.tokenizer.convert_tokens_to_ids(x) for x in wordpieces_xt_all], dtype=torch.long)
-        edge_index = torch.tensor(edge_index, dtype=torch.long).T
+        #bypassing the json2string function from parallel_clean.py to avoid the MAX_ROW_LEN limit
+        # Format matching parallel_clean.py json2string() format:
+        # '<caption>CAP <header>HEADERS <row>ROW1 <row>ROW2...'
+        text = ' '.join([CAP_TAG, cap, HEADER_TAG, header_text])
+        cell_text = ' '.join([ROW_TAG + ' ' + row for row in cells_text])
+        sample = ' '.join([text, cell_text])
         
-        # Create BipartiteData object
-        return BipartiteData(
-            edge_index=edge_index,
-            x_s=xs_ids,
-            x_t=xt_ids
-        )
+        num_rows = len(table_clean)
+        num_cols = len(table_clean.columns)
+        
+        # Determine checkpoint type from path or config to set correct flags
+        checkpoint_path = getattr(self.cfg.approach, "checkpoint_path", None)
+        is_contrast = False
+        is_electra = False
+        
+        if checkpoint_path:
+            # Try to infer from checkpoint path
+            checkpoint_path_lower = str(checkpoint_path).lower()
+            if 'contrast' in checkpoint_path_lower:
+                is_contrast = True
+            elif 'electra' in checkpoint_path_lower:
+                is_electra = True
+        
+        # For inference, we use basic graph structure (no contrast/electra corruption needed)
+        # But we can still detect the checkpoint type for logging/future use
+        class _Args:
+            max_token_length = self.max_token_length
+            max_column_length = num_cols
+            max_row_length = num_rows
+            electra = False  # Always False for inference - no corruption needed
+            contrast_bipartite_edge = False  # Always False for inference - no corrupted edges needed
+            bipartite_edge_corrupt_ratio = 0.0
+            num_workers = 0
+            valid_ratio = 0.0
+        
+        # Log detected checkpoint type for reference
+        if is_contrast or is_electra:
+            logger.debug(f"Detected checkpoint type: {'contrast' if is_contrast else 'electra'} from path: {checkpoint_path}")
 
-    def _add_table_hyperedge(self, wordpieces_xt_all: List, mask_xt_all: List):
-        """Add table-level hyperedge."""
-        wordpieces = [MISSING_CAP_TAG] + [PAD_TAG] * (self.max_token_length - 1)
-        mask = [1] + [0] * (self.max_token_length - 1)
-        wordpieces_xt_all.append(wordpieces)
-        mask_xt_all.append(mask)
-
-    def _add_column_hyperedges(self, header: List, wordpieces_xt_all: List, mask_xt_all: List):
-        """Add column-level hyperedges."""
-        for head in header:
-            if pd.isna(head) or str(head).strip() == '':
-                wordpieces = [MISSING_HEADER_TAG] + [PAD_TAG] * (self.max_token_length - 1)
-                mask = [1] + [0] * (self.max_token_length - 1)
-            else:
-                wordpieces, mask = self._tokenize_word(str(head))
-            wordpieces_xt_all.append(wordpieces)
-            mask_xt_all.append(mask)
-
-    def _add_row_hyperedges(self, num_rows: int, wordpieces_xt_all: List, mask_xt_all: List):
-        """Add row-level hyperedges."""
-        for _ in range(num_rows):
-            wordpieces = [ROW_TAG] + [PAD_TAG] * (self.max_token_length - 1)
-            mask = [1] + [0] * (self.max_token_length - 1)
-            wordpieces_xt_all.append(wordpieces)
-            mask_xt_all.append(mask)
-
-    def _add_cell_nodes(self, data: List, header: List, wordpieces_xs_all: List, 
-                       mask_xs_all: List, nodes: List, edge_index: List):
-        """Add cell nodes and connect them to hyperedges."""
-        for row_i, row in enumerate(data):
-            for col_i, word in enumerate(row):
-                if pd.isna(word) or str(word).strip() == '':
-                    wordpieces = [MISSING_CELL_TAG] + [PAD_TAG] * (self.max_token_length - 1)
-                    mask = [1] + [0] * (self.max_token_length - 1)
-                else:
-                    wordpieces, mask = self._tokenize_word(str(word))
-                
-                wordpieces_xs_all.append(wordpieces)
-                mask_xs_all.append(mask)
-                node_id = len(nodes)
-                nodes.append(node_id)
-                
-                # Connect to hyperedges
-                edge_index.append([node_id, 0])  # connect to table-level hyper-edge
-                edge_index.append([node_id, col_i + 1])  # connect to col-level hyper-edge
-                edge_index.append([node_id, row_i + 1 + len(header)])  # connect to row-level hyper-edge
-
+        # Initialize a lightweight TableDataModule to reuse its graph builders
+        tdm = TableDataModule(tokenizer=self.tokenizer, data_args=_Args, seed=42, batch_size=1, py_logger=logger, objective='none')
+        graphs = tdm._text2graph([sample])
+        
+        if len(graphs) == 0:
+            # Debug: print the sample format to help diagnose parsing issues
+            logger.error(f"Failed to parse table. Sample format: {sample[:200]}...")
+            logger.error(f"Table shape: {table.shape}, headers: {headers[:5] if len(headers) > 5 else headers}")
+            raise ValueError(f"Failed to construct graph from table. Parsing failed. "
+                           f"Check that table has valid structure (non-empty rows/columns).")
+        
+        if len(graphs) > 1:
+            logger.warning(f"Expected 1 graph but got {len(graphs)}, using first one")
+        
+        return graphs[0]
 
