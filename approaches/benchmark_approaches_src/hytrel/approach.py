@@ -357,8 +357,12 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         self.load_trained_model()
         
         # Get target embeddings (table + columns + rows)
+        # _get_target_embeddings already preprocesses internally
         target_embeddings, num_rows, num_cols = self._get_target_embeddings(input_table)
-        column_names = list(input_table.columns)
+        
+        # Get preprocessed column names to ensure they match the embedding order
+        input_table_clean = self.preprocessing(input_table)
+        column_names = list(input_table_clean.columns)
         
         # Extract column embeddings (indices 1 to num_cols, skip index 0 which is table)
         column_embeddings = target_embeddings[1:num_cols + 1]
