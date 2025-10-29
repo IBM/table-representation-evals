@@ -175,6 +175,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             new_gt = gt_data
             for k in gt_data:
                 table = k.split('.')[0]
+                searched_indexes.append((table, k))
                 search_sources.append(all_columns[table][k])
 
         search_sources = np.asarray(search_sources)
