@@ -1,1 +1,3 @@
 task_name: column_similarity_search
+
+elo_metric: "MRR"

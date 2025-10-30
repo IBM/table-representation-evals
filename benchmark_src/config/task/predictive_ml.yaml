@@ -1,1 +1,3 @@
 task_name: predictive_ml
+
+elo_metric: ["LinearRegression_rmse (↓)", "XGBoost_roc_auc_score (↑)", "XGBoost_log_loss (↓)"]

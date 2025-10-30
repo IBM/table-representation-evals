@@ -5,20 +5,9 @@ import numpy as np
 import json
 
 from benchmark_src.results_processing.excel_writer import create_excel_files_per_dataset
-from benchmark_src.results_processing import results_helper
+from benchmark_src.results_processing import results_helper, ranking
 
 logger = logging.getLogger(__name__)
-
-performance_cols = {
-    'XGBoost_rmse (↓)': 'lower_is_better',
-    'KNeighbors_rmse (↓)': 'lower_is_better',
-    'LinearRegression_rmse (↓)': 'lower_is_better',
-    'XGBoost_roc_auc_score (↑)': 'higher_is_better',
-    'KNeighbors_roc_auc_score (↑)': 'higher_is_better',
-    'XGBoost_log_loss (↓)': 'lower_is_better',
-    'KNeighbors_log_loss (↓)': 'lower_is_better'
-}
-
 
 def aggregate_results(df: pd.DataFrame, grouping_columns: list, rename: bool=False) -> pd.DataFrame:
     """
@@ -90,7 +79,7 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
     baseline_only = gathered_results_df.loc[gathered_results_df['approach'] == 'baseline']
 
     # restrict to columns that contain performance scores
-    baseline_cols = [col for col in performance_cols if col in gathered_results_df.columns]
+    baseline_cols = [col for col in results_helper.performance_cols if col in gathered_results_df.columns]
 
     # compute first non-null baseline value per (task, dataset)
     baseline_df = (
@@ -111,7 +100,7 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
         return
 
     # compute ratios for each col
-    for col, col_type in performance_cols.items():
+    for col, col_type in results_helper.performance_cols.items():
         if col in gathered_results_df.columns:
             baseline_col = f"baseline_{col}"
 
@@ -134,8 +123,11 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
                 )
 
     # drop all baseline_* columns, only keep the ratios in the final df
-    baseline_cols_prefixed = [f"baseline_{col}" for col in performance_cols if col in gathered_results_df.columns]
+    baseline_cols_prefixed = [f"baseline_{col}" for col in results_helper.performance_cols if col in gathered_results_df.columns]
     gathered_results_df = gathered_results_df.drop(columns=baseline_cols_prefixed)
+
+    # drop all completely empty columns
+    gathered_results_df = gathered_results_df.dropna(axis=1, how='all')
 
     gathered_results_df.to_csv(results_folder/"all_results.csv", index=False)
 
@@ -146,3 +138,10 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
 
     # create an excel sheet for each individual task with one sheet per dataset
     create_excel_files_per_dataset(aggregated_results_df, results_folder=detailed_results_folder)
+
+    ###########################################################################
+    # compute elo scores per approach/configuration across all datasets
+    ###########################################################################
+    elo_df, elo_overall_df = ranking.compute_elo_scores(aggregated_results_df)
+    elo_df.to_csv(results_folder/"elo_scores_per_task.csv", index=False)
+    elo_overall_df.to_csv(results_folder/"elo_scores_overall.csv", index=False)
