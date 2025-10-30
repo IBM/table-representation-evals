@@ -139,7 +139,8 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
                     sys.modules['__main__'] = main_module
                 
                 try:
-                    state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device)
+                    # Use weights_only=False since we trust our checkpoints (compatible with PyTorch 2.6+)
+                    state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device, weights_only=False)
                 except (AttributeError, TypeError) as e:
                     if "OptimizerConfig" in str(e):
                         # If still failing, try adding to the specific module mentioned in error
@@ -155,8 +156,8 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
                                 sys.modules[mod_name] = fake_mod
                             elif not hasattr(sys.modules[mod_name], 'OptimizerConfig'):
                                 sys.modules[mod_name].OptimizerConfig = OptimizerConfig
-                        # Try loading again
-                        state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device)
+                        # Try loading again with weights_only=False
+                        state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device, weights_only=False)
                     else:
                         raise
                 from collections import OrderedDict
@@ -238,8 +239,8 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             # Add OptimizerConfig to __main__ module for checkpoint compatibility
             self._inject_optimizer_config()
             
-            # Load checkpoint
-            state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device)
+            # Load checkpoint with weights_only=False (compatible with PyTorch 2.6+)
+            state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device, weights_only=False)
             
             # Handle different checkpoint formats
             if 'module' in state_dict:
@@ -385,10 +386,6 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         # Preprocess to get the exact table used in embedding generation
         input_table_clean = self.preprocessing(input_table)
         
-        # Limit to 1000 rows for column embeddings (as requested earlier)
-        if len(input_table_clean) > 1000:
-            input_table_clean = input_table_clean.head(1000)
-        
         column_names = list(input_table_clean.columns)
         num_rows = len(input_table_clean)
         num_cols = len(column_names)
@@ -439,33 +436,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             if isinstance(outputs, tuple):
                 _, target_embeddings = outputs
             else:
-                target_embeddings = outputs
-        
-        # Debug: Check target embeddings structure
-        logger.debug(f"Target embeddings shape: {target_embeddings.shape}, expected: (1 + {num_cols} + {num_rows}, embedding_dim)")
-        logger.debug(f"Target embeddings stats - min: {target_embeddings.min():.4f}, max: {target_embeddings.max():.4f}, "
-                    f"mean: {target_embeddings.mean():.4f}, std: {target_embeddings.std():.4f}")
-        
-        # Debug: Check if column embeddings (indices 1 to num_cols+1) are all identical
-        if num_cols > 1:
-            col_embs = target_embeddings[1:num_cols + 1]
-            first_col_emb = col_embs[0]
-            cols_identical = all(torch.allclose(first_col_emb, col_emb, atol=1e-5) for col_emb in col_embs[1:])
-            if cols_identical:
-                logger.warning(f"WARNING: All {num_cols} column embeddings are identical! Model may not be working correctly.")
-            else:
-                # Check pairwise similarities to see how similar they are
-                from torch.nn.functional import cosine_similarity
-                similarities = []
-                for i in range(min(3, num_cols)):
-                    for j in range(i+1, min(3, num_cols)):
-                        sim = cosine_similarity(col_embs[i:i+1], col_embs[j:j+1]).item()
-                        similarities.append(sim)
-                avg_sim = sum(similarities) / len(similarities) if similarities else 0
-                logger.debug(f"Column embeddings average cosine similarity: {avg_sim:.4f} (checked first {min(3, num_cols)} columns)")
-                if avg_sim > 0.95:
-                    logger.warning(f"WARNING: Column embeddings are very similar (avg similarity {avg_sim:.4f} > 0.95). "
-                                 "This will cause poor column similarity search performance.")
+                target_embeddings = outputs      #
         
         return target_embeddings, num_rows, num_cols
 
