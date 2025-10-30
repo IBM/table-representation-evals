@@ -1,0 +1,53 @@
+# @package _global_
+defaults:
+  - override /approach: sentence_transformer # must be how you named the config file for your approach
+
+hydra:
+  verbose: True # set to True for debug outprints, set to False for Info prints only
+  sweeper:
+    params:
+      # if you add multiple parameters (seperated by , ), all combinations are run (hydra multirun)
+      approach.embedding_model: all-MiniLM-L6-v2 # , BAAI/bge-base-en-v1.5, ibm-granite/granite-embedding-30m-english # here you can add custom hyperpameters of the approach
+  sweep:
+      dir: results_testing
+      subdir: ${benchmark_output_dir}/${approach.approach_name}/${sanitize_dirname:${hydra:job.override_dirname}}/${task.task_name}/${dataset_name} 
+
+
+benchmark_output_dir: just_testing # how to call the folder inside /results (benchmark is not re-run if results exist for this configuration in the given folder)
+benchmark_datasets_dir: created_datasets/row_similarity_data_full
+cache_dir: cache
+
+benchmark_tasks:
+  #################################### 
+  ###### Row Similarity Search
+  #################################### 
+  row_similarity_search: # comment out the tasks you do not want to evaluate on
+    datasets:   # comment out the datasets that you do not want to evaluate on 
+      - Amazon-Google # 4589 rows, 4 columns
+    task_parameters:
+      run_similarity_search_based_on: "row_embeddings" # needs to be either "row_embeddings" or "custom_function"
+  #################################### 
+  ###### Embeddings More Similar Than
+  ####################################
+  more_similar_than:
+    datasets:
+       - wikidata_books
+  ################################### 
+  ##### Predictive ML
+  ################################### 
+  predictive_ml:
+    datasets:
+      #################################### 
+      ## Binary-classification (contain string columns)
+      #################################### 
+      - credit-g  # 1000 rows, 20 columns, [13/20] categorical
+      #################################### 
+      ## Multi-class Classification (contain string columns) [x/y] columns are categorical
+      #################################### 
+      - anneal  # 898 rows, 38 columns, num_classes=5 [32/38] categorical
+      #################################### 
+      ## Regression (contain string columns)
+      #################################### 
+      - healthcare_insurance_expenses  # 1338 rows, 6 columns, [3/6] categorical
+    task_parameters:
+      run_task_based_on: "row_embeddings" # needs to be either "row_embeddings" or "custom_function"
