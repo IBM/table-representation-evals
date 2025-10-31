@@ -14,19 +14,12 @@ cache_dir: "cache"
 
 benchmark_tasks:
   ####################################
-  ###### Row Similarity Search
+  ###### Column Similarity Search
   ####################################
   column_similarity_search: # comment out the tasks you do not want to evaluate on
     datasets:   # comment out the datasets that you do not want to evaluate on
-      #- Amazon-Google
       # - wikijoin
-      - valentine
-      # - DBLP-ACM
-      # - DBLP-GoogleScholar
-      # - Fodors-Zagats
-      # - geological-settlements
-      # - iTunes-Amazon
-      # - MusicBrainz
-      # - Walmart-Amazon
+      # - valentine
+      - opendata-contextawarejoins
     task_parameters:
       run_similarity_search_based_on: "column_embeddings" # needs to be either "row_embeddings" or "custom_function"
