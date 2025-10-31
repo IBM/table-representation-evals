@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 def load_benchmark_data(cfg):
     dataset_dir = str(Path(get_original_cwd()) / Path(cfg.benchmark_datasets_dir) / cfg.dataset_name)
-    if cfg.dataset_name == 'opendata':
+    if cfg.dataset_name == 'opendata-contextawarejoins':
         file_format = '.df'
     else:
         file_format = '.csv'
@@ -75,7 +75,7 @@ def load_benchmark_data(cfg):
             gt = glob.glob(f"{dataset}/**/gt.*", recursive=True)
             gt = [x for x in gt if x.endswith('json') or x.endswith('jsonl') or x.endswith('pickle')]
 
-        assert len(gt) == 1
+        assert len(gt) == 1, gt
         gt = gt[0]
 
         if gt.endswith('.json'):
@@ -129,7 +129,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
         if not os.path.exists(f'{results_file}/{dataset}.pkl'):
             for table in table2dfs:
-                t = os.path.basename(table).replace('.csv', '')
+                t = os.path.basename(table).replace('.csv', '').replace('.df', '')
                 print('at table', t)
                 all_columns[t] = {}
                 column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=table2dfs[table])
@@ -160,6 +160,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         searched_indexes = []
 
         new_gt = {}
+        top_k = 0
         if cfg.dataset_name == 'valentine':
             for match in gt_data['matches']:
                 table = match['source_table']
@@ -171,19 +172,25 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 search_sources.append(all_columns[table][column])
                 column = match['target_table'] + '.' + match['target_column']
                 l.append(column)
+            for c in new_gt:
+                if len(new_gt[c]) > top_k:
+                    top_k = len(new_gt[c])
         else:
+            # set k to max of gt data
             new_gt = gt_data
             for k in gt_data:
                 table = k.split('.')[0]
                 searched_indexes.append((table, k))
                 search_sources.append(all_columns[table][k])
+                searched_indexes.append((table, k))
+                if len(gt_data[k]) > top_k:
+                    top_k = len(gt_data[k])
 
         search_sources = np.asarray(search_sources)
 
-        # check if there are columns
-        k = dataset_cfg.k
-
-        D, I = index.search(search_sources, k)
+        # check if there are column
+        # need to add 1 to top_k so the search is adjusted for returning searched column
+        D, I = index.search(search_sources, top_k + 1)
 
         result = {}
         for x, i in enumerate(I):
@@ -194,17 +201,22 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 target_table, target_col = all_indexes[neighbor]
                 r = target_col
                 joinable_list.append(r)
+            joinable_list.remove(source_col)
+            print('neighbors for ', x, i, source_col, joinable_list)
 
         missing_queries = set(new_gt.keys())-set(result.keys())
 
         logger.debug(f"Result file is missing {len(missing_queries)} queries out of {len(new_gt)}")
         assert len(missing_queries) == 0, missing_queries
+        # logger.info(f'top k is set to:{top_k}')
 
-        MRR = compute_mrr_from_list(new_gt, result, 1)
-        MAP = compute_map_from_list(new_gt, result, 1)
-        Precision, Recall  = compute_precision_recall_at_k(new_gt, result, 1)
+        MRR = compute_mrr_from_list(new_gt, result, top_k)
+        MAP = compute_map_from_list(new_gt, result, top_k)
+
+        Precision, Recall  = compute_precision_recall_at_k(new_gt, result, top_k)
         metric_res[dataset] = {'MRR': MRR, 'MAP': MAP, 'Precision':Precision, 'Recall': Recall}
-
+        print('Expected', dataset, new_gt)
+        print('Result', result, top_k)
         print(dataset, 'MRR', "MAP", "Precision", "Recall", MRR, MAP, Precision, Recall)
 
     result = {}
@@ -214,11 +226,13 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 result[key] = []
             result[key].append(metric_res[dataset][key])
 
-    print('Result', result)
     summary_result = {}
-    for key in result:
-        summary_result[key + '_mean'] = statistics.mean(result[key])
-        summary_result[key + '_std'] = statistics.stdev(result[key])
+    if cfg.dataset_name == 'valentine':
+        for key in result:
+            summary_result[key + '_mean'] = statistics.mean(result[key])
+            summary_result[key + '_std'] = statistics.stdev(result[key])
+    else:
+        summary_result = result
 
     return summary_result, resource_metrics_setup
 

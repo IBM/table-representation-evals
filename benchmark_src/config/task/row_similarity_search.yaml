@@ -1,2 +1,4 @@
 task_name: row_similarity_search
 top_k: 10
+
+elo_metric: "In top-1 [%]"
