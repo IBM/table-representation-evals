@@ -17,5 +17,6 @@ faiss-cpu
 skrub
 torch-geometric
 transformers
-datasets
+datasets==4.2.0
+qdrant-client==1.9.2
 scikit-learn
