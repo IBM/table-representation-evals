@@ -17,7 +17,7 @@ performance_cols = {
     'In top-3 [%]': 'higher_is_better',
     'In top-5 [%]': 'higher_is_better',
     'In top-10 [%]': 'higher_is_better',
-    'MMR': 'higher_is_better', # mean reciprocal rank
+    'MRR': 'higher_is_better', # mean reciprocal rank
 }
 
 

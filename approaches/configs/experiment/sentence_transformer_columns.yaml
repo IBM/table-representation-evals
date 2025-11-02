@@ -19,7 +19,7 @@ benchmark_tasks:
   column_similarity_search: # comment out the tasks you do not want to evaluate on
     datasets:   # comment out the datasets that you do not want to evaluate on
       # - wikijoin
-      # - valentine
+      - valentine
       - opendata-contextawarejoins
     task_parameters:
       run_similarity_search_based_on: "column_embeddings" # needs to be either "row_embeddings" or "custom_function"

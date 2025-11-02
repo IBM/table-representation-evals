@@ -228,10 +228,11 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     summary_result = {}
     if cfg.dataset_name == 'valentine':
         for key in result:
-            summary_result[key + '_mean'] = statistics.mean(result[key])
+            summary_result[key] = statistics.mean(result[key])
             summary_result[key + '_std'] = statistics.stdev(result[key])
     else:
-        summary_result = result
+        for key in result:
+            summary_result[key] = result[key][0]
 
     return summary_result, resource_metrics_setup
 
