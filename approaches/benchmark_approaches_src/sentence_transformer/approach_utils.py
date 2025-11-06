@@ -1,9 +1,13 @@
+from typing import List, Any
+
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
-from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
 from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
-import numpy as np
+from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
+
 
 def convert_row_to_string(table_row: pd.Series):
     row_string = ""
@@ -232,4 +236,41 @@ def create_preprocessed_data(input_table: pd.DataFrame, component:BaseTabularEmb
 
     return preprocessed_data
 
+def convert_df_to_markdown(df: pd.DataFrame) -> str:
+    # Build a list of lines, then join at the end.
+    lines: List[str] = []
+
+    headers = [str(header) for header in df.columns]
+    lines.append("| " + " | ".join(headers) + " |")
+
+    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+
+    for row in df.values:
+        lines.append("| " + " | ".join(str(item) for item in row) + " |")
+
+    return "\n".join(lines) + "\n"
+
+
+def convert_array_to_markdown(table_array: List[List[Any]]) -> str:
+    """
+    Converts a list of lists (where the first list is headers)
+    into a Markdown table string.
+
+    Args:
+        table_array: A list of lists.
+                     Example: [["col1", "col2"], ["data1", "data2"]]
+    """
+    if not table_array or not table_array[0]:
+        print("ERROR: Empty table array provided.") #TODO: change the whole file to use logging
+        return ""
+
+    headers = [str(h) for h in table_array[0]]
+    lines: List[str] = ["| " + " | ".join(headers) + " |", "| " + " | ".join(["---"] * len(headers)) + " |"]
+
+    data_rows = table_array[1:]
+    for row in data_rows:
+        lines.append("| " + " | ".join(str(item) for item in row) + " |")
+
+    # Join all lines with a newline and add a final newline
+    return "\n".join(lines) + "\n"
 

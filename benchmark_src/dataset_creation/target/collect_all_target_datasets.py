@@ -1,15 +1,14 @@
 import json
 import logging
-from pathlib import Path
-from typing import Dict, Any, Union
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Any
 
-from hydra.utils import get_original_cwd
-from omegaconf import OmegaConf, DictConfig
 from datasets import Dataset
 from datasets import load_dataset
 from huggingface_hub import snapshot_download
-
+from hydra.utils import get_original_cwd
+from omegaconf import OmegaConf, DictConfig
 
 logging.basicConfig(
     level=logging.INFO,
