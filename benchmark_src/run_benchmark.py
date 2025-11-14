@@ -19,6 +19,9 @@ def main(cfg: DictConfig):
 
     print("Got config: ")
     print(cfg)
+
+    print("Run id:", cfg.run_identifier)
+
     guard_cfg_no_none(cfg)
 
     # create cache folder

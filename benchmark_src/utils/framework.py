@@ -1,18 +1,82 @@
-from pathlib import Path
-from omegaconf import OmegaConf
-from hydra.utils import get_original_cwd
 import importlib
 import sys
+from pathlib import Path
+
+from hydra.core.hydra_config import HydraConfig
+from hydra.utils import get_original_cwd
+from omegaconf import OmegaConf
 
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 
-def sanitize_dirname(dirname: str) -> str:
-  """Sanitizes a directory name by replacing slashes with underscores."""
-  return dirname.replace('/', '_')
+
+def generate_run_id_string(_=None) -> str:
+    """
+    Generates a unique Hydra override string from HydraConfig.
+    Raises exceptions if overrides are missing.
+    """
+    hc = HydraConfig.get()
+    if hc is None:
+        raise RuntimeError("HydraConfig is unavailable. Cannot generate run string.")
+
+    task_overrides = hc["overrides"].get("task")
+    hydra_overrides = hc["overrides"].get("hydra")
+
+    if task_overrides is None:
+        raise KeyError("'overrides.task' is missing in HydraConfig.")
+    if hydra_overrides is None:
+        raise KeyError("'overrides.hydra' is missing in HydraConfig.")
+
+    return ",".join([*hydra_overrides, *task_overrides])
+
+
+def _sanitize_dirname(dirname: str) -> str:
+    return dirname.replace("/", "_")
+
+
+def _parse_string_to_dict(raw: str) -> dict:
+    """
+    Converts a Hydra override string into a key–value dict.
+    """
+    result = {}
+    for item in raw.split(","):
+        if "=" not in item:
+            raise ValueError(f"Invalid override item without '=': {item}")
+        key, value = item.split("=", 1)
+        result[key.strip()] = value.strip()
+    return result
+
+
+def create_run_path(override_string: str) -> str:
+    """
+    Converts Hydra's raw override string into a structured run path.
+    """
+    if not override_string:
+        raise ValueError("Empty override string provided to create_run_path.")
+
+    overrides_dict = _parse_string_to_dict(override_string)
+
+    # Approach components
+    approach_params = [
+        f"{k.split('.', 1)[1]}={v}"
+        for k, v in overrides_dict.items()
+        if k.startswith("approach.")
+    ]
+
+    path_components = []
+    if approach_params:
+        path_components.append(",".join(approach_params))
+
+    path_components.append(overrides_dict["task"])
+    path_components.append(overrides_dict["dataset_name"])
+
+    # Final sanitization
+    path_components = [_sanitize_dirname(p) for p in path_components]
+    return "/".join(path_components)
 
 def register_resolvers():
-    # Register the resolver
-    OmegaConf.register_new_resolver('sanitize_dirname', sanitize_dirname)
+    OmegaConf.register_new_resolver("generate_run_id", generate_run_id_string)
+    OmegaConf.register_new_resolver("create_run_path", create_run_path)
+
 
 def get_approach_class(cfg):
     """
