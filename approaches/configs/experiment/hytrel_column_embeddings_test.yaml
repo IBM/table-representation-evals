@@ -1,0 +1,36 @@
+# @package _global_
+defaults:
+  - override /approach: hytrel
+  - override /task: column_similarity_search
+  
+# Benchmark configuration
+benchmark_output_dir: "benchmark_results_test"
+benchmark_datasets_dir: "/Users/niharika.dsouza/Projects/embedding_benchmarks/ContextAwareJoin/datasets/"
+cache_dir: "cache"
+
+# Hydra configuration
+hydra:
+  verbose: True # set to True for debug outprints, set to False for Info prints only
+  # Override launcher settings for HyTrel (memory intensive)
+  launcher:
+    n_jobs: 10 
+    prefer: processes
+    backend: loky
+  # Sweeper configuration for parameter sweeps
+  sweeper:
+    params:
+      approach.checkpoint_path: "/Users/niharika.dsouza/Projects/hypergraph-tabular-lm/checkpoints/contrast/contrast_model.pt"
+
+benchmark_tasks:
+  ####################################
+  ###### Column Similarity Search
+  ####################################
+  column_similarity_search: # comment out the tasks you do not want to evaluate on
+    datasets:   # comment out the datasets that you do not want to evaluate on
+      #################################### 
+      ## Entity Matching Datasets (with string columns)
+      #################################### 
+      - valentine
+    task_parameters:
+      run_similarity_search_based_on: "column_embeddings"
+

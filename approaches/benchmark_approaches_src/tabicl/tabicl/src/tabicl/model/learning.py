@@ -73,10 +73,12 @@ class ICLearning(nn.Module):
             activation=activation,
             norm_first=norm_first,
         )
+        
         if self.norm_first:
             self.ln = nn.LayerNorm(d_model)
 
         self.y_encoder = OneHotAndLinear(max_classes, d_model)
+        
         self.decoder = nn.Sequential(nn.Linear(d_model, d_model * 2), nn.GELU(), nn.Linear(d_model * 2, max_classes))
 
         self.inference_mgr = InferenceManager(enc_name="tf_icl", out_dim=max_classes)

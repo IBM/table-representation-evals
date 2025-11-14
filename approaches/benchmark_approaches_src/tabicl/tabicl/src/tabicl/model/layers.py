@@ -527,11 +527,13 @@ class InducedSelfAttentionBlock(nn.Module):
 
         # Two-stage attention mechanism
         self.multihead_attn1 = MultiheadAttentionBlock(d_model, nhead, dim_feedforward, dropout, activation, norm_first)
+        
         self.multihead_attn2 = MultiheadAttentionBlock(d_model, nhead, dim_feedforward, dropout, activation, norm_first)
 
         # Learnable inducing points
         self.num_inds = num_inds
         self.ind_vectors = nn.Parameter(torch.empty(num_inds, d_model))
+        
         nn.init.trunc_normal_(self.ind_vectors, std=0.02)
 
     def induced_attention(self, src: Tensor, train_size: Optional[int] = None) -> Tensor:

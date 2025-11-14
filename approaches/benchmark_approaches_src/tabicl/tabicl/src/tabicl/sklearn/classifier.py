@@ -437,7 +437,7 @@ class TabICLClassifier(ClassifierMixin, BaseEstimator):
         return self
 
     def _batch_forward(self, Xs, ys, shuffle_patterns=None):
-        print("Xs shape in _batch_forward:", Xs.shape)
+        
         """Process model forward passes in batches to manage memory efficiently.
 
         This method handles the batched inference through the TabICL model,
@@ -475,6 +475,8 @@ class TabICLClassifier(ClassifierMixin, BaseEstimator):
 
         outputs = []
         row_embeddings_list = []
+        col_embeddings_list = []
+        
         for X_batch, y_batch, pattern_batch in zip(Xs, ys, shuffle_patterns):
             # Convert to torch tensors directly to avoid numpy type issues
             X_batch = torch.tensor(X_batch, dtype=torch.float32).to(self.device_)
@@ -493,17 +495,22 @@ class TabICLClassifier(ClassifierMixin, BaseEstimator):
                 )
                 # Assume inference_forward returns (preds, row_emb, ...)
                 if isinstance(out, tuple) and len(out) > 1:
-                    preds, row_emb = out[0], out[1]
+                    preds, row_emb, col_emb = out[0], out[1], out[2]
                 else:
-                    preds, row_emb = out, None
+                    preds, row_emb, col_emb = out, None, None
             outputs.append(preds.float().cpu().numpy())
+            
             if row_emb is not None:
                 row_embeddings_list.append(row_emb.float().cpu().numpy())
+            if col_emb is not None:
+                col_embeddings_list.append(col_emb.float().cpu().numpy())
 
         predictions = np.concatenate(outputs, axis=0)
         if row_embeddings_list:
             row_embeddings = np.concatenate(row_embeddings_list, axis=0)
-            return predictions, row_embeddings
+            col_embeddings = np.concatenate(col_embeddings_list, axis=0)
+
+            return predictions, row_embeddings, col_embeddings
         else:
             return predictions
 
@@ -570,12 +577,18 @@ class TabICLClassifier(ClassifierMixin, BaseEstimator):
         
         outputs = []
         row_embeddings_list = []
+        col_embeddings_list = []
+
         for norm_method, (Xs, ys) in data.items():
             shuffle_patterns = self.ensemble_generator_.feature_shuffle_patterns_[norm_method]
-            preds, row_emb = self._batch_forward(Xs, ys, shuffle_patterns)
+            preds, row_emb, col_emb = self._batch_forward(Xs, ys, shuffle_patterns)
+            
             outputs.append(preds)
             if row_emb is not None:
                 row_embeddings_list.append(row_emb)
+            if col_emb is not None:
+                col_embeddings_list.append(col_emb)
+
         outputs = np.concatenate(outputs, axis=0)
 
                 # Extract class shift offsets from ensemble generator
@@ -612,10 +625,28 @@ class TabICLClassifier(ClassifierMixin, BaseEstimator):
         # Normalize probabilities to sum to 1
         outputs = avg / avg.sum(axis=1, keepdims=True)
 
+        avg_row_embeddings = None
+        avg_col_embeddings = None
+
         if row_embeddings_list:
-            row_embeddings = np.concatenate(row_embeddings_list, axis=0)
-            return outputs, row_embeddings
+            row_embeddings = np.concatenate(row_embeddings_list, axis=0)    
+            col_embeddings = np.concatenate(col_embeddings_list, axis=0)
+
+            for i,value in enumerate(row_embeddings):
+            
+                if avg_row_embeddings is None:
+                    avg_row_embeddings = row_embeddings[i]
+                    avg_col_embeddings = col_embeddings[i]
+                else:
+                    avg_row_embeddings += row_embeddings[i]
+                    avg_col_embeddings += col_embeddings[i]
+            
+            avg_row_embeddings /= n_estimators
+            avg_col_embeddings /= n_estimators
+
+            return outputs, avg_row_embeddings, avg_col_embeddings
         else:
+       
             return outputs
 
     def predict(self, X):

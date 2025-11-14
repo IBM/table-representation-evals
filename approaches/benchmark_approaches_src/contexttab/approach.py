@@ -58,16 +58,9 @@ class ConTextTabEmbedder(BaseTabularEmbeddingApproach):
         super().__init__(cfg)
         self.cfg = cfg
         self.model = None
-        self.device = "cuda" if self._is_cuda_available() else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         logger.info(f"ConTextTabEmbedder initialized on device: {self.device}")
-
-    def _is_cuda_available(self) -> bool:
-        """Check if CUDA is available."""
-        try:
-            return torch.cuda.is_available()
-        except ImportError:
-            return False
 
     def load_trained_model(self):
         """Load the pre-trained ConTextTab model."""
@@ -138,17 +131,10 @@ class ConTextTabEmbedder(BaseTabularEmbeddingApproach):
         input_table_clean = self.preprocessing(input_table)
         
         logger.info(f"Processing {len(input_table_clean)} rows for embedding generation")
-        
-        try:
-            # Extract embeddings directly from the model's internal representations
-            embeddings = self._extract_embeddings_from_model(input_table_clean)
-            logger.info(f"Generated embeddings with shape: {embeddings.shape}")
-            return embeddings
-            
-        except Exception as e:
-            logger.error(f"Failed to generate embeddings: {e}")
-            # Return zero embeddings as fallback
-            return np.zeros((len(input_table_clean), 768), dtype=np.float32)
+        # Extract embeddings directly from the model's internal representations
+        embeddings = self._extract_embeddings_from_model(input_table_clean)
+        logger.info(f"Generated embeddings with shape: {embeddings.shape}")
+        return embeddings
     
     def _extract_embeddings_from_model(self, input_table: pd.DataFrame) -> np.ndarray:
         """Extract embeddings directly from ConTextTab's internal representations.
@@ -162,7 +148,7 @@ class ConTextTabEmbedder(BaseTabularEmbeddingApproach):
         Returns:
             np.ndarray: Row embeddings from the model's encoder outputs
         """
-        # Use the last column as the query - most natural approach for ConTextTab
+        # Use the last column as the query 
         dummy_labels = pd.Series([0] * len(input_table), name='target')
         
         # Context: all columns except the last, Query: last column
@@ -237,3 +223,66 @@ class ConTextTabEmbedder(BaseTabularEmbeddingApproach):
             return self.model['regressor'].predict(test_df)
         else:
             raise ValueError(f"Unknown task_type: {task_type}")
+
+    def get_column_embeddings(self, input_table: pd.DataFrame) -> tuple:
+        
+        """Generate column embeddings using ConTextTab model.
+        
+          For each column j, treat all other columns as context and column j as the query
+          Run the in-context encoder to obtain contextualized representations
+          Take the representation of the query column (assumed last position) for all rows and
+          average across rows to yield a single embedding per column
+        
+        Returns:
+            (np.ndarray, list[str]): (column_embeddings [num_cols, hidden], column_names)
+        """
+
+        self.load_trained_model()
+        table = self.preprocessing(input_table)
+        # Limit to 1000 rows for efficiency/consistency
+        if len(table) > 100:
+            table = table.head(100)
+        column_names = list(table.columns)
+        num_cols = len(column_names)
+
+        device = next(self.model['classifier'].model.parameters()).device
+        col_embeddings: list[np.ndarray] = []
+
+        with torch.no_grad():
+            for col_idx, col_name in enumerate(column_names):
+                # Context: all columns except current; Query: current column
+                X_context = table.drop(columns=[col_name])
+                Y_query = table[[col_name]]
+                dummy_labels = pd.Series([0] * len(table), name='target')
+
+                # Tokenize using the classifier tokenizer path
+                data, labels, label_classes = self.model['classifier'].tokenizer(
+                    X_context,
+                    dummy_labels.to_frame(),
+                    Y_query,
+                    dummy_labels.to_frame(),
+                    self.model['classifier'].classification_or_regression,
+                )
+
+                # Move tensors to device
+                data = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in data.items()}
+
+                # Build embeddings and attention mask
+                input_embeds = self.model['classifier'].model.embeddings(data, False)
+                attn_mask = self.model['classifier'].model.build_context_attention_mask(data, input_embeds.device)
+                attn_mask = attn_mask.type(input_embeds.dtype)
+
+                # Forward through in-context encoder
+                encoder_outputs = input_embeds
+                for layer in self.model['classifier'].model.in_context_encoder:
+                    encoder_outputs = layer(encoder_outputs, attn_mask)
+
+                # encoder_outputs shape expected: (num_rows, num_columns_packed, hidden)
+                # We assume the last position corresponds to the query column representation
+                query_reps = encoder_outputs[:, -1, :]  # (num_rows, hidden)
+                col_emb = query_reps.mean(dim=0)  # (hidden,)
+                col_embeddings.append(col_emb.detach().cpu().numpy())
+
+        column_embeddings = np.vstack(col_embeddings) if col_embeddings else np.zeros((0, 0), dtype=np.float32)
+        
+        return column_embeddings, column_names

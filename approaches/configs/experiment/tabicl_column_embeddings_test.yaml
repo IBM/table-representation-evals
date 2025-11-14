@@ -1,0 +1,36 @@
+# @package _global_
+defaults:
+  - override /approach: tabicl
+  - override /task: column_similarity_search
+
+hydra:
+  verbose: True # set to True for debug outprints, set to False for Info prints only
+  sweeper:
+    params:
+     approach.n_estimators: 1  # Use 1 estimator for column embeddings (much faster, ensemble not needed for embeddings)   
+     approach.use_memory_efficient_model: true
+
+
+benchmark_output_dir: "benchmark_results_test"
+benchmark_datasets_dir: "/Users/niharika.dsouza/Projects/embedding_benchmarks/ContextAwareJoin/datasets/"
+cache_dir: "tabicl_cache"
+dataset_name: "valentine"
+
+benchmark_tasks:
+  ####################################
+  ###### Column Similarity Search
+  ####################################
+  column_similarity_search: # comment out the tasks you do not want to evaluate on
+    datasets:   # comment out the datasets that you do not want to evaluate on
+      #- Amazon-Google
+      # - wikijoin
+      - valentine
+      # - DBLP-ACM
+      # - DBLP-GoogleScholar
+      # - Fodors-Zagats
+      # - geological-settlements
+      # - iTunes-Amazon
+      # - MusicBrainz
+      # - Walmart-Amazon
+    task_parameters:
+      run_similarity_search_based_on: "column_embeddings"
