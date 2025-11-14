@@ -14,3 +14,7 @@ class TableEmbeddingInterface(ABC):
     @abstractmethod
     def create_table_embedding(self, input_table: List[List[Any]]):
         pass
+
+    @abstractmethod
+    def create_query_embedding(self, query: str):
+        pass

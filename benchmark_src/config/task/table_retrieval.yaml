@@ -1,1 +1,2 @@
 task_name: table_retrieval
+top_k: 10

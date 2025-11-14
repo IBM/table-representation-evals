@@ -25,3 +25,14 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
             normalize_embeddings=True,
         )
         return embedding
+
+    def create_query_embedding(self, query: str):
+        """
+        Embed the natural language query string using the SentenceTransformer model.
+        """
+        embedding = self.approach_instance.model.encode(
+            query,
+            show_progress_bar=False,
+            normalize_embeddings=True,
+        )
+        return embedding
