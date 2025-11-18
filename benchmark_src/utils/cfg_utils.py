@@ -1,5 +1,5 @@
 from pathlib import Path
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, DictConfig
 
 def load_dataset_config(dataset_name: str):
     dataset_config_path = Path("./benchmark_src/config/dataset") / f"{dataset_name}.yaml"
@@ -18,3 +18,26 @@ def load_task_config(task_name: str):
     task_cfg = OmegaConf.load(str(task_config_path))
 
     return task_cfg
+
+
+def guard_cfg_no_none(cfg, path="cfg"):
+    """
+    Recursively checks that no value in the config is None.
+    
+    Args:
+        cfg: A DictConfig, dict, or nested structure.
+        path: Internal parameter used for error reporting.
+        
+    Raises:
+        ValueError: If any value in cfg is None.
+    """
+    allow_none_keys = set(["cfg.test_case_limit"])
+    if isinstance(cfg, DictConfig) or isinstance(cfg, dict):
+        for key, value in cfg.items():
+            guard_cfg_no_none(value, f"{path}.{key}")
+    elif isinstance(cfg, list):
+        for idx, item in enumerate(cfg):
+            guard_cfg_no_none(item, f"{path}[{idx}]")
+    else:
+        if cfg is None and path not in allow_none_keys:
+            raise ValueError(f"Configuration value at '{path}' is None!")

@@ -7,6 +7,7 @@ import traceback
 from hydra.utils import get_original_cwd
 
 from benchmark_src.utils.framework import register_resolvers
+from benchmark_src.utils.cfg_utils import guard_cfg_no_none
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,8 @@ def main(cfg: DictConfig):
 
     print("Got config: ")
     print(cfg)
+    guard_cfg_no_none(cfg)
+
 
     # convert paths in config to proper pathlib paths:
     cfg.benchmark_datasets_dir = Path(cfg.benchmark_datasets_dir)
