@@ -36,7 +36,7 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
             Returns: 
                 np.ndarray: the matrix of the row embeddings with shape [#rows, embedding_dimension]
         """
-        logger.debug(f"GritLM create_row_embeddingss_for_table_called")
+        logger.debug(f"GritLM create_row_embeddings_for_table_called")
         all_rows = self.approach_instance.preprocessing(input_table=input_table)
         logger.debug(f"GritLM: Preprocessed the rows, next encode them. Have {len(all_rows)} rows")
         # encode the rows

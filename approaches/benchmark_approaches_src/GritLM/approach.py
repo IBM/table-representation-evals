@@ -2,6 +2,7 @@ from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddin
 import logging
 from omegaconf import DictConfig
 import pandas as pd
+import torch
 
 from benchmark_approaches_src.sentence_transformer import approach_utils 
 
@@ -72,6 +73,16 @@ class GritLMEmbedder(BaseTabularEmbeddingApproach):
         Load the trained model and set it as a class variable to access later
         """
 
-        model = GritLM(self.embedding_model_name, mode="embedding", torch_dtype="auto")
+        model = GritLM(self.embedding_model_name, mode="embedding", torch_dtype=torch.float16, device_map='auto')
         logger.info(f"GritLM: Loaded model!")
+        dtypes = {param.dtype for param in model.parameters()}
+        logger.info(f"GritLM model parameters are of type: {dtypes}")
+        uses_flash_attention = False
+        for name, module in model.named_modules():
+            if "Attention" in type(module).__name__:
+                if hasattr(module, "flash"):
+                    logger.info(f"{name} uses FlashAttention: {module.flash}")
+                    uses_flash_attention = True
+        if not uses_flash_attention:
+            logger.info(f"No flash attention is used")
         self.model = model
