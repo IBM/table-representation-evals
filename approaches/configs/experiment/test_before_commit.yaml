@@ -3,7 +3,7 @@ defaults:
   - override /approach: sentence_transformer # must be how you named the config file for your approach
 
 hydra:
-  verbose: True # set to True for debug outprints, set to False for Info prints only
+  verbose: False # set to True for debug outprints, set to False for Info prints only
   sweeper:
     params:
       # if you add multiple parameters (seperated by , ), all combinations are run (hydra multirun)
@@ -21,8 +21,8 @@ benchmark_tasks:
   #################################### 
   ###### Row Similarity Search
   #################################### 
-  row_similarity_search: # comment out the tasks you do not want to evaluate on
-    datasets:   # comment out the datasets that you do not want to evaluate on 
+  row_similarity_search: 
+    datasets:  
       - Amazon-Google # 4589 rows, 4 columns
     task_parameters:
       run_similarity_search_based_on: "row_embeddings" # needs to be either "row_embeddings" or "custom_function"
@@ -32,6 +32,15 @@ benchmark_tasks:
   more_similar_than:
     datasets:
        - wikidata_books
+  ####################################
+  ###### Column Similarity Search
+  ####################################
+  column_similarity_search: 
+    datasets:   
+      - valentine
+      - opendata
+    task_parameters:
+      run_similarity_search_based_on: "column_embeddings" # needs to be either "row_embeddings" or "custom_function"
   ################################### 
   ##### Predictive ML
   ################################### 
