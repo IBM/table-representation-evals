@@ -19,4 +19,6 @@ benchmark_tasks:
   table_retrieval:
     datasets:
       - fetaqa
-      - spider-validation
+#      - spider-validation
+    task_parameters:
+      force_embed_corpus: True

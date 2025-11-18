@@ -30,26 +30,11 @@ def get_embedder(cfg: DictConfig) -> TableEmbeddingInterface:
     return table_component
 
 
-def setup_qdrant(cfg: DictConfig, collection_name: str, vector_size: int) -> QdrantClient:
+def get_qdrant_client(cfg: DictConfig) -> QdrantClient:
     qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
-
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
-
-    # Delete existing collection if it exists and create a new one
-    try:
-        client.delete_collection(collection_name=collection_name)
-        logger.info(f"Deleted existing collection: {collection_name}")
-    except Exception:
-        pass  # Collection didn't exist
-
-    client.create_collection(
-        collection_name=collection_name,
-        vectors_config=rest.VectorParams(size=vector_size, distance=rest.Distance.COSINE),
-    )
-    logger.info(f"Created new collection: {collection_name}")
-
     return client
 
 
@@ -84,7 +69,7 @@ def embed_corpus(
             continue
 
         vec = table_component.create_table_embedding(row["table"])
-        payload = { "database_id": row.get("database_id"), "table_id": row.get("table_id")}
+        payload = {"database_id": row.get("database_id"), "table_id": row.get("table_id")}
 
         vectors.append(np.array(vec))
         payloads.append(payload)
@@ -110,8 +95,7 @@ def upload_corpus(
     )
 
     logger.info(
-        f"Uploaded {len(vectors)} tables to Qdrant"
-        f"collection '{collection_name}'"
+        f"Uploaded {len(vectors)} tables to Qdrant collection '{collection_name}'"
     )
 
 
@@ -214,7 +198,7 @@ def _calculate_summary_metrics(query_results: List[Dict[str, Any]]) -> Dict[str,
     return summary_metrics
 
 
-def evaluate_retrieval(
+def _evaluate_retrieval(
     client: QdrantClient,
     collection_name: str,
     table_component: TableEmbeddingInterface,
@@ -226,10 +210,7 @@ def evaluate_retrieval(
     """
     if len(queries_dataset) == 0:
         logger.error("Queries dataset is empty. No evaluation will be performed.")
-        return {
-            "summary_metrics": {},
-            "per_query_results": []
-        }
+        return {"summary_metrics": {}, "per_query_results": []}
 
     per_query_results = []
 
@@ -254,10 +235,7 @@ def evaluate_retrieval(
         per_query_results.append({
             "query_id": query_id,
             "query": query_text,
-            "ground_truth": {
-                "database_id": gt_database_id,
-                "table_ids": gt_table_id_list
-            },
+            "ground_truth": {"database_id": gt_database_id, "table_ids": gt_table_id_list},
             "retrieved": query_metrics["retrieved_items_list"],
             "metrics": {
                 "reciprocal_rank": query_metrics["reciprocal_rank"],
@@ -271,6 +249,54 @@ def evaluate_retrieval(
     summary_metrics = _calculate_summary_metrics(per_query_results)
 
     return {"summary_metrics": summary_metrics, "per_query_results": per_query_results}
+
+
+def embeddings_exist(client: QdrantClient, collection_name: str) -> bool:
+    """Return True if the collection exists and has a non-zero number of vectors/points."""
+    try:
+        exists = client.collection_exists(collection_name=collection_name)
+    except Exception as e:
+        logger.warning(f"Could not check collection existence: {e}")
+        return False
+
+    if not exists:
+        return False
+
+    try:
+        count = client.count(collection_name=collection_name).count
+    except Exception as e:
+        logger.warning(f"Collection exists but count() failed: {e}")
+        return False
+
+    return count > 0
+
+
+def _populate_vectordb(
+        client: QdrantClient,
+        collection_name: str,
+        table_embedding_component: TableEmbeddingInterface,
+        corpus_dataset: Dataset
+) -> None:
+    try:
+        client.delete_collection(collection_name=collection_name)
+        logger.info(f"Deleted existing collection '{collection_name}' due to force_embed flag.")
+    except Exception:
+        pass
+
+    vector_size = infer_embedder_output_dim(table_embedding_component, corpus_dataset)
+
+    try:
+        client.create_collection(
+            collection_name=collection_name,
+            vectors_config=rest.VectorParams(size=vector_size, distance=rest.Distance.COSINE),
+        )
+        logger.info(f"Created collection '{collection_name}' with vector size {vector_size}.")
+    except Exception as e:
+        logger.warning(f"Failed to create collection '{collection_name}': {e}")
+
+    vectors, payloads = embed_corpus(table_embedding_component, corpus_dataset)
+    upload_corpus(client, collection_name, vectors, payloads)
+    logger.info("Completed corpus embedding and upload to qdrant.")
 
 
 def main(cfg: DictConfig):
@@ -289,23 +315,31 @@ def main(cfg: DictConfig):
         f"Queries has {len(dataset_bundle.queries)} rows."
     )
 
+    client = get_qdrant_client(cfg)
     table_embedding_component = get_embedder(cfg)
 
     try:
-        vector_size = infer_embedder_output_dim(table_embedding_component, dataset_bundle.corpus)
-    except ValueError as e:
-        logger.error(f"FATAL: {str(e)}. Could not infer vector dimension.")
-        return
-    logger.info(f"Inferred vector dimension from the embedder: {vector_size}")
+        force_embed = bool(cfg.benchmark_tasks.table_retrieval.task_parameters.force_embed_corpus)
+    except Exception:
+        force_embed = False
 
-    vectors, payloads = embed_corpus(table_embedding_component, dataset_bundle.corpus)
+    # Decide whether to embed using the simple rule you requested
+    if force_embed or not embeddings_exist(client, cfg.run_identifier):
+        _populate_vectordb(
+            client=client,
+            collection_name=cfg.run_identifier,
+            table_embedding_component=table_embedding_component,
+            corpus_dataset=dataset_bundle.corpus,
+        )
+    else:
+        logger.info(
+            f"Skipping corpus embedding as vectorDB collection '{cfg.run_identifier}' is already populated."
+            f" Set force_embed_corpus to True to re-embed."
+        )
 
-    client = setup_qdrant(cfg, cfg.run_identifier, vector_size)
-    upload_corpus(client, cfg.run_identifier, vectors, payloads)
+    logger.info("Starting retrieval evaluation...")
 
-    logger.info("Corpus upload complete. Starting retrieval evaluation...")
-
-    evaluation_results = evaluate_retrieval(
+    evaluation_results = _evaluate_retrieval(
         client=client,
         collection_name=cfg.run_identifier,
         table_component=table_embedding_component,
@@ -315,3 +349,4 @@ def main(cfg: DictConfig):
 
     logger.info("Retrieval evaluation complete, saving results...")
     result_utils.save_results(cfg=cfg, metrics=evaluation_results)
+    client.close()
