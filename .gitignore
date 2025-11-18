@@ -14,4 +14,10 @@
 
 /config
 __MACOSX
+
 /datasetsapproaches/benchmark_approaches_src/hytrel/hytrel_src/
+/ContextAwareJoin/*
+
+
+# only have the template in the repo
+./setup_benchmark.sh 

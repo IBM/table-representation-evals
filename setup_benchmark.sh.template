@@ -1,0 +1,118 @@
+#!/bin/bash
+set -e 
+
+# ============================
+# Benchmark Environment Setup
+# ============================
+
+# export Huggingface directory
+export HF_HOME="/path/to/your/preferred/cache"
+
+
+# ============================
+# Download code for submodules
+# ============================
+
+if [ ! -d "ContextAwareJoin" ] || [ -z "$(ls -A ContextAwareJoin)" ]; then
+    git clone git@github.com:IBM/ContextAwareJoin.git
+else
+    echo "Directory ContextAwareJoin already exists and is not empty. Skipping clone."
+fi
+
+# ============================
+# Download datasets
+# ============================
+chmod +x ./benchmark_src/dataset_creation/create_join_benchmark.sh
+./benchmark_src/dataset_creation/create_join_benchmark.sh
+
+# ===================================
+# Create environments for approaches
+# ===================================
+
+# initialize conda
+eval "$(conda shell.bash hook)"
+
+#######################################################
+# create general conda environment for the benchmark
+#######################################################
+
+# Create environment if it doesn't exist
+if ! conda env list | grep -q benchmark_env; then
+    conda create -n benchmark_env python=3.13
+fi
+
+conda activate benchmark_env
+
+pip install -r reqs_benchmark.txt
+pip install hydra-joblib-launcher --upgrade
+
+pip install -e .
+pip install -e approaches/.
+
+conda deactivate
+
+##################################
+# Setup for TabICL
+##################################
+
+# because tabicl needs python < 3.13
+conda create -n benchmark_env_tabicl python=3.12
+conda activate benchmark_env_tabicl
+
+pip install -r reqs_benchmark.txt
+./approaches/benchmark_approaches_src/tabicl/setup.sh
+
+pip install hydra-joblib-launcher --upgrade
+pip install -e .
+pip install -e approaches/.
+
+conda deactivate
+
+##################################
+# Setup for Hytrel
+##################################
+
+# because of torch_scatter hytrel needs 3.12
+conda create -n benchmark_env_hytrel python=3.12
+conda activate benchmark_env_hytrel
+
+pip install -r reqs_benchmark.txt
+
+./approaches/benchmark_approaches_src/hytrel/setup.sh
+
+pip install hydra-joblib-launcher --upgrade
+pip install -e .
+pip install -e approaches/.
+
+conda deactivate
+
+##################################
+# Setup for Tabula
+##################################
+conda activate benchmark_env
+
+chmod +x ./approaches/benchmark_approaches_src/tabula_8b/setup.sh
+./approaches/benchmark_approaches_src/tabula_8b/setup.sh
+
+conda deactivate
+
+##################################
+# Setup for GritLM
+##################################
+
+conda create -n benchmark_env_gritlm python=3.12
+
+conda activate benchmark_env_gritlm
+
+pip install -r reqs_benchmark.txt
+
+# GritLM needs older transformers version to work
+pip uninstall transformers -y
+pip install transformers==4.40.2
+
+pip install hydra-joblib-launcher --upgrade
+pip install -e .
+pip install -e approaches/.
+pip install gritlm
+
+conda deactivate
