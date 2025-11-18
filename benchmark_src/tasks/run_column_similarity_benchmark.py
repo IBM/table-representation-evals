@@ -1,37 +1,47 @@
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import multiprocessing
 import logging
 import json
 import pickle
 import os
 import sys
+from pathlib import Path
+import statistics
+from tqdm import tqdm
 from hydra.utils import get_original_cwd
-# Add ContextAwareJoin to Python path
-context_aware_join_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ContextAwareJoin')
-if context_aware_join_path not in sys.path:
-    sys.path.insert(0, context_aware_join_path)
+import faiss
+import numpy as np
+import glob
 
-from src.myutils.evaluation import compute_mrr_from_list, compute_map_from_list, compute_ndcg, compute_precision_recall_at_k
-from src.myutils.utilities import convert_to_dict_of_list
+# Add ContextAwareJoin to Python path
+# Path to src folder in ContextAwareJoin submodule
+context_aware_join_src = Path(get_original_cwd()) / "ContextAwareJoin" / "src"
+
+# Make sure it exists
+if not context_aware_join_src.exists():
+    raise FileNotFoundError(f"{context_aware_join_src} does not exist!")
+
+# Add to sys.path if not already present
+if str(context_aware_join_src) not in sys.path:
+    sys.path.insert(0, str(context_aware_join_src))
+    print(f"Added {context_aware_join_src} to sys.path")
+
+
+from myutils.evaluation import compute_mrr_from_list, compute_map_from_list, compute_ndcg, compute_precision_recall_at_k
+from myutils.utilities import load_dataframe, convert_to_dict_of_list, get_groundtruth_with_scores
+
 from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
 from benchmark_src.utils import framework, result_utils
 from benchmark_src.tasks import component_utils
-import faiss
-import numpy as np
-import glob
-from tqdm import tqdm
-from src.myutils.utilities import load_dataframe, convert_to_dict_of_list, get_groundtruth_with_scores
-from pathlib import Path
-import statistics
-from omegaconf import OmegaConf
 
 logger = logging.getLogger(__name__)
 
 
 def load_benchmark_data(cfg):
-    dataset_dir = str(Path(get_original_cwd()) / Path(cfg.benchmark_datasets_dir) / cfg.dataset_name)
-    if cfg.dataset_name == 'opendata-contextawarejoins':
+    dataset_dir = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / cfg.dataset_name)
+    logger.debug(f"Looking for datasets in dir: {dataset_dir}")
+    if cfg.dataset_name == 'opendata':
         file_format = '.df'
     else:
         file_format = '.csv'
@@ -54,6 +64,9 @@ def load_benchmark_data(cfg):
     else:
         leaf_dirs = [dataset_dir]
 
+    if len(leaf_dirs) == 0:
+        raise ValueError(f"Did not find the dataset. leaf_dirs={leaf_dirs}")
+
     for dataset in leaf_dirs:
         datalake_tables = glob.glob(f"{dataset}/**/*{file_format}", recursive=True)
         # for column similarity tasks, groups of tables are in datalakes
@@ -63,11 +76,11 @@ def load_benchmark_data(cfg):
     #   for table in tqdm(datalake_tables, desc="Computing Embeddings", file=logger):
         for table in tqdm(datalake_tables, desc="Computing Embeddings"):
             try:
-                print('loading table', table)
+                logger.debug(f'loading table: {table}')
                 df = load_dataframe(table, file_format=file_format)
                 table2dfs[table] = df
             except:
-                print("Cannot find table", table)
+                logger.error(f"Cannot find table: {table}")
 
         if cfg.dataset_name.lower() == "valentine":
             gt = glob.glob(f"{dataset}/*mapping.json", recursive=True)
@@ -201,14 +214,15 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 target_table, target_col = all_indexes[neighbor]
                 r = target_col
                 joinable_list.append(r)
-            joinable_list.remove(source_col)
-            print('neighbors for ', x, i, source_col, joinable_list)
+            if source_col in joinable_list:
+                joinable_list.remove(source_col)
+            logger.debug('neighbors for ', x, i, source_col, joinable_list)
 
         missing_queries = set(new_gt.keys())-set(result.keys())
 
-        logger.debug(f"Result file is missing {len(missing_queries)} queries out of {len(new_gt)}")
+        logger.info(f"Result file is missing {len(missing_queries)} queries out of {len(new_gt)}")
         assert len(missing_queries) == 0, missing_queries
-        # logger.info(f'top k is set to:{top_k}')
+        logger.info(f'top k is set to:{top_k}')
 
         MRR = compute_mrr_from_list(new_gt, result, top_k)
         MAP = compute_map_from_list(new_gt, result, top_k)
@@ -239,7 +253,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
 
 def main(cfg: DictConfig):
-    logger.debug(f"Started embedding")
+    logger.debug(f"Started run_column_similarity_benchmark")
     logger.debug(f"Received cfg:")
     logger.debug(cfg)
     multiprocessing.set_start_method("spawn", force=True) 
