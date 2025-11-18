@@ -195,11 +195,11 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 table = k.split('.')[0]
                 searched_indexes.append((table, k))
                 search_sources.append(all_columns[table][k])
-                searched_indexes.append((table, k))
                 if len(gt_data[k]) > top_k:
                     top_k = len(gt_data[k])
 
         search_sources = np.asarray(search_sources)
+        assert len(new_gt) == len(search_sources)
 
         # check if there are column
         # need to add 1 to top_k so the search is adjusted for returning searched column
@@ -216,7 +216,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 joinable_list.append(r)
             if source_col in joinable_list:
                 joinable_list.remove(source_col)
-            logger.debug('neighbors for ', x, i, source_col, joinable_list)
+            #logger.debug('neighbors for ', x, i.tolist(), source_col, joinable_list)
 
         missing_queries = set(new_gt.keys())-set(result.keys())
 
