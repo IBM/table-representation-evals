@@ -19,7 +19,7 @@ Make sure that you set the *run_similarity_search_based_on* parameter in the exp
 
 2) Make a copy of the  `setup_benchmark.sh.template` script and rename it to `setup_benchmark.sh`. 
 
-3) Adapt the parameters in `setup_benchmark.sh` to your needs. 
+3) Adapt the parameters in `setup_benchmark.sh` to your needs, depending on which embedding approaches you want to use (you can re-run the script to install further approaches). 
 
 Note: The benchmark uses Hugging Face Transformers which will cache models in the default location:
 - Linux/Mac: `~/.cache/huggingface`
