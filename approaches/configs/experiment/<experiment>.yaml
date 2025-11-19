@@ -10,8 +10,6 @@ hydra:
       approach.<custom_parameter>: <x>, <y> # here you can add custom hyperpameters of the approach
 
 benchmark_output_dir: <foldername> # how to call the folder inside /results (benchmark is not re-run if results exist for this configuration in the given folder)
-benchmark_datasets_dir: <filepath/where/you/saved/the/dataset>
-cache_dir: cache # change cache folder location if needed
 
 benchmark_tasks:
   #################################### 
