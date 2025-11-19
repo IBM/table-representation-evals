@@ -115,84 +115,128 @@ def _search_query(
     )
 
 
-def _process_search_results(
+def _build_hits_info(
     search_results: List[rest.ScoredPoint],
     gold_tables_set: Set[Tuple[str, str]]
-) -> Dict[str, Any]:
-    retrieved_items_list = []
-    retrieved_tables_set = set()
-
-    query_reciprocal_rank = 0.0
-    query_precision_at_k_sum = 0.0
-    query_hits = 0
-    num_gold_tables = len(gold_tables_set)
+) -> List[Dict[str, Any]]:
+    hits_info = []
 
     for i, hit in enumerate(search_results):
-        current_rank = i + 1
         retrieved_db_id = hit.payload.get("database_id")
         retrieved_table_id = hit.payload.get("table_id")
-
         retrieved_table_tuple = (retrieved_db_id, retrieved_table_id)
-        retrieved_tables_set.add(retrieved_table_tuple)
-        is_match = (retrieved_table_tuple in gold_tables_set)
 
-        retrieved_items_list.append({
+        is_match = retrieved_table_tuple in gold_tables_set
+
+        hits_info.append({
             "database_id": retrieved_db_id,
             "table_id": retrieved_table_id,
             "score": hit.score,
-            "is_match": is_match
+            "is_match": is_match,
+            "rank": i + 1
         })
 
-        if is_match:
-            # 1 / rank of first match
+    return hits_info
+
+
+def _compute_metrics_for_slice(
+    hits_slice: List[Dict[str, Any]],
+    num_gold_tables: int
+) -> Dict[str, float]:
+    """
+    Calculates MRR, AP, Overlap, Recall, and Precision for a specific slice of hits (top-k).
+    """
+    query_reciprocal_rank = 0.0
+    query_precision_at_k_sum = 0.0
+    query_hits = 0
+
+    for hit in hits_slice:
+        if hit["is_match"]:
+            # MRR: 1 / rank of first match
             if query_hits == 0:
-                query_reciprocal_rank = 1.0 / current_rank
+                query_reciprocal_rank = 1.0 / hit["rank"]
+
             query_hits += 1
-            precision_at_k = query_hits / current_rank
-            query_precision_at_k_sum += precision_at_k
+            precision_at_rank = query_hits / hit["rank"]
+            query_precision_at_k_sum += precision_at_rank
 
     if num_gold_tables > 0:
         query_average_precision = query_precision_at_k_sum / num_gold_tables
     else:
         query_average_precision = 0.0
 
-    overlap = len(gold_tables_set.intersection(retrieved_tables_set))
+    overlap_count = sum(1 for h in hits_slice if h["is_match"])
+    retrieved_count = len(hits_slice)
+
+    recall = (overlap_count / num_gold_tables) if num_gold_tables > 0 else 0.0
+    precision = (overlap_count / retrieved_count) if retrieved_count > 0 else 0.0
 
     return {
         "reciprocal_rank": query_reciprocal_rank,
         "average_precision": query_average_precision,
-        "overlap": overlap,
-        "retrieved_tables_count": len(search_results),
-        "retrieved_items_list": retrieved_items_list
+        "overlap": overlap_count,
+        "retrieved_tables_count": retrieved_count,
+        "recall": recall,
+        "precision": precision
     }
 
 
-def _calculate_summary_metrics(query_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _process_search_results(
+    search_results: List[rest.ScoredPoint],
+    gold_tables_set: Set[Tuple[str, str]],
+    top_ks: List[int]
+) -> Dict[str, Any]:
+    """
+    Calculates metrics for multiple k values based on a single (deepest) search result list.
+    """
+    hits_info = _build_hits_info(search_results, gold_tables_set)
+
+    num_gold_tables = len(gold_tables_set)
+    metrics_per_k = {}
+
+    for k in top_ks:
+        # Slice the hits info to the current k depth
+        metrics_per_k[k] = _compute_metrics_for_slice(hits_info[:k], num_gold_tables)
+
+    return {
+        "gold_tables_count": num_gold_tables,
+        "metrics_per_k": metrics_per_k,
+        "retrieved_items_full_list": hits_info
+    }
+
+
+def _calculate_summary_metrics(query_results: List[Dict[str, Any]], top_ks: List[int]) -> Dict[str, Any]:
     total_queries = len(query_results)
+    summary_metrics: Dict[str, Any] = {"total_queries": total_queries}
 
-    total_reciprocal_rank = sum(r['metrics']['reciprocal_rank'] for r in query_results)
-    total_average_precision = sum(r['metrics']['average_precision'] for r in query_results)
-    total_num_overlap = sum(r['metrics']['overlap'] for r in query_results)
-    total_gold_tables = sum(r['metrics']['gold_tables_count'] for r in query_results)
-    total_retrieved_items = sum(r['metrics']['retrieved_tables_count'] for r in query_results)
+    for k in top_ks:
+        total_reciprocal_rank = 0.0
+        total_average_precision = 0.0
+        total_overlap = 0
+        total_gold_tables = 0
+        total_retrieved_items = 0
 
-    mrr = total_reciprocal_rank / total_queries
-    map_score = total_average_precision / total_queries
+        for res in query_results:
+            m = res["metrics"]["metrics_per_k"][k]
+            total_reciprocal_rank += m["reciprocal_rank"]
+            total_average_precision += m["average_precision"]
+            total_overlap += m["overlap"]
+            total_gold_tables += res["metrics"]["gold_tables_count"]
+            total_retrieved_items += m["retrieved_tables_count"]
 
-    # Micro-averaged Recall and Precision
-    recall = (total_num_overlap / total_gold_tables) if total_gold_tables > 0 else 0.0
-    precision = (total_num_overlap / total_retrieved_items) if total_retrieved_items > 0 else 0.0
+        mrr = total_reciprocal_rank / total_queries
+        map_score = total_average_precision / total_queries
 
-    summary_metrics = {
-        "MRR": mrr,
-        "MAP": map_score,
-        "Recall": recall,
-        "Precision": precision,
-        "total_queries": total_queries,
-        "total_overlap": total_num_overlap,
-        "total_gold_tables": total_gold_tables,
-        "total_retrieved_items": total_retrieved_items
-    }
+        recall = (total_overlap / total_gold_tables) if total_gold_tables > 0 else 0.0
+        precision = (total_overlap / total_retrieved_items) if total_retrieved_items > 0 else 0.0
+
+        summary_metrics[f"k={k}"] = {
+            "MRR": mrr,
+            "MAP": map_score,
+            "Recall": recall,
+            "Precision": precision,
+            "total_overlap": total_overlap,
+        }
 
     logger.info(f"Evaluation summary: {summary_metrics}")
     return summary_metrics
@@ -203,14 +247,21 @@ def _evaluate_retrieval(
     collection_name: str,
     table_component: TableEmbeddingInterface,
     queries_dataset: Dataset,
-    top_k: int
+    top_ks: List[int]
 ) -> Dict[str, Any]:
     """
-    Runs the retrieval loop over all queries, computes MRR, MAP, Recall, and Precision.
+    Runs the retrieval loop over all queries, computes MRR, MAP, Recall, and Precision for all k in top_ks.
     """
     if len(queries_dataset) == 0:
         logger.error("Queries dataset is empty. No evaluation will be performed.")
         return {"summary_metrics": {}, "per_query_results": []}
+
+    if top_ks is None or len(top_ks) == 0:
+        logger.error("Top ks are empty. No evaluation will be performed.")
+        return {"summary_metrics": {}, "per_query_results": []}
+
+    # Determine the maximum k needed for the actual Qdrant query
+    max_k = max(top_ks)
 
     per_query_results = []
 
@@ -228,25 +279,23 @@ def _evaluate_retrieval(
             (gt_database_id, t) for t in gt_table_id_list
         )
 
-        search_results = _search_query(query_text, table_component, client, collection_name, top_k)
+        # Fetch the maximum required items
+        search_results = _search_query(query_text, table_component, client, collection_name, max_k)
 
-        query_metrics = _process_search_results(search_results, gold_tables_set)
+        processed_data = _process_search_results(search_results, gold_tables_set, top_ks)
 
         per_query_results.append({
             "query_id": query_id,
             "query": query_text,
             "ground_truth": {"database_id": gt_database_id, "table_ids": gt_table_id_list},
-            "retrieved": query_metrics["retrieved_items_list"],
+            "retrieved": processed_data["retrieved_items_full_list"],
             "metrics": {
-                "reciprocal_rank": query_metrics["reciprocal_rank"],
-                "average_precision": query_metrics["average_precision"],
-                "overlap": query_metrics["overlap"],
-                "gold_tables_count": len(gold_tables_set),
-                "retrieved_tables_count": query_metrics["retrieved_tables_count"]
+                "gold_tables_count": processed_data["gold_tables_count"],
+                "metrics_per_k": processed_data["metrics_per_k"]
             }
         })
 
-    summary_metrics = _calculate_summary_metrics(per_query_results)
+    summary_metrics = _calculate_summary_metrics(per_query_results, top_ks)
 
     return {"summary_metrics": summary_metrics, "per_query_results": per_query_results}
 
@@ -323,7 +372,7 @@ def main(cfg: DictConfig):
     except Exception:
         force_embed = False
 
-    # Decide whether to embed using the simple rule you requested
+    # Embed corpus before evaluation if forced or not already embedded
     if force_embed or not embeddings_exist(client, cfg.run_identifier):
         _populate_vectordb(
             client=client,
@@ -344,7 +393,7 @@ def main(cfg: DictConfig):
         collection_name=cfg.run_identifier,
         table_component=table_embedding_component,
         queries_dataset=dataset_bundle.queries,
-        top_k=cfg.task.top_k
+        top_ks=list(cfg.task.top_ks)
     )
 
     logger.info("Retrieval evaluation complete, saving results...")

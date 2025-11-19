@@ -1,2 +1,2 @@
 task_name: table_retrieval
-top_k: 10
+top_ks: [1, 3, 5, 10]
