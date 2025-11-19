@@ -20,4 +20,4 @@ __MACOSX
 
 
 # only have the template in the repo
-./setup_benchmark.sh 
+setup_benchmark.sh 
