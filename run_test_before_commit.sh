@@ -21,7 +21,7 @@ python benchmark_src/run_benchmark.py experiment=test_before_commit task=row_sim
 ########## Test column similarity search ############
 ##################################################
 python benchmark_src/run_benchmark.py experiment=test_before_commit task=column_similarity_search  dataset_name=valentine  benchmark_output_dir=$CURRENT_TIMESTAMP
-#python benchmark_src/run_benchmark.py experiment=test_before_commit task=column_similarity_search  dataset_name=opendata  benchmark_output_dir=$CURRENT_TIMESTAMP
+python benchmark_src/run_benchmark.py experiment=test_before_commit task=column_similarity_search  dataset_name=opendata  benchmark_output_dir=$CURRENT_TIMESTAMP
 
 ##################################################
 ########## Test more similar than ################
