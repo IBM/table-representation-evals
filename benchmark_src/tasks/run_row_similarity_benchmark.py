@@ -17,7 +17,7 @@ from benchmark_src.utils.resource_monitoring import monitor_resources, save_reso
 logger = logging.getLogger(__name__)
 
 def load_benchmark_data(cfg):
-    dataset_folder = Path(get_original_cwd()) / Path(cfg.benchmark_datasets_dir) / cfg.dataset_name
+    dataset_folder = Path(get_original_cwd()) / Path(cfg.cache_dir) / "row_similarity_data_full" / cfg.dataset_name
     assert dataset_folder.exists(), f"Could not find path {dataset_folder}"
 
     with open(dataset_folder / "dataset_information.json", "r") as file:

@@ -17,40 +17,25 @@ Make sure that you set the *run_similarity_search_based_on* parameter in the exp
 
 1) Checkout this repository
 
-2) Create a conda environment and activate it (use lower python version if required by the approaches you are using). If you don't have conda installed yet, follow the installation instructions here: https://github.com/conda-forge/miniforge. 
+2) Make a copy of the  `setup_benchmark.sh.template` script and rename it to `setup_benchmark.sh`. 
 
-```
-conda create -n <environment-name> python=<3.13> 
-```
+3) Adapt the parameters in `setup_benchmark.sh` to your needs, depending on which embedding approaches you want to use (you can re-run the script to install further approaches). 
 
 Note: The benchmark uses Hugging Face Transformers which will cache models in the default location:
 - Linux/Mac: `~/.cache/huggingface`
 - Windows: `C:\Users\username\.cache\huggingface`
 
-To use a different cache location, set the `HF_HOME` environment variable:
+To use a different cache location, you can set the `HF_HOME` environment variable:
 ```bash
 export HF_HOME="/path/to/your/preferred/cache"
 ```
 
-3) Install packages from requirements.txt
+4) To complete the installation, run 
 
 ```
-pip install -r requirements.txt
+./setup_benchmark.sh
 ```
 
-4) Install the main benchmark evaluation project by running
-
-```
-pip install -e .
-````
-
-5) Install the approaches project by running
-
-```
-pip install -e approaches/.
-```
-
-6) Download the datasets and place them where you like, you will point to their location in the yaml configuration of each experiment that you run
  
 ## Section 3: How to add your approach
 
@@ -74,10 +59,10 @@ The benchmark is run one approach at a time, but you can configure several hyper
 
 1) In approaches/configs/experiment, make a copy of <experiment>.yaml and rename it. Set the *benchmark_datasets_dir:* parameter to the filepath where you saved the datasets. Then set all parameters for the approach you want to evaluate. 
 
-2) In the commandline, from the embedding_benchmarks folder, run the following command, replacing <experiment_name> with the filename of the experiment yaml file you created in the previous step:
+2) In the commandline, from the embedding_benchmarks folder, run the following command, replacing <experiment_name> with the filename of the experiment yaml file you created in the previous step and the name of the conda environment:
 
 ```
-sh run_benchmark.sh <experiment_name>
+sh run_benchmark.sh <experiment_name> benchmark_env
 ```
 
 3) Your results will be saved in the benchmark_results folder

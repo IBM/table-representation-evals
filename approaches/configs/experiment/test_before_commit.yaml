@@ -14,8 +14,6 @@ hydra:
 
 
 benchmark_output_dir: just_testing # how to call the folder inside /results (benchmark is not re-run if results exist for this configuration in the given folder)
-benchmark_datasets_dir: created_datasets/row_similarity_data_full
-cache_dir: cache
 
 benchmark_tasks:
   #################################### 

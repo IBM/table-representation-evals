@@ -20,7 +20,7 @@ from sklearn.metrics import silhouette_score
 logger = logging.getLogger(__name__)
 
 def load_benchmark_data(cfg):
-    dataset_name = str(Path(get_original_cwd()) / Path(cfg.benchmark_datasets_dir) / cfg.dataset_name) + '.csv'
+    dataset_name = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / cfg.dataset_name) + '.csv'
     input_table = pandas.read_csv(dataset_name, engine='c', on_bad_lines='skip')
     return input_table
 

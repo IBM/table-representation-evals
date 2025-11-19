@@ -21,10 +21,6 @@ def main(cfg: DictConfig):
     print(cfg)
     guard_cfg_no_none(cfg)
 
-
-    # convert paths in config to proper pathlib paths:
-    cfg.benchmark_datasets_dir = Path(cfg.benchmark_datasets_dir)
-
     # create cache folder
     cfg.cache_dir = Path(get_original_cwd()) / Path(cfg.cache_dir)
     cfg.cache_dir.mkdir(exist_ok=True)
