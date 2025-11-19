@@ -39,7 +39,10 @@ logger = logging.getLogger(__name__)
 
 
 def load_benchmark_data(cfg):
-    dataset_dir = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / cfg.dataset_name)
+    if cfg.dataset_name == 'wikijoin_small':
+        dataset_dir = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / "wikijoin")
+    else:
+        dataset_dir = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / cfg.dataset_name)
     logger.debug(f"Looking for datasets in dir: {dataset_dir}")
     if cfg.dataset_name == 'opendata':
         file_format = '.df'
@@ -84,6 +87,8 @@ def load_benchmark_data(cfg):
 
         if cfg.dataset_name.lower() == "valentine":
             gt = glob.glob(f"{dataset}/*mapping.json", recursive=True)
+        elif cfg.dataset_name.lower() == "wikijoin_small":
+            gt = glob.glob(f"{dataset}/gt_small.*", recursive=True)
         else:
             gt = glob.glob(f"{dataset}/**/gt.*", recursive=True)
             gt = [x for x in gt if x.endswith('json') or x.endswith('jsonl') or x.endswith('pickle')]
@@ -99,8 +104,25 @@ def load_benchmark_data(cfg):
             raise NotImplementedError
         else:
             raise NotImplementedError
-        test_cases[dataset] = table2dfs, gt_data, dataset.replace('/', '_')
 
+        if cfg.dataset_name.lower() == "wikijoin_small":
+            l = [x.split('.')[0] + '.csv' for x in gt_data.keys()]
+            alx = []
+            for x in gt_data.values():
+                for y in x:
+                    alx.append(y.split('.')[0] + '.csv')
+            fls = l + alx
+            new_table2dfs = {}
+            for k in table2dfs:
+                x = k.split('/')[-1]
+                if x in fls:
+                    new_table2dfs[k] = table2dfs[k]
+            assert len(new_table2dfs) < len(table2dfs)
+            assert len(new_table2dfs) > 0, new_table2dfs
+            print('created a small version of wikijoin', len(new_table2dfs))
+            table2dfs = new_table2dfs
+
+        test_cases[dataset] = table2dfs, gt_data, dataset.replace('/', '_')
 
     return test_cases
 
@@ -139,7 +161,6 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     for testcase in test_cases:
         all_columns = {}
         table2dfs, gt_data, dataset = test_cases[testcase]
-
         if not os.path.exists(f'{results_file}/{dataset}.pkl'):
             for table in table2dfs:
                 t = os.path.basename(table).replace('.csv', '').replace('.df', '')
