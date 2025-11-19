@@ -59,10 +59,10 @@ The benchmark is run one approach at a time, but you can configure several hyper
 
 1) In approaches/configs/experiment, make a copy of <experiment>.yaml and rename it. Set the *benchmark_datasets_dir:* parameter to the filepath where you saved the datasets. Then set all parameters for the approach you want to evaluate. 
 
-2) In the commandline, from the embedding_benchmarks folder, run the following command, replacing <experiment_name> with the filename of the experiment yaml file you created in the previous step:
+2) In the commandline, from the embedding_benchmarks folder, run the following command, replacing <experiment_name> with the filename of the experiment yaml file you created in the previous step and the name of the conda environment:
 
 ```
-sh run_benchmark.sh <experiment_name>
+sh run_benchmark.sh <experiment_name> benchmark_env
 ```
 
 3) Your results will be saved in the benchmark_results folder
