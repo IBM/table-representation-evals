@@ -6,9 +6,8 @@ defaults:
   - override hydra/launcher: joblib
 
 benchmark_output_dir: ~
-benchmark_datasets_dir: ~
 dataset_name: ~
-cache_dir: ~
+cache_dir: cache # if this is changed the setup script also needs to be changed
 
 # for test purposes, you can limit the number of testcases to run
 test_case_limit: null # int or null
@@ -26,6 +25,7 @@ hydra:
           - dataset_name
           - task
           - experiment
+          - benchmark_output_dir
   run:
     dir: results/${benchmark_output_dir}/${approach.approach_name}/${sanitize_dirname:${hydra:job.override_dirname}}/${task.task_name}/${dataset_name}
   sweep:
