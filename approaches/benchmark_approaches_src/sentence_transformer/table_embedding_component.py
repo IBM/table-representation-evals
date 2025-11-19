@@ -8,6 +8,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
 
     def __init__(self, approach_instance):
         self.approach_instance = approach_instance
+        self.table_row_limit = approach_instance.table_row_limit
         super().__init__()
 
     def setup_model_for_task(self):
@@ -18,7 +19,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         Serialize the full DataFrame to Markdown (header + rows) and embed it
         using the SentenceTransformer model provided by the approach.
         """
-        markdown_str = approach_utils.convert_array_to_markdown(input_table)
+        markdown_str = approach_utils.convert_array_to_markdown(input_table, max_rows=self.table_row_limit)
         embedding = self.approach_instance.model.encode(
             markdown_str,
             show_progress_bar=False,

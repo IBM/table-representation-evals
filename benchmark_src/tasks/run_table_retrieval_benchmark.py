@@ -272,10 +272,10 @@ def embeddings_exist(client: QdrantClient, collection_name: str) -> bool:
 
 
 def _populate_vectordb(
-        client: QdrantClient,
-        collection_name: str,
-        table_embedding_component: TableEmbeddingInterface,
-        corpus_dataset: Dataset
+    client: QdrantClient,
+    collection_name: str,
+    table_embedding_component: TableEmbeddingInterface,
+    corpus_dataset: Dataset
 ) -> None:
     try:
         client.delete_collection(collection_name=collection_name)

@@ -6,7 +6,8 @@ hydra:
   verbose: True # set to True for debug outprints, set to False for Info prints only
   sweeper:
     params:
-     approach.embedding_model:  all-MiniLM-L6-v2
+     approach.embedding_model: all-MiniLM-L6-v2
+     approach.table_row_limit: 100
 
 benchmark_output_dir: "tmp"
 benchmark_datasets_dir: "/home/ayeen/uni/research/liane/table-representation-evals"
