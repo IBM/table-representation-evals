@@ -1,0 +1,150 @@
+{
+ "genre___Q483394": {
+  "fiction___Q8253": {
+   "philosophical fiction___Q20737414": {},
+   "thriller___Q182015": {
+    "psychological thriller___Q590103": {},
+    "legal thriller___Q2490520": {}
+   },
+   "mystery fiction___Q6585139": {
+    "detective fiction___Q186424": {
+     "police procedural___Q2321734": {}
+    }
+   },
+   "crime fiction___Q5937792": {
+    "noir fiction___Q26221026": {}
+   },
+   "historical fiction___Q1196408": {
+    "alternate history___Q224989": {},
+    "historical drama___Q7168625": {},
+    "historical play___Q5774663": {},
+    "historical prose literature___Q136472": {
+     "historical novel___Q192239": {
+      "historical romance___Q3440984": {},
+      "biographical novel___Q4914883": {}
+     }
+    },
+    "historical mystery___Q1093312": {}
+   },
+   "adventure fiction___Q21802675": {
+    "adventure novel___Q319226": {}
+   },
+   "young adult fiction___Q111984153": {},
+   "speculative fiction___Q9326077": {
+    "gothic fiction___Q20669641": {},
+    "post-apocalyptic fiction___Q197949": {},
+    "horror___Q4828740": {},
+    "paranormal fiction___Q7135551": {
+     "paranormal romance___Q1192185": {},
+     "monster fiction___Q115379382": {
+      "vampire fiction___Q111019576": {}
+     }
+    },
+    "fantasy___Q132311": {
+     "high fantasy___Q326439": {},
+     "sword and sorcery___Q1999690": {},
+     "urban fantasy___Q1188977": {},
+     "science fantasy___Q1080374": {
+      "sword and planet___Q582760": {}
+     },
+     "historical fantasy___Q603291": {}
+    },
+    "science fiction___Q24925": {
+     "futuristic fiction___Q64448878": {},
+     "star trek novel___Q72996181": {},
+     "space opera___Q468478": {},
+     "dystopian fiction___Q15062348": {},
+     "techno-thriller___Q580850": {},
+     "military science fiction___Q904447": {}
+    }
+   },
+   "romantic fiction___Q19765983": {},
+   "military fiction___Q21803247": {
+    "war novel___Q908667": {}
+   },
+   "magic realist fiction___Q102439494": {},
+   "political fiction___Q2254211": {
+    "political novel___Q11499138": {}
+   },
+   "coming-of-age fiction___Q2975633": {
+    "bildungsroman___Q223945": {}
+   },
+   "western___Q21590660": {},
+   "children's fiction___Q56451354": {
+    "children's novel___Q21615367": {}
+   },
+   "tale___Q17991521": {
+    "folk tale___Q1221280": {
+     "fable___Q693": {},
+     "schwank___Q11871": {}
+    },
+    "conte___Q7679101": {
+     "literary fairy tale___Q24723": {}
+    },
+    "fairy tale___Q699": {}
+   },
+   "satirical fiction___Q110540276": {}
+  },
+  "non-fiction___Q213051": {
+   "specialized literature___Q1391420": {
+    "religious book___Q116658403": {},
+    "scientific literature___Q12042160": {
+     "scientific publication___Q591041": {
+      "scientific book___Q7433672": {
+       "monograph___Q193495": {}
+      },
+      "report___Q10870555": {
+       "personal narrative___Q17108519": {
+        "autobiography___Q4184": {
+         "memoir___Q112983": {},
+         "autobiographical novel___Q3056541": {}
+        }
+       }
+      }
+     }
+    }
+   },
+   "true crime___Q3541116": {},
+   "biographical work___Q15706467": {
+    "biography___Q36279": {
+     "hagiography___Q208628": {}
+    }
+   },
+   "commentary___Q1749541": {
+    "critique___Q3059502": {
+     "criticism___Q17955": {
+      "literary criticism___Q58854": {}
+     }
+    }
+   },
+   "recorded history___Q1145106": {
+    "historiography___Q30277550": {
+     "chronicle___Q185363": {
+      "yearbook___Q9311446": {}
+     }
+    }
+   },
+   "persuasive writing___Q7170782": {
+    "argumentative text___Q3752011": {
+     "essay___Q35760": {}
+    }
+   },
+   "nature writing___Q3337126": {},
+   "work of science___Q11826511": {
+    "data set___Q1172284": {
+     "catalogue___Q2352616": {
+      "register___Q19386377": {
+       "catalog of works___Q64222248": {
+        "art catalog___Q47114558": {
+         "exhibition catalogue___Q780605": {}
+        }
+       }
+      },
+      "biographical dictionary___Q1787111": {}
+     }
+    }
+   },
+   "popular science___Q995600": {}
+  }
+ }
+}
