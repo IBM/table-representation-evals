@@ -74,7 +74,7 @@ class MusicBrainzDataset(EM_Dataset):
             logging.info("Now downloading dataset")
             utils.download_url(url=self.cfg["dataset"]["url"], path=raw_datasets_path)
 
-        Path.mkdir(self.output_path, exist_ok=False)
+        Path.mkdir(self.output_path, exist_ok=True)
         
         original_data_df = pd.read_csv(dataset_path)
 
@@ -150,7 +150,7 @@ class MusicBrainzDataset(EM_Dataset):
     def save_testcases(self, testcases):
         testcase_dir = self.output_path / "test_cases"
 
-        Path.mkdir(testcase_dir, exist_ok=False)
+        Path.mkdir(testcase_dir, exist_ok=True)
 
         logger.info("Creating test cases")
 
