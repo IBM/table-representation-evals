@@ -15,19 +15,21 @@ from benchmark_src.approach_interfaces.table_embedding_interface import TableEmb
 from benchmark_src.dataset_creation.target.collect_all_target_datasets import get_target_dataset_by_name
 from benchmark_src.utils import result_utils
 from benchmark_src.utils.framework import get_approach_class
+from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
+from benchmark_src.tasks import component_utils
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def get_embedder(cfg: DictConfig) -> TableEmbeddingInterface:
+def get_embedder(cfg: DictConfig) -> Tuple[TableEmbeddingInterface, Dict[str, Any]]:
     approach_cls = get_approach_class(cfg)
     embedder = approach_cls(cfg)
     table_component: TableEmbeddingInterface = embedder._load_component(
         "table_embedding_component", "TableEmbeddingComponent", TableEmbeddingInterface
     )
-    table_component.setup_model_for_task()
-    return table_component
+    _, resource_metrics_setup = component_utils.run_model_setup(component=table_component)
+    return table_component, resource_metrics_setup
 
 
 def get_qdrant_client(cfg: DictConfig) -> QdrantClient:
@@ -348,25 +350,13 @@ def _populate_vectordb(
     logger.info("Completed corpus embedding and upload to qdrant.")
 
 
-def main(cfg: DictConfig):
-    logger.debug("Started run_table_retrieval_benchmark.main")
-    logger.debug("Received cfg:")
-    logger.debug(cfg)
-
-    try:
-        dataset_bundle = get_target_dataset_by_name(cfg.dataset_name)
-    except Exception as e:
-        logger.error(f"Failed to load dataset '{cfg.dataset_name}': {e}")
-        return
-
-    logger.info(
-        f"Dataset '{cfg.dataset_name}': Corpus has {len(dataset_bundle.corpus)} rows, "
-        f"Queries has {len(dataset_bundle.queries)} rows."
-    )
-
-    client = get_qdrant_client(cfg)
-    table_embedding_component = get_embedder(cfg)
-
+@monitor_resources()
+def run_table_retrieval(
+    cfg: DictConfig,
+    dataset_bundle,
+    client: QdrantClient,
+    table_embedding_component: TableEmbeddingInterface,
+) -> Dict[str, Any]:
     try:
         force_embed = bool(cfg.benchmark_tasks.table_retrieval.task_parameters.force_embed_corpus)
     except Exception:
@@ -397,5 +387,41 @@ def main(cfg: DictConfig):
     )
 
     logger.info("Retrieval evaluation complete, saving results...")
+    return evaluation_results
+
+
+def main(cfg: DictConfig):
+    logger.debug("Started run_table_retrieval_benchmark.main")
+    logger.debug("Received cfg:")
+    logger.debug(cfg)
+
+    try:
+        dataset_bundle = get_target_dataset_by_name(cfg.dataset_name)
+    except Exception as e:
+        logger.error(f"Failed to load dataset '{cfg.dataset_name}': {e}")
+        return
+
+    logger.info(
+        f"Dataset '{cfg.dataset_name}': Corpus has {len(dataset_bundle.corpus)} rows, "
+        f"Queries has {len(dataset_bundle.queries)} rows."
+    )
+
+    client = get_qdrant_client(cfg)
+    table_embedding_component, resource_metrics_setup = get_embedder(cfg)
+
+    evaluation_results, resource_metrics_task = run_table_retrieval(
+        cfg=cfg,
+        dataset_bundle=dataset_bundle,
+        client=client,
+        table_embedding_component=table_embedding_component,
+    )
+
+    if resource_metrics_setup:
+        save_resource_metrics_to_disk(
+            cfg=cfg,
+            resource_metrics_setup=resource_metrics_setup,
+            resource_metrics_task=resource_metrics_task,
+        )
+
     result_utils.save_results(cfg=cfg, metrics=evaluation_results)
     client.close()
