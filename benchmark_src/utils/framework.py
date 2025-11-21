@@ -8,26 +8,26 @@ from omegaconf import OmegaConf
 
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 
+# hydra override keys to exclude from run ID generation
+EXCLUDED_KEYS: set[str] = {"experiment"}
+
 
 def generate_run_id_string(_=None) -> str:
     """
-    Generates a unique Hydra override string from HydraConfig.
-    Raises exceptions if overrides are missing.
+    Generates a unique Hydra override string from HydraConfig, excluding any overrides whose key is present in
+    EXCLUDED_KEYS.
     """
     hc = HydraConfig.get()
     if hc is None:
         raise RuntimeError("HydraConfig is unavailable. Cannot generate run string.")
 
-    task_overrides = hc["overrides"].get("task")
-    hydra_overrides = hc["overrides"].get("hydra")
+    def _key(item: str) -> str:
+        return item.split("=", 1)[0].strip()
 
-    if task_overrides is None:
-        raise KeyError("'overrides.task' is missing in HydraConfig.")
-    if hydra_overrides is None:
-        raise KeyError("'overrides.hydra' is missing in HydraConfig.")
+    combined = [*hc.overrides.hydra, *hc.overrides.task]
+    filtered = [item for item in combined if _key(item) not in EXCLUDED_KEYS]
 
-    return ",".join([*hydra_overrides, *task_overrides])
-
+    return ",".join(filtered)
 
 def _sanitize_dirname(dirname: str) -> str:
     return dirname.replace("/", "_")
