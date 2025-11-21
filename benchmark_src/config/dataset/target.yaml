@@ -1,6 +1,7 @@
 dataset_name: target
 
 # each dataset and its config fields
+# Note: The dataset splits follow those provided in the original Target paper’s repository.
 sub_datasets:
   fetaqa:
     dataset_name: fetaqa
