@@ -1,0 +1,2 @@
+task_name: table_retrieval
+top_ks: [1, 3, 5, 10]

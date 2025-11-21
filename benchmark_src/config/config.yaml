@@ -5,6 +5,7 @@ defaults:
   - experiment: ~
   - override hydra/launcher: joblib
 
+run_identifier: ${generate_run_id:}
 benchmark_output_dir: ~
 dataset_name: ~
 cache_dir: cache # if this is changed the setup script also needs to be changed
@@ -20,17 +21,12 @@ hydra:
     chdir: True
     config:
       override_dirname:
-        exclude_keys:
-          - approach
-          - dataset_name
-          - task
-          - experiment
-          - benchmark_output_dir
+        exclude_keys: []
   run:
-    dir: results/${benchmark_output_dir}/${approach.approach_name}/${sanitize_dirname:${hydra:job.override_dirname}}/${task.task_name}/${dataset_name}
+    dir: results/${benchmark_output_dir}/${approach.approach_name}/${create_run_path:${hydra:job.override_dirname}}
   sweep:
     dir: results
-    subdir: ${benchmark_output_dir}/${approach.approach_name}/${sanitize_dirname:${hydra:job.override_dirname}}/${task.task_name}/${dataset_name} 
+    subdir: ${benchmark_output_dir}/${approach.approach_name}/${create_run_path:${hydra:job.override_dirname}}
   # required for better process isolation:
   launcher:
     n_jobs: 2

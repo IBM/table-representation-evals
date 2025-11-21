@@ -1,13 +1,12 @@
-from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 import logging
-from omegaconf import DictConfig
+
 import pandas as pd
-from tqdm import tqdm
-
-from benchmark_approaches_src.sentence_transformer import approach_utils 
-
-## Custom imports 
+from benchmark_approaches_src.sentence_transformer import approach_utils
+from omegaconf import DictConfig
+## Custom imports
 from sentence_transformers import SentenceTransformer
+
+from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,9 @@ class SentenceTransformerEmbedder(BaseTabularEmbeddingApproach):
         # e.g. self.<your_parameter> = cfg.approach.<your_parameter>
 
         assert cfg.approach.embedding_model is not None, f"Please pass an embedding_model name"
+        assert cfg.approach.table_row_limit is not None, f"Please pass a table_row_limit"
         self.embedding_model_name = cfg.approach.embedding_model
+        self.table_row_limit = cfg.approach.table_row_limit
 
         logger.info("SentenceTransformerEmbedder: Initialized.")
         
