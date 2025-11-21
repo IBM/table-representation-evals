@@ -1,4 +1,5 @@
 import logging
+import json
 from pathlib import Path
 from typing import Set, Dict, Any, Tuple, List
 
@@ -390,6 +391,41 @@ def run_table_retrieval(
     return evaluation_results
 
 
+def _flatten_summary_metrics(summary_metrics: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Flattens the nested summary metrics by appending @k to the metric keys.
+    Example input:  "k=1": {"MRR": 0.5}
+    Example output: "MRR@1": 0.5
+    """
+    flattened = {}
+    for key, value in summary_metrics.items():
+        # Check if the key represents a specific k-slice
+        if isinstance(value, dict) and key.startswith("k="):
+            try:
+                k_suffix = key.split("=")[1]
+                for metric_name, metric_val in value.items():
+                    new_key = f"{metric_name}@{k_suffix}"
+                    flattened[new_key] = metric_val
+            except IndexError:
+                raise ValueError(f"Invalid key format in summary metrics: {key}, expected 'k=<value>'")
+        else:
+            # Keep top-level scalar metrics (e.g., "total_queries") as is
+            flattened[key] = value
+    return flattened
+
+
+def _save_full_results_to_disk(
+        results: Dict[str, Any],
+        filename: str = "full_results.json"
+) -> None:
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2)
+        logger.info(f"Saved full detailed results to '{filename}'")
+    except Exception as e:
+        logger.error(f"Failed to save full results to disk: {e}")
+
+
 def main(cfg: DictConfig):
     logger.debug("Started run_table_retrieval_benchmark.main")
     logger.debug("Received cfg:")
@@ -423,5 +459,11 @@ def main(cfg: DictConfig):
             resource_metrics_task=resource_metrics_task,
         )
 
-    result_utils.save_results(cfg=cfg, metrics=evaluation_results)
+    # Dump the full, raw results (including per_query_results) to disk
+    _save_full_results_to_disk(evaluation_results, filename="full_results.json")
+
+    flattened_summary_metrics = _flatten_summary_metrics(evaluation_results["summary_metrics"])
+
+    result_utils.save_results(cfg=cfg, metrics=flattened_summary_metrics)
+
     client.close()
