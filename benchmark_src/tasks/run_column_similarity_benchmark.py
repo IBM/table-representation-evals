@@ -50,10 +50,10 @@ def load_benchmark_data(cfg):
         file_format = '.csv'
 
     # Helper to find all lowest-level subfolders
-    def get_leaf_dirs(root_dir, keep):
+    def get_leaf_dirs(root_dir, keep=None):
         leaf_dirs = []
         for dirpath, dirnames, filenames in os.walk(root_dir):
-            if keep not in dirpath:
+            if keep and keep not in dirpath:
                 continue
             # If a directory has no subdirectories, it is a leaf
             if not dirnames:
@@ -64,12 +64,16 @@ def load_benchmark_data(cfg):
     test_cases = {}
     if cfg.dataset_name.lower() == "valentine":
         leaf_dirs = get_leaf_dirs(dataset_dir, keep='Joinable')
+    elif cfg.dataset_name.lower() == "nextia":
+        leaf_dirs = get_leaf_dirs(dataset_dir)
     else:
         leaf_dirs = [dataset_dir]
 
     if len(leaf_dirs) == 0:
         raise ValueError(f"Did not find the dataset. leaf_dirs={leaf_dirs}")
 
+    print('LEAF_DIRS', leaf_dirs)
+    
     for dataset in leaf_dirs:
         datalake_tables = glob.glob(f"{dataset}/**/*{file_format}", recursive=True)
         # for column similarity tasks, groups of tables are in datalakes
@@ -81,6 +85,7 @@ def load_benchmark_data(cfg):
             try:
                 logger.debug(f'loading table: {table}')
                 df = load_dataframe(table, file_format=file_format)
+                print(df.columns)
                 table2dfs[table] = df
             except:
                 logger.error(f"Cannot find table: {table}")
@@ -89,6 +94,9 @@ def load_benchmark_data(cfg):
             gt = glob.glob(f"{dataset}/*mapping.json", recursive=True)
         elif cfg.dataset_name.lower() == "wikijoin_small":
             gt = glob.glob(f"{dataset}/gt_small.*", recursive=True)
+        elif cfg.dataset_name.lower() == "nextia":
+            d = dataset.replace('/datalake', '')
+            gt = glob.glob(f"{d}/**/gt.*", recursive=True)
         else:
             gt = glob.glob(f"{dataset}/**/gt.*", recursive=True)
             gt = [x for x in gt if x.endswith('json') or x.endswith('jsonl') or x.endswith('pickle')]
@@ -193,8 +201,13 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         search_sources = []
         searched_indexes = []
 
+        for k in all_columns:
+            if k.startswith('animal'):
+                for v in all_columns[k]:
+                    print("table column", k, v)
         new_gt = {}
         top_k = 0
+        print(all_columns.keys())
         if cfg.dataset_name == 'valentine':
             for match in gt_data['matches']:
                 table = match['source_table']
@@ -211,17 +224,22 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                     top_k = len(new_gt[c])
         else:
             # set k to max of gt data
-            new_gt = gt_data
+            new_gt = {}
+        
             for k in gt_data:
                 table = k.split('.')[0]
-                searched_indexes.append((table, k))
-                search_sources.append(all_columns[table][k])
-                if len(gt_data[k]) > top_k:
-                    top_k = len(gt_data[k])
+                if table in all_columns:
+                    search_sources.append(all_columns[table][k])
+                    searched_indexes.append((table, k))
+                    new_gt[k] = gt_data[k]
+                    if len(gt_data[k]) > top_k:
+                        top_k = len(gt_data[k])
 
         search_sources = np.asarray(search_sources)
+        print('new_gt', new_gt)
+        print('search indexes', searched_indexes)
         assert len(new_gt) == len(search_sources)
-
+            
         # check if there are column
         # need to add 1 to top_k so the search is adjusted for returning searched column
         D, I = index.search(search_sources, top_k + 1)
