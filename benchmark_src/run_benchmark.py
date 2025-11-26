@@ -19,6 +19,9 @@ def main(cfg: DictConfig):
 
     print("Got config: ")
     print(cfg)
+
+    print("Run id:", cfg.run_identifier)
+
     guard_cfg_no_none(cfg)
 
     # create cache folder
@@ -52,6 +55,9 @@ def main(cfg: DictConfig):
             elif cfg.task.task_name == "column_similarity_search":
                 from benchmark_src.tasks import run_column_similarity_benchmark
                 run_column_similarity_benchmark.main(cfg)
+            elif cfg.task.task_name == "table_retrieval":
+                from benchmark_src.tasks import run_table_retrieval_benchmark
+                run_table_retrieval_benchmark.main(cfg)
             else:
                 logger.error("Unknown task:", cfg.task)
         except Exception as e:
