@@ -34,7 +34,7 @@ if [ ! -d "ContextAwareJoin" ] || [ -z "$(ls -A ContextAwareJoin)" ]; then
     git clone git@github.com:IBM/ContextAwareJoin.git
 else
     echo "Directory ContextAwareJoin already exists and is not empty. Skipping clone."
-
+fi
 # =====================================================
 # create general conda environment for the benchmark
 # =====================================================
@@ -42,9 +42,7 @@ else
 eval "$(conda shell.bash hook)"
 
 # Create environment if it doesn't exist
-if ! conda env list | grep -q benchmark_env; then
-    conda create -n benchmark_env python=3.13
-fi
+conda create -n benchmark_env python=3.13
 
 conda activate benchmark_env
 
@@ -52,16 +50,17 @@ pip install -r reqs_benchmark.txt
 pip install hydra-joblib-launcher --upgrade
 
 pip install -e .
-pip install -e approaches/.
+pip install -e approaches/ .
 
 conda deactivate
-fi
 
 # ============================
 # Download/Create datasets
 # ============================
+conda activate benchmark_env
 chmod +x ./benchmark_src/dataset_creation/create_join_benchmark.sh
 ./benchmark_src/dataset_creation/create_join_benchmark.sh
+conda deactivate
 
 
 if [ -d "./cache/row_similarity_data_full" ] && [ "$(ls -A ./cache/row_similarity_data_full)" ]; then
@@ -92,7 +91,7 @@ if [ "$SETUP_TABICL" = true ]; then
 
     pip install hydra-joblib-launcher --upgrade
     pip install -e .
-    pip install -e approaches/.
+    pip install -e approaches/ .
 
     conda deactivate
 fi
@@ -112,7 +111,7 @@ if [ "$SETUP_HYTREL" = true ]; then
 
     pip install hydra-joblib-launcher --upgrade
     pip install -e .
-    pip install -e approaches/.
+    pip install -e approaches/ .
 
     conda deactivate
 fi
@@ -145,7 +144,7 @@ if [ "$SETUP_GRITLM" = true ]; then
 
     pip install hydra-joblib-launcher --upgrade
     pip install -e .
-    pip install -e approaches/.
+    pip install -e approaches/ .
     pip install gritlm
 
     conda deactivate
