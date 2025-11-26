@@ -21,5 +21,7 @@ benchmark_tasks:
       - wikijoin_small
       - valentine
       - opendata
+      - autojoin
+      - nextia
     task_parameters:
       run_similarity_search_based_on: "column_embeddings" # needs to be either "row_embeddings" or "custom_function"
