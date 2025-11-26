@@ -3,15 +3,13 @@ defaults:
   - override /approach: sentence_transformer
 
 hydra:
-  verbose: True # set to True for debug outprints, set to False for Info prints only
+  verbose: False # set to True for debug outprints, set to False for Info prints only
   sweeper:
     params:
      approach.embedding_model: all-MiniLM-L6-v2
      approach.table_row_limit: 100
 
 benchmark_output_dir: "tmp"
-benchmark_datasets_dir: "/home/ayeen/uni/research/liane/table-representation-evals"
-cache_dir: "cache" # change cache folder location if needed
 
 benchmark_tasks:
   ####################################
@@ -20,6 +18,13 @@ benchmark_tasks:
   table_retrieval:
     datasets:
       - fetaqa
-#      - spider-validation
+      - tabfact
+      - ottqa
+      #- spider-train
+      - spider-validation
+      #- spider-test
+      - bird-validation
+      #- gittables
+      
     task_parameters:
-      force_embed_corpus: True
+      force_embed_corpus: False

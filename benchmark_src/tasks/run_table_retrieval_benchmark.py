@@ -331,7 +331,7 @@ def _populate_vectordb(
 ) -> None:
     try:
         client.delete_collection(collection_name=collection_name)
-        logger.info(f"Deleted existing collection '{collection_name}' due to force_embed flag.")
+        logger.info(f"Deleted existing collection '{collection_name}' due to force_embed flag or because it was empty.")
     except Exception:
         pass
 
@@ -435,7 +435,7 @@ def main(cfg: DictConfig):
         dataset_bundle = get_target_dataset_by_name(cfg.dataset_name)
     except Exception as e:
         logger.error(f"Failed to load dataset '{cfg.dataset_name}': {e}")
-        return
+        raise e
 
     logger.info(
         f"Dataset '{cfg.dataset_name}': Corpus has {len(dataset_bundle.corpus)} rows, "
