@@ -1,0 +1,20 @@
+approach_name: sap_rpt_oss
+
+module_path: "approaches/benchmark_approaches_src/sap_rpt_oss"
+class_name: SAP_RPT_OSS_Embedder
+
+_target_: approaches.benchmark_approaches_src.sap_rpt_oss.approach.SAP_RPT_OSS_Embedder
+
+# Model parameters
+# For best performance, use max_context_size=8192 and bagging=8 (requires 80GB GPU)
+# For lighter requirements, use max_context_size=2048 and bagging=1
+bagging: 1
+max_context_size: 2048
+device: "auto"
+
+# Benchmark tasks configuration
+benchmark_tasks:
+  predictive_ml:
+    task_parameters:
+      run_task_based_on: "custom_predictiveML_model"
+

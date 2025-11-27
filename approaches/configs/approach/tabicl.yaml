@@ -6,3 +6,10 @@ class_name: TabICLEmbedder
 # --------- TabICL specific parameters --------
 # Number of estimators for the ensemble (default: 32)
 n_estimators: 32
+
+# Reduce model dimensions to prevent memory issues and segmentation faults
+# Set to false to use full model dimensions (embed_dim=128, col_num_blocks=3, col_num_inds=128)
+# Set to true to use reduced dimensions (embed_dim=64, col_num_blocks=2, col_num_inds=64)
+use_memory_efficient_model: false
+# Device to run the model on (cuda/cpu)
+device: "auto"

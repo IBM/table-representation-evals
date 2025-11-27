@@ -44,7 +44,7 @@ class GeologicalSettlementsDataset(EM_Dataset):
             logging.info("Now downloading dataset")
             utils.download_url(url=self.cfg["dataset"]["url"], path=raw_datasets_path, unzip=True)
 
-        Path.mkdir(self.output_path, exist_ok=False)
+        Path.mkdir(self.output_path, exist_ok=True)
 
         input_data_path = self.dataset_path / "settlements.json"
 
@@ -175,7 +175,7 @@ class GeologicalSettlementsDataset(EM_Dataset):
         """
         testcase_dir = self.output_path / "test_cases"
 
-        Path.mkdir(testcase_dir, exist_ok=False)
+        Path.mkdir(testcase_dir, exist_ok=True)
         test_case_id = 0
 
         for row_ids in testcases:

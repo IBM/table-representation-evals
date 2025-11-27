@@ -1,0 +1,56 @@
+# @package _global_
+defaults:
+  - override /approach: sap_rpt_oss
+  
+benchmark_output_dir: "benchmark_results_test"
+benchmark_datasets_dir: "/Users/niharika.dsouza/Projects/embedding_benchmarks/dataset_creation/created_datasets/row_similarity_data_full"
+cache_dir: "cache"
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.bagging: 1  # Use fewer bagging iterations for testing
+      approach.max_context_size: 2048  # Use smaller context size for testing (8192 for best performance)
+  launcher:
+    n_jobs: 1  # Use fewer jobs to avoid memory issues
+    prefer: processes
+    backend: loky
+
+benchmark_tasks:
+  #################################### 
+  ###### Row Similarity Search
+  #################################### 
+  row_similarity_search:
+    datasets:
+      #################################### 
+      ## Entity Matching Datasets
+      #################################### 
+      - Amazon-Google  # 4589 rows, 4 columns
+     # - Beer  # 7345 rows, 5 columns
+     # - DBLP-ACM  # 4910 rows, 5 columns
+     # - DBLP-GoogleScholar  # 66879 rows, 5 columns
+     # - Fodors-Zagats  # 864 rows, 7 columns
+     # - geological-settlements  # 3054 rows, 8 columns
+     # - iTunes-Amazon  # 62830 rows, 9 columns
+     # - MusicBrainz  # 19375 rows, 10 columns
+     # - Walmart-Amazon  # 24628 rows, 6 columns
+    task_parameters:
+      run_similarity_search_based_on: "row_embeddings"  
+  #################################### 
+  ###### Predictive ML
+  #################################### 
+  predictive_ml:
+    datasets:
+      #################################### 
+      ## Binary-classification (with string columns) - SAP RPT-1-OSS excels at these
+      #################################### 
+      - credit-g  # 1000 rows, 20 columns, [13/20] categorical
+      #- Fitness_Club  # 1500 rows, 6 columns, [3/6] categorical
+      #- Is-this-a-good-customer  # 1723 rows, 13 columns, [8/13] categorical
+      #- Marketing_Campaign  # 2240 rows, 25 columns, [8/25] categorical
+      #- seismic-bumps  # 2584 rows, 15 columns, [3/15] categorical
+      #- kddcup09_appetency  # 50000 rows, 212 columns - EXCLUDED: may cause hangs
+    task_parameters:
+      run_task_based_on: "custom_predictiveML_model"  # Use SAP RPT-1-OSS for prediction
+
