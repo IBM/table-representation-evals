@@ -177,7 +177,7 @@ class SAP_RPT_OSS_Embedder(BaseTabularEmbeddingApproach):
             query_embeddings = encoder_outputs[num_rows:, :, :]
             row_embeddings = query_embeddings.mean(dim=1)
             
-            return row_embeddings.cpu().numpy()
+            return row_embeddings.cpu().to(torch.float32).numpy()
 
     def load_predictive_ml_model(self, train_df: pd.DataFrame, train_labels: pd.Series, 
                                 task_type: str, dataset_information: dict):
