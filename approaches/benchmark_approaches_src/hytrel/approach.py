@@ -14,6 +14,7 @@ import re
 import sys
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple, Optional
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig
 from transformers import AutoTokenizer, AutoConfig
+from hydra.utils import get_original_cwd
 
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 
@@ -114,7 +116,8 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             config = self._create_model_config()
             self.model = Encoder(config)
 
-            checkpoint_path = getattr(self.cfg.approach, "checkpoint_path", None)
+            checkpoint_path_from_config = getattr(self.cfg.approach, "checkpoint_path", None)
+            checkpoint_path = Path(get_original_cwd()) / Path(checkpoint_path_from_config)
             if checkpoint_path and os.path.exists(checkpoint_path):
                 logger.info(f"Loading checkpoint from: {checkpoint_path}")
                 self._inject_optimizer_config()

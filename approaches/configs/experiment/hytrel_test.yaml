@@ -16,10 +16,6 @@ hydra:
     n_jobs: 2  # Reduced from 10 to 2 to avoid memory exhaustion
     prefer: processes
     backend: loky
-  # Sweeper configuration for parameter sweeps
-  sweeper:
-    params:
-      approach.checkpoint_path: "/Users/niharika.dsouza/Projects/hypergraph-tabular-lm/checkpoints/contrast/contrast_model.pt"  
 
 benchmark_tasks:
   #################################### 

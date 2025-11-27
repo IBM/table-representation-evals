@@ -2,7 +2,7 @@
 approach_name: "hytrel"
 module_path: "approaches/benchmark_approaches_src/hytrel"
 class_name: HyTrelEmbedder
-checkpoint_path: "/Users/niharika.dsouza/Projects/hypergraph-tabular-lm/checkpoints/contrast/contrast_model.pt"  # Path to pre-trained HyTrel contrast checkpoint
+checkpoint_path: "approaches/benchmark_approaches_src/hytrel/hytrel_src/checkpoints/ckpt_data/checkpoints/contrast/epoch=4-step=32690.ckpt/checkpoint/mp_rank_00_model_states.pt"  # Path to pre-trained HyTrel contrast checkpoint
 
 # Use default HyTrel model configuration (from bert-base-uncased + custom tokens)
 # This matches the configuration used in HyTrel evaluation scripts
