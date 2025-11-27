@@ -7,15 +7,60 @@ set -e
 
 SETUP_TABICL=false
 SETUP_HYTREL=false
+SETUP_SAP_RPT_OSS=false # requires huggingface token
 SETUP_TABULA=false
 SETUP_GRITLM=false
 
 # ============================
 # Benchmark Environment Setup
 # ============================
+ENV_FILE=".env"
 
-# (optional) export Huggingface directory 
-# export HF_HOME="/path/to/your/preferred/cache"
+# -----------------------------
+# Create .env if it doesn't exist
+# -----------------------------
+if [[ ! -f "$ENV_FILE" ]]; then
+    echo "Creating $ENV_FILE..."
+    touch "$ENV_FILE"
+fi
+
+# -----------------------------
+# Function to update or add a key=value in .env
+# -----------------------------
+update_env() {
+    local key="$1"
+    local value="$2"
+
+    if grep -q "^${key}=" "$ENV_FILE"; then
+        # Key exists, replace the line
+        sed -i.bak "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+    else
+        # Key does not exist, append
+        echo "${key}=${value}" >> "$ENV_FILE"
+    fi
+}
+
+# -----------------------------
+# Prompt for HF_HOME
+# -----------------------------
+current_hf_home=$(grep "^HF_HOME=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || true)
+
+if [[ -n "$current_hf_home" ]]; then
+    echo "Current HF_HOME is set to: $current_hf_home"
+    read -rp "Do you want to change HF_HOME? (y/N) " change_hf_home
+    if [[ "$change_hf_home" =~ ^[Yy]$ ]]; then
+        read -rp "Enter new HF_HOME path: " hf_home
+        update_env "HF_HOME" "$hf_home"
+    else
+        echo "Keeping existing HF_HOME: $current_hf_home"
+    fi
+else
+    read -rp "HF_HOME is not set. Enter HF_HOME path (or leave blank to skip): " hf_home
+    if [[ -n "$hf_home" ]]; then
+        update_env "HF_HOME" "$hf_home"
+    fi
+fi
+
 
 # ============================
 # Create cache directory
@@ -120,6 +165,47 @@ if [ "$SETUP_HYTREL" = true ]; then
     pip install hydra-joblib-launcher --upgrade
     pip install -e .
     pip install -e approaches/ .
+
+    conda deactivate
+fi
+
+##################################
+# Setup for SAP RPT OSS
+##################################
+
+if [ "$SETUP_SAP_RPT_OSS" = true ]; then
+
+    # -----------------------------
+    # Prompt for HF_TOKEN
+    # -----------------------------
+    echo ""
+    echo "The Hugging Face token (HF_TOKEN) is required to access gated models, such as SAP/sap-rpt-1-oss."
+    echo "A token with read access is sufficient."
+    echo "Please make sure you have accepted the model license/terms here:"
+    echo "https://huggingface.co/SAP/sap-rpt-1-oss"
+    echo "Without a valid token, the script will not be able to download or access the model."
+    echo ""
+
+    current_token=$(grep "^HF_TOKEN=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || true)
+
+    if [[ -n "$current_token" ]]; then
+        read -rp "HF_TOKEN already exists in $ENV_FILE. Do you want to update it? (y/N) " update_token
+        if [[ "$update_token" =~ ^[Yy]$ ]]; then
+            read -rp "Enter your HF_TOKEN (after accepting the terms on Hugging Face): " hf_token
+            update_env "HF_TOKEN" "$hf_token"
+        fi
+    else
+        read -rp "Enter your HF_TOKEN (after accepting the terms on Hugging Face): " hf_token
+        update_env "HF_TOKEN" "$hf_token"
+    fi
+
+    # -----------------------------
+    # Setup the environment
+    # -----------------------------
+
+    conda activate benchmark_env
+
+    ./approaches/benchmark_approaches_src/sap_rpt_oss/setup.sh
 
     conda deactivate
 fi

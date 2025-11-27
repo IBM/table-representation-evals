@@ -19,5 +19,7 @@ __MACOSX
 /ContextAwareJoin/*
 .idea
 
+.env
+
 # only have the template in the repo
 setup_benchmark.sh

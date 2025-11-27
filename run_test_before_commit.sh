@@ -3,6 +3,8 @@ set -e
 
 RESULTS_FOLDER_NAME="results_testing" 
 
+export PYTHONPATH=$(pwd):$PYTHONPATH
+
 ## Need to activate conda environment
 ENV_NAME="$1"
 

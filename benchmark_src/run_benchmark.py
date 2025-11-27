@@ -5,6 +5,7 @@ import logging
 import sys
 import traceback
 from hydra.utils import get_original_cwd
+from dotenv import load_dotenv
 
 from benchmark_src.utils.framework import register_resolvers
 from benchmark_src.utils.cfg_utils import guard_cfg_no_none
@@ -21,6 +22,8 @@ def main(cfg: DictConfig):
     print(cfg)
 
     print("Run id:", cfg.run_identifier)
+
+    load_dotenv()  # loads variables from .env 
 
     guard_cfg_no_none(cfg)
 
