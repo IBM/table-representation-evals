@@ -1,17 +1,11 @@
 #!/bin/bash
+set -e
 
 # TabICL Setup Script
 # This script installs the local tabicl package for the TabICL approach
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Initialize and update git submodules
-echo "Initializing git submodules..."
-git submodule init
-echo "Updating git submodules..."
-git submodule update
 
 TABICL_LOCAL_PATH="$SCRIPT_DIR/tabicl"
 
@@ -22,4 +16,5 @@ fi
 
 echo "Installing local tabicl package from $TABICL_LOCAL_PATH..."
 pip install -e "$TABICL_LOCAL_PATH"
+
 echo "TabICL local package installation complete!" 

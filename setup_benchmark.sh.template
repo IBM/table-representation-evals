@@ -30,6 +30,14 @@ fi
 # ============================
 # Download code for submodules
 # ============================
+
+# Initialize and update git submodules
+echo "Initializing git submodules..."
+git submodule init
+echo "Updating git submodules..."
+git submodule update
+echo "Done with the submodules"
+
 if [ ! -d "ContextAwareJoin" ] || [ -z "$(ls -A ContextAwareJoin)" ]; then
     git clone git@github.com:IBM/ContextAwareJoin.git
 else
