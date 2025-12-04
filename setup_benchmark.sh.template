@@ -10,6 +10,7 @@ SETUP_HYTREL=false
 SETUP_SAP_RPT_OSS=false # requires huggingface token
 SETUP_TABULA=false
 SETUP_GRITLM=false
+SETUP_TABPFN=false # requires huggingface token
 
 # ============================
 # Benchmark Environment Setup
@@ -240,6 +241,44 @@ if [ "$SETUP_GRITLM" = true ]; then
     pip install -e .
     pip install -e approaches/ .
     pip install gritlm
+
+    conda deactivate
+fi
+
+##################################
+# Setup for TabPFN
+##################################
+if [ "$SETUP_TABPFN" = true ]; then
+
+    # -----------------------------
+    # Prompt for HF_TOKEN
+    # -----------------------------
+    echo ""
+    echo "The Hugging Face token (HF_TOKEN) is required to access the tabpfn model."
+    echo "A token with read access is sufficient."
+    echo "Please make sure you have accepted the model license/terms here:"
+    echo "https://huggingface.co/Prior-Labs/tabpfn_2_5"
+    echo "Without a valid token, the script will not be able to download or access the model."
+    echo "If you already have a HF_TOKEN in .env you don't need to update it, just accept the license terms above."
+    echo ""
+
+    current_token=$(grep "^HF_TOKEN=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || true)
+
+    if [[ -n "$current_token" ]]; then
+        read -rp "HF_TOKEN already exists in $ENV_FILE. Do you want to update it? (y/N) " update_token
+        if [[ "$update_token" =~ ^[Yy]$ ]]; then
+            read -rp "Enter your HF_TOKEN (after accepting the terms on Hugging Face): " hf_token
+            update_env "HF_TOKEN" "$hf_token"
+        fi
+    else
+        read -rp "Enter your HF_TOKEN (after accepting the terms on Hugging Face): " hf_token
+        update_env "HF_TOKEN" "$hf_token"
+    fi
+
+    conda activate benchmark_env
+
+    chmod +x ./approaches/benchmark_approaches_src/tabpfn/setup.sh
+    ./approaches/benchmark_approaches_src/tabpfn/setup.sh
 
     conda deactivate
 fi
