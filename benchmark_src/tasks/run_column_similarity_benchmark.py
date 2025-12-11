@@ -44,6 +44,9 @@ def load_benchmark_data(cfg):
     else:
         dataset_dir = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / cfg.dataset_name)
     logger.debug(f"Looking for datasets in dir: {dataset_dir}")
+
+    assert Path(dataset_dir).exists(), f"Could not find dataset dir: {dataset_dir}"
+
     if cfg.dataset_name == 'opendata':
         file_format = '.df'
     else:
@@ -71,29 +74,21 @@ def load_benchmark_data(cfg):
         raise ValueError(f"Did not find the dataset. leaf_dirs={leaf_dirs}")
 
     for dataset in leaf_dirs:
-        datalake_tables = glob.glob(f"{dataset}/**/*{file_format}", recursive=True)
-        # for column similarity tasks, groups of tables are in datalakes
-        # maintain a mapping of datalake to tables
-        table2dfs = {}
-    #   TBD unclear why logger does not work
-    #   for table in tqdm(datalake_tables, desc="Computing Embeddings", file=logger):
-        for table in tqdm(datalake_tables, desc="Computing Embeddings"):
-            try:
-                logger.debug(f'loading table: {table}')
-                df = load_dataframe(table, file_format=file_format)
-                table2dfs[table] = df
-            except:
-                logger.error(f"Cannot find table: {table}")
-
+        ############################
+        # Load GT first
+        ############################
+        print("Dataset name", cfg.dataset_name.lower())
         if cfg.dataset_name.lower() == "valentine":
             gt = glob.glob(f"{dataset}/*mapping.json", recursive=True)
         elif cfg.dataset_name.lower() == "wikijoin_small":
             gt = glob.glob(f"{dataset}/gt_small.*", recursive=True)
+            print(f"Found gt: {gt}")
         else:
             gt = glob.glob(f"{dataset}/**/gt.*", recursive=True)
             gt = [x for x in gt if x.endswith('json') or x.endswith('jsonl') or x.endswith('pickle')]
+            print(f"else case. Found gt: {gt}")
 
-        assert len(gt) == 1, gt
+        assert len(gt) == 1, f"Error: gt is {gt}"
         gt = gt[0]
 
         if gt.endswith('.json'):
@@ -104,6 +99,25 @@ def load_benchmark_data(cfg):
             raise NotImplementedError
         else:
             raise NotImplementedError
+
+        ############################
+        # Load datalake tables
+        ############################
+        datalake_tables = glob.glob(f"{dataset}/**/*{file_format}", recursive=True)
+        # for column similarity tasks, groups of tables are in datalakes
+        # maintain a mapping of datalake to tables
+        table2dfs = {}
+    #   TBD unclear why logger does not work
+    #   for table in tqdm(datalake_tables, desc="Computing Embeddings", file=logger):
+        use_tqdm = len(datalake_tables) > 20
+        iterator = tqdm(datalake_tables, desc="Computing Embeddings") if use_tqdm else datalake_tables
+        for table in iterator:
+            try:
+                logger.debug(f'loading table: {table}')
+                df = load_dataframe(table, file_format=file_format)
+                table2dfs[table] = df
+            except:
+                logger.error(f"Cannot find table: {table}")
 
         if cfg.dataset_name.lower() == "wikijoin_small":
             l = [x.split('.')[0] + '.csv' for x in gt_data.keys()]
