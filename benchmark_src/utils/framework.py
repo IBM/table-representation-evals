@@ -1,6 +1,7 @@
 import importlib
 import sys
 from pathlib import Path
+import logging
 
 from hydra.core.hydra_config import HydraConfig
 from hydra.utils import get_original_cwd
@@ -9,7 +10,7 @@ from omegaconf import OmegaConf
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 
 # hydra override keys to exclude from run ID generation
-EXCLUDED_KEYS: set[str] = {"experiment"}
+EXCLUDED_KEYS: set[str] = {"experiment", "approach.device"}
 
 
 def generate_run_id_string(_=None) -> str:
@@ -118,3 +119,19 @@ def get_approach_class(cfg):
     
     #print("Found class")
     return embedding_approach_class
+
+
+class StreamToLogger:
+    """Fake file-like stream object that redirects writes to a logger."""
+    def __init__(self, logger, log_level=logging.ERROR):
+        self.logger = logger
+        self.log_level = log_level
+        self._buffer = ""
+
+    def write(self, message):
+        message = message.rstrip()
+        if message:
+            self.logger.log(self.log_level, message)
+
+    def flush(self):
+        pass  # needed for file-like object
