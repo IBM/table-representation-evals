@@ -14,6 +14,7 @@ import re
 import sys
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple, Optional
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig
 from transformers import AutoTokenizer, AutoConfig
+from hydra.utils import get_original_cwd
 
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 
@@ -99,7 +101,6 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         self.model = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        # Initialize tokenizer for HyTrel
         self.tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
         self.max_token_length = DEFAULT_MAX_TOKEN_LENGTH
         
@@ -112,42 +113,31 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             
         logger.info("Loading HyTrel model...")
         try:
-            # Create model configuration and initialize Encoder per hytrel_src
             config = self._create_model_config()
             self.model = Encoder(config)
 
-            # Load pre-trained weights using the same logic as hytrel_src/evaluate_*.py
-            checkpoint_path = getattr(self.cfg.approach, "checkpoint_path", None)
+            checkpoint_path_from_config = getattr(self.cfg.approach, "checkpoint_path", None)
+            checkpoint_path = Path(get_original_cwd()) / Path(checkpoint_path_from_config)
             if checkpoint_path and os.path.exists(checkpoint_path):
                 logger.info(f"Loading checkpoint from: {checkpoint_path}")
-                # Inject OptimizerConfig into __main__ before loading to handle pickle references
                 self._inject_optimizer_config()
                 
-                # Load checkpoint - ensure __main__ module has OptimizerConfig for pickle
-                # This handles cases where pickle looks for OptimizerConfig in __main__
-                # (especially in joblib/loky subprocess contexts)
                 original_main = sys.modules.get('__main__', None)
                 import types
                 
-                # Ensure current __main__ has OptimizerConfig
                 if '__main__' in sys.modules:
                     sys.modules['__main__'].OptimizerConfig = OptimizerConfig
                 else:
-                    # Create new __main__ if it doesn't exist
                     main_module = types.ModuleType('__main__')
                     main_module.OptimizerConfig = OptimizerConfig
                     sys.modules['__main__'] = main_module
                 
                 try:
-                    # Use weights_only=False since we trust our checkpoints (compatible with PyTorch 2.6+)
                     state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device, weights_only=False)
                 except (AttributeError, TypeError) as e:
                     if "OptimizerConfig" in str(e):
-                        # If still failing, try adding to the specific module mentioned in error
-                        # Error format: "Can't get attribute 'OptimizerConfig' on <module 'MODULE_NAME' from ...>"
                         error_str = str(e)
                         import re
-                        # Extract module name from error message - look for pattern: module 'MODULE_NAME'
                         mod_matches = re.findall(r"module ['\"]([^'\"]+)['\"]", error_str)
                         for mod_name in mod_matches:
                             if mod_name not in sys.modules:
@@ -156,28 +146,27 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
                                 sys.modules[mod_name] = fake_mod
                             elif not hasattr(sys.modules[mod_name], 'OptimizerConfig'):
                                 sys.modules[mod_name].OptimizerConfig = OptimizerConfig
-                        # Try loading again with weights_only=False
                         state_dict = torch.load(open(checkpoint_path, 'rb'), map_location=self.device, weights_only=False)
                     else:
                         raise
                 from collections import OrderedDict
                 new_state_dict = OrderedDict()
 
-                if 'module' in state_dict:  # DeepSpeed format
+                if 'module' in state_dict:
                     for k, v in state_dict['module'].items():
                         if 'model' in k:
-                            name = k[13:]  # remove `module.model.`
+                            name = k[13:]
                             new_state_dict[name] = v
-                elif 'state_dict' in state_dict:  # PyTorch Lightning format
+                elif 'state_dict' in state_dict:
                     for k, v in state_dict['state_dict'].items():
                         if k.startswith('model.'):
-                            name = k[6:]  # remove `model.`
+                            name = k[6:]
                             new_state_dict[name] = v
                         else:
                             new_state_dict[k] = v
-                elif 'model_state_dict' in state_dict:  # Plain dict under key
+                elif 'model_state_dict' in state_dict:
                     new_state_dict = state_dict['model_state_dict']
-                else:  # Direct state dict
+                else:
                     new_state_dict = state_dict
 
                 self.model.load_state_dict(new_state_dict, strict=True)
@@ -186,7 +175,6 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
                 if checkpoint_path:
                     logger.warning(f"Checkpoint path provided but file not found: {checkpoint_path}")
 
-            # Move model to device and set to eval mode
             self.model.to(self.device)
             self.model.eval()
             logger.info(f"HyTrel model loaded on {self.device}")
@@ -324,21 +312,13 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         # Create a copy to avoid modifying the original
         input_table_clean = input_table.copy()
         
-        # Handle categorical columns first
+        # Convert all columns to string first, then handle NaN values
+        # This avoids type errors when filling NaN with empty string
         for col in input_table_clean.columns:
-            if input_table_clean[col].dtype.name == 'category':
-                # Add empty string as a category if it doesn't exist
-                if "" not in input_table_clean[col].cat.categories:
-                    input_table_clean[col] = input_table_clean[col].cat.add_categories([""])
-                # Fill NaN values with empty string
-                input_table_clean[col] = input_table_clean[col].fillna("")
-            else:
-                # For non-categorical columns, fill NaN values with empty string
-                input_table_clean[col] = input_table_clean[col].fillna("")
-        
-        # Convert all columns to string for tokenization
-        for col in input_table_clean.columns:
+            # Convert to string first (this handles NaN as 'nan' string)
             input_table_clean[col] = input_table_clean[col].astype(str)
+            # Replace 'nan' strings (from NaN values) and 'None' strings with empty string
+            input_table_clean[col] = input_table_clean[col].replace(['nan', 'None', 'NaN', 'NaT'], '')
         
         return input_table_clean
 

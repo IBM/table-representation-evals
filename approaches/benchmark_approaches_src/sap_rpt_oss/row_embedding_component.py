@@ -4,8 +4,8 @@ from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddi
 
 class RowEmbeddingComponent(RowEmbeddingInterface):
     """
-    Row embedding component for ConTextTab approach.
-    Uses the ConTextTab model to generate embeddings for each row.
+    Row embedding component for SAP RPT-1-OSS approach.
+    Uses the SAP RPT-1-OSS model to generate embeddings for each row.
     """
     def __init__(self, approach_instance):
         self.approach_instance = approach_instance
@@ -17,3 +17,4 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
     def create_row_embeddings_for_table(self, input_table: pd.DataFrame):
         # Get row embeddings using the approach instance
         return self.approach_instance.get_row_embeddings(input_table)
+

@@ -64,7 +64,6 @@ if [ ${#contents[@]} -eq 1 ] && [ "$(basename "${contents[0]}")" = "readme.txt" 
     echo "Done! Data saved in: $DEST_PATH"
 else
     echo "Hytrel Checkpoints were already downloaded"
-    exit 1
 fi
 
 
@@ -81,6 +80,7 @@ pip install torch-geometric
 pip install transformers
 pip install scikit-learn
 pip install xgboost
+pip install ujson
 
 # Additional dependencies required for HyTrel integration
 pip install pytorch_lightning  # For checkpoint loading

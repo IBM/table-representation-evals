@@ -8,9 +8,10 @@ hydra:
     params:
       # if you add multiple parameters (seperated by , ), all combinations are run (hydra multirun)
       approach.embedding_model: all-MiniLM-L6-v2 # , BAAI/bge-base-en-v1.5, ibm-granite/granite-embedding-30m-english # here you can add custom hyperpameters of the approach
+      approach.table_row_limit: 100
   sweep:
       dir: results_testing
-      subdir: ${benchmark_output_dir}/${approach.approach_name}/${sanitize_dirname:${hydra:job.override_dirname}}/${task.task_name}/${dataset_name} 
+      subdir: ${benchmark_output_dir}/${approach.approach_name}/${create_run_path:${hydra:job.override_dirname}}
 
 
 benchmark_output_dir: just_testing # how to call the folder inside /results (benchmark is not re-run if results exist for this configuration in the given folder)

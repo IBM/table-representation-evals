@@ -6,8 +6,8 @@ from benchmark_src.approach_interfaces.column_embedding_interface import ColumnE
 
 class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
     """
-    Column embedding component for ConTextTab approach.
-    Delegates to the ConTextTab embedder's get_column_embeddings.
+    Column embedding component for SAP RPT-1-OSS approach.
+    Delegates to the SAP RPT-1-OSS embedder's get_column_embeddings.
     """
 
     def __init__(self, approach_instance):
@@ -21,5 +21,4 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
         column_embeddings, column_names = self.approach_instance.get_column_embeddings(input_table)
         # Return as numpy array and names for downstream tasks
         return column_embeddings, column_names
-
 

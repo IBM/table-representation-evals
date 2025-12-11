@@ -1,0 +1,62 @@
+dataset_name: target
+
+# each dataset and its config fields
+# Note: The dataset splits follow those provided in the original Target paper’s repository.
+sub_datasets:
+  fetaqa:
+    dataset_name: fetaqa
+    hf_corpus_dataset_path: target-benchmark/fetaqa-corpus
+    hf_queries_dataset_path: target-benchmark/fetaqa-queries
+    use_snapshot: false
+    split: test
+
+  tabfact:
+    dataset_name: tabfact
+    hf_corpus_dataset_path: target-benchmark/tabfact-corpus
+    hf_queries_dataset_path: target-benchmark/tabfact-queries
+    use_snapshot: false
+    split: test
+
+  ottqa:
+    dataset_name: ottqa
+    hf_corpus_dataset_path: target-benchmark/ottqa-corpus
+    hf_queries_dataset_path: target-benchmark/ottqa-queries
+    use_snapshot: false
+    split: validation
+
+  spider-test:
+    dataset_name: spider-test
+    hf_corpus_dataset_path: target-benchmark/spider-corpus-test
+    hf_queries_dataset_path: target-benchmark/spider-queries-test
+    use_snapshot: true
+    split: test
+
+  spider-train:
+    dataset_name: spider-train
+    hf_corpus_dataset_path: target-benchmark/spider-corpus-train
+    hf_queries_dataset_path: target-benchmark/spider-queries-train
+    use_snapshot: true
+    split: train
+
+  spider-validation:
+    dataset_name: spider-validation
+    hf_corpus_dataset_path: target-benchmark/spider-corpus-validation
+    hf_queries_dataset_path: target-benchmark/spider-queries-validation
+    split: validation
+    use_snapshot: true
+    repo_json_path: spider-corpus-validation.json
+
+  bird-validation:
+    dataset_name: bird-validation
+    hf_corpus_dataset_path: target-benchmark/bird-corpus-validation
+    hf_queries_dataset_path: target-benchmark/bird-queries-validation
+    split: validation
+    use_snapshot: true
+    repo_json_path: corpus-validation.json
+
+  gittables:
+    dataset_name: gittables
+    hf_corpus_dataset_path: target-benchmark/gittables-corpus
+    use_snapshot: false
+    split: train
+

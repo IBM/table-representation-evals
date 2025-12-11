@@ -8,8 +8,8 @@ hydra:
     params:
      approach.embedding_model:  all-MiniLM-L6-v2
 
-benchmark_output_dir: "tmp"
-benchmark_datasets_dir: "/Users/kavithasrinivas/ibmcode/table-representation-evals/ContextAwareJoin/datasets/"
+benchmark_output_dir: "benchmark_results_test"
+benchmark_datasets_dir: "/Users/niharika.dsouza/Projects/embedding_benchmarks/ContextAwareJoin/datasets/"
 cache_dir: "cache"
 
 benchmark_tasks:
@@ -18,10 +18,15 @@ benchmark_tasks:
   ####################################
   column_similarity_search: # comment out the tasks you do not want to evaluate on
     datasets:   # comment out the datasets that you do not want to evaluate on
-      - wikijoin_small
+      #- Amazon-Google
+      # - wikijoin
       - valentine
-      - opendata
-      - autojoin
-      - nextia
+      # - DBLP-ACM
+      # - DBLP-GoogleScholar
+      # - Fodors-Zagats
+      # - geological-settlements
+      # - iTunes-Amazon
+      # - MusicBrainz
+      # - Walmart-Amazon
     task_parameters:
-      run_similarity_search_based_on: "column_embeddings" # needs to be either "row_embeddings" or "custom_function"
+      run_similarity_search_based_on: "column_embeddings"

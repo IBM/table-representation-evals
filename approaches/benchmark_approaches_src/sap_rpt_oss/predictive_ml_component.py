@@ -3,7 +3,7 @@ from benchmark_src.approach_interfaces.predictive_ml_inferface import Predictive
 
 class PredictiveMLComponent(PredictiveMLInterface):
     """
-    Predictive ML component for ConTextTab approach.
+    Predictive ML component for SAP RPT-1-OSS approach.
     Delegates predictive ML tasks to the approach instance.
     """
     def __init__(self, approach_instance):
@@ -16,3 +16,4 @@ class PredictiveMLComponent(PredictiveMLInterface):
     def predict_test_cases(self, test_df: pd.DataFrame, task_type: str):
         # Delegate to the approach instance
         return self.approach_instance.predict_test_cases(test_df, task_type)
+

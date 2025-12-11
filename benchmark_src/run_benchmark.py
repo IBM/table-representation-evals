@@ -5,20 +5,28 @@ import logging
 import sys
 import traceback
 from hydra.utils import get_original_cwd
+from dotenv import load_dotenv
 
-from benchmark_src.utils.framework import register_resolvers
+from benchmark_src.utils.framework import register_resolvers, StreamToLogger
 from benchmark_src.utils.cfg_utils import guard_cfg_no_none
 
 logger = logging.getLogger(__name__)
 
 @hydra.main(version_base=None, config_path="./config", config_name="config.yaml")
 def main(cfg: DictConfig):
+    # Redirect stderr to the root logger
+    root_logger = logging.getLogger()
+    sys.stderr = StreamToLogger(root_logger, logging.ERROR)
+    sys.stdout = StreamToLogger(root_logger, logging.INFO)
+
     print("#"*100)
     print("#"*100)
     print("#"*100)
 
-    print("Got config: ")
-    print(cfg)
+    logger.info(f"Run id: {cfg.run_identifier}")
+
+    load_dotenv()  # loads variables from .env 
+
     guard_cfg_no_none(cfg)
 
     # create cache folder
@@ -52,6 +60,9 @@ def main(cfg: DictConfig):
             elif cfg.task.task_name == "column_similarity_search":
                 from benchmark_src.tasks import run_column_similarity_benchmark
                 run_column_similarity_benchmark.main(cfg)
+            elif cfg.task.task_name == "table_retrieval":
+                from benchmark_src.tasks import run_table_retrieval_benchmark
+                run_table_retrieval_benchmark.main(cfg)
             else:
                 logger.error("Unknown task:", cfg.task)
         except Exception as e:
@@ -61,6 +72,5 @@ def main(cfg: DictConfig):
 
     
 if __name__ == "__main__":
-    print('Called run_benchmark.py')
     register_resolvers()
     main()
