@@ -86,7 +86,10 @@ def collect_all_target_datasets(config: DictConfig) -> Dict[str, DatasetBundle]:
     return datasets
 
 def load_config() -> DictConfig:
-    config_path = Path(get_original_cwd()) / "benchmark_src" / "config" / "dataset" / "target.yaml"
+    if __name__ == "__main__":
+        config_path = Path().cwd() / "benchmark_src" / "config" / "dataset" / "target.yaml"
+    else:
+        config_path = Path(get_original_cwd()) / "benchmark_src" / "config" / "dataset" / "target.yaml"
     if not config_path.exists():
         raise FileNotFoundError(f"Target config file not found at {config_path}")
     return OmegaConf.load(config_path)

@@ -20,11 +20,10 @@ benchmark_tasks:
       - fetaqa
       - tabfact
       - ottqa
-      #- spider-train
+      - spider-train
       - spider-validation
-      #- spider-test
+      - spider-test
       - bird-validation
-      #- gittables
-      
+
     task_parameters:
       force_embed_corpus: False
