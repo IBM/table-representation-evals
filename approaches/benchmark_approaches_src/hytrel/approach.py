@@ -372,6 +372,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         # Build hypergraph and forward using hytrel_src defaults
         bigraph = self._convert_table_to_hytrel_format(input_table_clean)
+    
         with torch.no_grad():
             bigraph = bigraph.to(self.device)
             outputs = self.model(bigraph)
@@ -387,6 +388,37 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
 
         logger.info(f"Generated column embeddings with shape: {column_embeddings.shape}")
         return column_embeddings, column_names
+
+    def get_table_embedding(self, input_table: pd.DataFrame) -> np.ndarray:
+        """Generate table-level embedding using HyTrel model.
+        
+        Extracts the table hyperedge embedding (index 0 in embedding_t), which represents
+        the entire table's semantic meaning after aggregating information from all cells,
+        headers, and rows.
+        
+        Args:
+            input_table (pd.DataFrame): Input table to embed
+            
+        Returns:
+            np.ndarray: Table embedding of shape (embedding_dim,)
+        """
+        self.load_trained_model()
+        
+        # Get target embeddings (table + columns + rows)
+        target_embeddings, num_rows, num_cols = self._get_target_embeddings(input_table)
+        
+        # Extract table embedding (index 0 is the table/caption hyperedge)
+        table_embedding = target_embeddings[0]
+        
+        # Convert to numpy
+        table_embedding = table_embedding.cpu().numpy() if isinstance(table_embedding, torch.Tensor) else table_embedding
+        
+        # Ensure it's 1D (remove any extra dimensions)
+        if table_embedding.ndim > 1:
+            table_embedding = table_embedding.squeeze()
+        
+        logger.info(f"Generated table embedding with shape: {table_embedding.shape}")
+        return table_embedding
 
     def _get_target_embeddings(self, input_table: pd.DataFrame) -> tuple:
         """Get target embeddings from HyTrel model for the given table.

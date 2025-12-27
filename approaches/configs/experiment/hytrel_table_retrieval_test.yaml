@@ -1,0 +1,37 @@
+# @package _global_
+defaults:
+  - override /approach: hytrel
+  
+# Benchmark configuration
+benchmark_output_dir: "benchmark_results_test"
+cache_dir: "cache"
+
+# Hydra configuration
+hydra:
+  verbose: False
+  # Override launcher settings for HyTrel (memory intensive)
+  # Reduced n_jobs to prevent memory issues
+  launcher:
+    n_jobs: 2  # Reduced from 10 to 2 to avoid memory exhaustion
+    prefer: processes
+    backend: loky
+
+benchmark_tasks:
+  ####################################
+  ###### Table Retrieval
+  ####################################
+  table_retrieval:
+    datasets:
+      # Start with smaller datasets for testing
+      - fetaqa
+      # - tabfact
+      # - ottqa
+      # - spider-train
+      # - spider-validation
+      # - spider-test
+      # - bird-validation
+
+    task_parameters:
+      force_embed_corpus: False
+
+
