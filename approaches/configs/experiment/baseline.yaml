@@ -1,0 +1,19 @@
+# @package _global_
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: baseline # must be how you named the config file for your approach
+
+hydra:
+  verbose: True # set to True for debug outprints, set to False for Info prints only
+
+benchmark_output_dir: run_01 # how to call the folder inside /results (benchmark is not re-run if results exist for this configuration in the given folder)
+
+benchmark_tasks:
+
+  #################################### 
+  ###### Predictive ML
+  #################################### 
+  predictive_ml:
+    datasets: ${experiment_datasets.predictive_ml_datasets} 
+    task_parameters:
+      run_task_based_on: custom_predictiveML_model # needs to be either "row_embeddings" or "custom_predictiveML_model"
