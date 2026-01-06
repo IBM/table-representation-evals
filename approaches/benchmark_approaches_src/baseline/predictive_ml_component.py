@@ -75,6 +75,14 @@ class PredictiveMLComponent(PredictiveMLInterface):
 
                 model_xgb.fit(X_train, y_train)
 
+            # Add MLP
+            model_mlp = sklearn.pipeline.make_pipeline(
+                sklearn.impute.SimpleImputer(strategy="mean"),
+                sklearn.preprocessing.StandardScaler(),
+                sklearn.neural_network.MLPClassifier(hidden_layer_sizes=(128,), max_iter=500, random_state=42)
+            )
+            model_mlp.fit(X_train, y_train)
+
             model_lin_reg = None
 
         elif task_type == "regression":
@@ -89,11 +97,20 @@ class PredictiveMLComponent(PredictiveMLInterface):
 
             model_xgb.fit(X_train, y_train)
 
+            # Add MLP regressor
+            model_mlp = sklearn.pipeline.make_pipeline(
+                sklearn.impute.SimpleImputer(strategy="mean"),
+                sklearn.preprocessing.StandardScaler(),
+                sklearn.neural_network.MLPRegressor(hidden_layer_sizes=(128,), max_iter=500, random_state=42)
+            )
+            model_mlp.fit(X_train, y_train)
+
             model_lin_reg = sklearn.linear_model.LinearRegression()
             model_lin_reg.fit(X_train, y_train)
 
         self.models = {"XGBoost": model_xgb,
-                        "LinearRegression": model_lin_reg}
+                        "LinearRegression": model_lin_reg,
+                        "MLP": model_mlp}
         
         logger.info(f"Done with the training.")
 
