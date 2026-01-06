@@ -13,7 +13,7 @@ from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
 from benchmark_src.utils import load_benchmark, framework, result_utils
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
-from benchmark_src.dataset_creation.wikidata_books import create_books_dataset
+from benchmark_src.dataset_creation.wikidata_hierarchies import create_books_dataset
 from benchmark_src.dataset_creation.create_variations import create_dataset_variations
 
 logger = logging.getLogger(__name__)

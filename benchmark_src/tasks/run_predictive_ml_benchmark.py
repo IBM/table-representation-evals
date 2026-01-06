@@ -1,5 +1,6 @@
 import sklearn.linear_model
 import sklearn.neighbors
+import sklearn.neural_network
 from omegaconf import DictConfig
 import multiprocessing
 import logging
@@ -10,6 +11,7 @@ import xgboost as xgb
 import openml
 import sklearn
 import sklearn.preprocessing
+import numpy as np
 
 from benchmark_src.approach_interfaces.predictive_ml_inferface import PredictiveMLInterface
 from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
@@ -20,7 +22,7 @@ from benchmark_src.tasks import component_utils, tabarena_datasets
 
 logger = logging.getLogger(__name__)
 
-POSITIVE_LABELS = ["yes", "true", "satisfied", "good", "1", "pos", "positive"]
+POSITIVE_LABELS = ["yes", "true", "satisfied", "good", "1", "pos", "positive", "1.0"]
 
 
 
@@ -118,15 +120,18 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
             if idx_positive_label == -1:
                 raise ValueError(f"Have dataset with a not yet supported positive label: {list(label_encoder.classes_)}")
 
+            # Binary XGBoost
             model_xgb = xgb.XGBClassifier(
                 objective="binary:logistic",
                 n_estimators=100,
             )
 
             model_xgb.fit(X_train, y_train)    
+
         else:
             assert dataset_information['num_classes'] > 2
 
+            # multiclass XGBoost
             model_xgb = xgb.XGBClassifier(
                 objective="multi:softprob",  # Use multi:softprob for multiclass probabilities
                 num_class=dataset_information['num_classes'],      # Specify the number of classes
@@ -135,6 +140,15 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
 
             model_xgb.fit(X_train, y_train)
 
+        # MLP
+        model_mlp = sklearn.pipeline.make_pipeline(
+            sklearn.impute.SimpleImputer(strategy="mean"),
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.neural_network.MLPClassifier(hidden_layer_sizes=(128,), max_iter=500, random_state=42)
+        )
+        model_mlp.fit(X_train, y_train)
+
+        # KNN
         model_knn = sklearn.neighbors.KNeighborsClassifier(n_neighbors=5) # TODO 'n_neighbors'
         model_knn.fit(X_train, y_train)
 
@@ -157,9 +171,18 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
         model_knn = sklearn.neighbors.KNeighborsRegressor(n_neighbors=5) # Tune as needed
         model_knn.fit(X_train, y_train)
 
+        # MLP regressor
+        model_mlp = sklearn.pipeline.make_pipeline(
+            sklearn.impute.SimpleImputer(strategy="mean"),
+            sklearn.preprocessing.StandardScaler(),
+            sklearn.neural_network.MLPRegressor(hidden_layer_sizes=(128,), max_iter=500, random_state=42)
+        )
+        model_mlp.fit(X_train, y_train)
+
     models = {"XGBoost": model_xgb,
               "KNeighbors": model_knn,
-              "LinearRegression": model_lin_reg}
+              "LinearRegression": model_lin_reg,
+              "MLP": model_mlp}
 
     return models, idx_positive_label
 

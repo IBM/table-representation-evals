@@ -10,14 +10,32 @@ def load_dataset_config(dataset_name: str):
 
     return dataset_cfg
 
+
+def _this_file_dir() -> Path:
+    try:
+        # Works for scripts / imports
+        return Path(__file__).resolve().parent
+    except NameError:
+        # Fallback for Jupyter (rare but safe)
+        return Path.cwd().resolve()
+
+
 def load_task_config(task_name: str):
-    task_config_path = Path("./benchmark_src/config/task") / f"{task_name}.yaml"
+    utils_dir = _this_file_dir()
+
+    # utils/ → benchmark_src/
+    benchmark_src_dir = utils_dir.parent
+
+    task_config_path = (
+        benchmark_src_dir / "config" / "task" / f"{task_name}.yaml"
+    )
+
     if not task_config_path.exists():
-        print(f"Could not find task config path: {task_config_path}")
+        raise FileNotFoundError(
+            f"Could not find task config: {task_config_path}"
+        )
 
-    task_cfg = OmegaConf.load(str(task_config_path))
-
-    return task_cfg
+    return OmegaConf.load(task_config_path)
 
 
 def guard_cfg_no_none(cfg, path="cfg"):
