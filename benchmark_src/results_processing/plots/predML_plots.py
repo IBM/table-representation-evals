@@ -4,19 +4,34 @@ import seaborn as sns
 from pathlib import Path
 import altair as alt
 
-from benchmark_src.results_processing.gather_results import aggregate_results
+from benchmark_src.results_processing.aggregate import aggregate_results
 from benchmark_src.results_processing.plots import plot_utils
 
-def create_binary_barplot_altair(df: pd.DataFrame, results_folder: Path, aggregated: bool, dataset_name, percentage_baseline: bool):
+def create_binary_barplot_altair(df: pd.DataFrame, results_folder: Path, aggregated: bool, dataset_name, model_name, plot_percentage_to_baseline: bool):
     print("############## Started binary classification barplot (Altair)")
 
     tooltip = ["Approach", "Performance"]
     if aggregated:
+        print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
         group_cols = ["Approach", "Configuration", "task"]
         df = aggregate_results(df=df, grouping_columns=group_cols)
         tooltip.append("std")
+        # assert that all _rows_count values are the same
+        assert df['_rows_count'].nunique() == 1, "All _rows_count values should be the same"
+        dataset_name += f" over {df['_rows_count'].iloc[0]} datasets"
+        print(dataset_name)
 
-    data = plot_utils.collect_data_for_plotting(df=df, metric="XGBoost_roc_auc_score (↑)", is_aggregated=aggregated)
+
+    metric = f"{model_name}_roc_auc_score (↑)"
+
+    # TODO: need to add _ratio_to_baseline to metric
+    if plot_percentage_to_baseline:
+        metric = metric + "_ratio_to_baseline"  
+        y_axis_title = f"Percentage of baseline performance ({model_name} - ROC AUC Score)"
+    else:
+        y_axis_title = f"{model_name} - ROC AUC Score"
+
+    data = plot_utils.collect_data_for_plotting(df=df, metric=metric, is_aggregated=aggregated)
 
     # Base chart
     base = (
@@ -33,65 +48,72 @@ def create_binary_barplot_altair(df: pd.DataFrame, results_folder: Path, aggrega
             ),
             y=alt.Y(
                 "Performance:Q",
-                title="ROC AUC Score",
+                title=y_axis_title,
                 scale=alt.Scale(domain=[0, 1]),  # Set the y-axis range from 0 to 1
             ),
             color=alt.Color("Approach:N", legend=None),
             tooltip=tooltip,
         )
-        .properties(title=f"Binary Classification Performance - {dataset_name}")
+        .properties(title=f"{model_name} - Binary Classification Performance - {dataset_name}")
     )
 
     # Bars
     bars = base.mark_bar()
 
-    # Text labels on top of the bars
-    text = base.mark_text(
-        align='center',
-        baseline='middle',
-        dy=-10,  # Offset text slightly above the bar
-        color='black'
-    ).encode(text=alt.Text("Performance:Q", format=".2f"))
-
     if aggregated:
-        # Error bars using rule mark
-        # For error bars representing std, we can use mark_errorbar with extent='stdev' or 'stderr'
-        # Alternatively, you can use mark_rule to manually define the error bars
-        # In this case, we'll use mark_errorbar for a more automated approach
+        # Text showing both Performance and std
+        text = base.mark_text(
+            align='center',
+            baseline='middle',
+            dy=-10,
+            color='black'
+        ).encode(
+            text=alt.Text('label:N')
+        ).transform_calculate(
+            # Combine Performance and std into one label
+            label='format(datum.Performance, ".2f") + " (± " + format(datum.std, ".2f") + ")"'
+        )
+
+        # Error bars
         error_bars = base.mark_errorbar(extent="stderr").encode(
-            yError="std:Q",  # Use the standard deviation column for error bars
-            opacity=alt.value(0.7),  # Adjust opacity for error bars
+            yError="std:Q",
+            opacity=alt.value(0.7),
             color=alt.value('black')
         )
 
+        chart = (bars + error_bars + text).properties(width=500, height=400)
 
-        # Combine the bar, text labels, and error bars
-        chart = (bars + error_bars + text).properties(
-            width=500, height=400
-        )
     else:
-        # Combine the bar, text labels
-        chart = (bars + text).properties(
-            width=500, height=400
+        # Text showing only Performance
+        text = base.mark_text(
+            align='center',
+            baseline='middle',
+            dy=-10,
+            color='black'
+        ).encode(
+            text=alt.Text('Performance:Q', format=".2f")
         )
+
+        chart = (bars + text).properties(width=500, height=400)
+
 
     # Save the chart to disk as HTML
 
-    filename = f"binary_barplot_{dataset_name}"
+    filename = f"{model_name}_binary_barplot_{dataset_name}"
 
-    if percentage_baseline:
+    if plot_percentage_to_baseline:
         filename += "_percent"
 
-    save_path = results_folder / filename + ".html"
+    save_path = results_folder / (filename + ".html")
     chart.save(str(save_path))
     print(f"############## Saved Altair plot to {save_path}")
 
-def create_binary_barplot(df: pd.DataFrame, results_folder: Path):
+def create_binary_barplot(df: pd.DataFrame, results_folder: Path, model_name: str):
     print(f"############## Started binary classification barplot")
     group_cols = ["Approach", "Configuration", "task"]
     df = aggregate_results(df=df, grouping_columns=group_cols)
 
-    data = plot_utils.collect_data_for_plotting(df=df, metric="XGBoost_roc_auc_score (↑)", is_aggregated=True)
+    data = plot_utils.collect_data_for_plotting(df=df, metric=f"{model_name}_roc_auc_score (↑)", is_aggregated=True)
 
     fig = plt.figure(figsize=(10, 8)) # Set the figure size
     sns.set_theme(font_scale=1.5) 
@@ -120,11 +142,11 @@ def create_binary_barplot(df: pd.DataFrame, results_folder: Path):
         ax.text(x, y, text, ha='center', va='bottom', color='black', fontsize=10)
 
     # Adding a title and labels for clarity
-    plt.title('Tabarena - Binary classification')
+    plt.title(f'{model_name} - Tabarena - Binary classification')
     plt.xlabel('')
-    plt.ylabel('ROC AUC (↑)') 
+    plt.ylabel(f'{model_name} - ROC AUC (↑)') 
 
-    plt.savefig(results_folder / "binary_barchart.png")
+    plt.savefig(results_folder / f"{model_name}_binary_barchart.png")
     print(f"############## Finished binary classification barplot")
 
     

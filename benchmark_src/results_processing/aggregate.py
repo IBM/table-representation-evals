@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def aggregate_results(df: pd.DataFrame, grouping_columns: list, rename: bool=False) -> pd.DataFrame:
     """
-    Aggregates results and formats the DataFrame according to the desired output.
+    Aggregate experimental results by one or more grouping columns.
     """
     grouped_data = df.groupby(grouping_columns)
 
@@ -29,6 +29,11 @@ def aggregate_results(df: pd.DataFrame, grouping_columns: list, rename: bool=Fal
     aggregated_df = grouped_data.agg(aggregations)
     # Flatten the multi-level column index
     aggregated_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in aggregated_df.columns]
+    
+    
+    # Count rows per group
+    aggregated_df['_rows_count'] = grouped_data.size().values
+        
     final_output_df = aggregated_df.reset_index()
 
     if rename:
@@ -101,7 +106,20 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
 
     # compute ratios for each col
     for col, col_type in results_helper.performance_cols.items():
+        print(f"Computing ratio for column: {col}")
+        # if approach_ prefixed column exists merge it with performance_col temporarily and use it for ratio computation
         if col in gathered_results_df.columns:
+            approach_metric = "approach_" + "_".join(col.split("_")[1:])
+            if approach_metric in gathered_results_df.columns:
+                # merge the values from old col and new approach_metric, if the column exists
+                # only copy values where approach_metric is not null
+                gathered_results_df = gathered_results_df.copy()
+                gathered_results_df[col] = np.where(
+                    gathered_results_df[approach_metric].notna(),
+                    gathered_results_df[approach_metric],
+                    gathered_results_df[col]
+                )
+                
             baseline_col = f"baseline_{col}"
 
             if col_type == "higher_is_better":

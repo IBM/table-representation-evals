@@ -4,8 +4,9 @@ import numpy as np
 from pathlib import Path
 import ast
 
-from gather_results import get_setup_infos, aggregate_results
-from plots import row_similarity_plots, plot_info, datatype_comparison, more_similar_than_plots, quadrant_charts, predML_plots
+from benchmark_src.results_processing.results_helper import get_setup_infos
+from benchmark_src.results_processing.aggregate import aggregate_results
+from benchmark_src.results_processing.plots import row_similarity_plots, plot_info, datatype_comparison, more_similar_than_plots, quadrant_charts, predML_plots
 
 
 def gather_results_and_metrics(results_folder):
@@ -72,6 +73,29 @@ def gather_results_and_metrics(results_folder):
 
     return collected_results_df
 
+def predictive_ml_add_task_type(task_df: pd.DataFrame) -> pd.DataFrame:
+    # add column to dataframe with task type
+    dataset_to_type = {x: y["task_type"] for x, y in plot_info.predictiveML_dataset_info.items()}
+    dataset_to_num_nonnumeric = {x: y["has_non_numeric_columns"] for x, y in plot_info.predictiveML_dataset_info.items()}
+    dataset_to_num_cols = {x: y["num_cols"] for x, y in plot_info.predictiveML_dataset_info.items()}
+    task_df['task_type'] = task_df['dataset'].map(dataset_to_type)
+    task_df['num_cols'] = task_df['dataset'].map(dataset_to_num_cols)
+    task_df['num_nonnumeric'] = task_df['dataset'].map(dataset_to_num_nonnumeric)
+
+    return task_df
+
+def filter_for_results_on_all_datasets(task_type, task_type_df):
+    print(f"Unique datasets ({task_type}):", len(task_type_df['dataset'].unique()))
+
+    all_approaches = task_type_df['Approach'].unique()
+    num_expected_approaches = len(all_approaches)
+    approach_counts = task_type_df.groupby('dataset')['Approach'].nunique()
+    datasets_with_all_approaches = approach_counts[approach_counts == num_expected_approaches].index
+    # Filter the original DataFrame to keep only these datasets
+    complete_results_df = task_type_df[task_type_df['dataset'].isin(datasets_with_all_approaches)]
+    print(f"Unique datasets with full results({task_type}): {len(complete_results_df['dataset'].unique())}")
+    return complete_results_df
+
 
 def main(results_folder: Path, plots_folder:Path):
     # read in results in metrics files
@@ -119,18 +143,12 @@ def main(results_folder: Path, plots_folder:Path):
             # ####################################################################################################
 
         elif task == "predictive_ml":
-            pass
+
             print("############# Predictive ML Plots")
             predML_plots_folder = plots_folder / "predictive_ml"
             predML_plots_folder.mkdir(exist_ok=True)
 
-            # add column to dataframe with task type
-            dataset_to_type = {x: y["task_type"] for x, y in plot_info.predictiveML_dataset_info.items()}
-            dataset_to_num_nonnumeric = {x: y["has_non_numeric_columns"] for x, y in plot_info.predictiveML_dataset_info.items()}
-            dataset_to_num_cols = {x: y["num_cols"] for x, y in plot_info.predictiveML_dataset_info.items()}
-            task_df['task_type'] = task_df['dataset'].map(dataset_to_type)
-            task_df['num_cols'] = task_df['dataset'].map(dataset_to_num_cols)
-            task_df['num_nonnumeric'] = task_df['dataset'].map(dataset_to_num_nonnumeric)
+            task_df = predictive_ml_add_task_type(task_df)
 
             task_type_groups = task_df.groupby(["task_type"])
 
@@ -138,15 +156,7 @@ def main(results_folder: Path, plots_folder:Path):
                 task_type_df = task_type_df.dropna(axis=1, how="all")
                 task_type = task_type[0]
 
-                print(f"Unique datasets ({task_type}):", len(task_type_df['dataset'].unique()))
-
-                all_approaches = task_type_df['Approach'].unique()
-                num_expected_approaches = len(all_approaches)
-                approach_counts = task_type_df.groupby('dataset')['Approach'].nunique()
-                datasets_with_all_approaches = approach_counts[approach_counts == num_expected_approaches].index
-                # Filter the original DataFrame to keep only these datasets
-                complete_results_df = task_type_df[task_type_df['dataset'].isin(datasets_with_all_approaches)]
-                print(f"Unique datasets with full results({task_type}): {len(complete_results_df['dataset'].unique())}")
+                complete_results_df = filter_for_results_on_all_datasets(task_type, task_type_df)
 
                 ####################################################################################################
                 # Create time / performance quadrant chart (with all approaches except aidb)
@@ -241,6 +251,7 @@ def main(results_folder: Path, plots_folder:Path):
             print(task_df.columns)
             # Create bar chart
             more_similar_than_plots.create_barplot(df=task_df, results_folder=more_than_plots_folder)
+
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import pandas as pd
+from benchmark_src.results_processing import create_plots
 import numpy as np
-
+from pathlib import Path
 
 ### TODO: should be configured by user, not hardcoded here!
 def approach_name_for_plot(config_string: str):
@@ -9,10 +10,12 @@ def approach_name_for_plot(config_string: str):
     elif "BAAI" in config_string:
         return "BAAI/bge-base-en-v1.5"
     elif "granite" in config_string:
-        return "IBM/granite-embedding-30m-english"
-    if "embedding_model" in config_string:
-        approach =config_string.split("=")[-1]
-        return approach
+        if "30m-english" in config_string:
+            return "granite-30m"
+        elif "english-r2" in config_string:
+            return "granite-r2"
+    elif "all-MiniLM-L6-v2" in config_string:
+        return "all-MiniLM-L6-v2"
     elif "set_prios" in config_string:
         if "True" in config_string:
             if "row_sim_search=embeddings" in config_string:
@@ -22,8 +25,43 @@ def approach_name_for_plot(config_string: str):
             if "row_sim_search=embeddings" in config_string:
                 return "aidb_default_emb"
             return "aidb_default_custom"
-    
+        
     return None
+
+
+def get_task_df(results_folder: Path, task_name: str) -> pd.DataFrame:
+    all_results_df = create_plots.gather_results_and_metrics(results_folder=results_folder)
+
+    # group by task
+    unique_tasks = all_results_df['task'].unique()
+
+    # group by approach
+    unique_approaches = all_results_df['Approach'].unique()
+    #print(f"Got unique approaches: {unique_approaches}")
+
+    # Filter data for the current task
+    task_df = all_results_df[all_results_df['task'] == task_name].copy()
+    # drop columns with all nans (result metrics from other tasks will be nan)
+    task_df = task_df.dropna(axis=1, how="all")
+
+    print(f"Unique datasets ({task_name}):", len(task_df['dataset'].unique()))
+    return task_df
+
+def get_list_of_all_runs(task_df: pd.DataFrame):
+    # Get all unique runs
+    unique_runs = task_df[['Approach', 'Configuration']].drop_duplicates()
+
+    # Automatically create a Python list of tuples
+    exclude_runs_list = [
+        (row['Approach'], row['Configuration'])
+        for _, row in unique_runs.iterrows()
+    ]
+
+    # Print it in a nicely formatted way for copying
+    print("include_runs = [")
+    for run in exclude_runs_list:
+        print(f"    {run},")
+    print("]")
 
 
 def collect_data_for_plotting(df: pd.DataFrame, metric: str, is_aggregated: bool, resources: bool=False):

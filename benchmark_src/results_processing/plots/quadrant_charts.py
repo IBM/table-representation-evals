@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from gather_results import aggregate_results
+from aggregate import aggregate_results
 
 
 def quadrant_plot_aggregated_over_datasets(filename, task_df, task_type, results_folder: Path, results_column: str, title: str, marker_labels: bool, inference_only: bool=False):
