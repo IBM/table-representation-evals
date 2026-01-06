@@ -91,7 +91,9 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             )
             
             train_df_processed = self._preprocess_for_tabicl(train_df)
+            print(f"Done preprocessing the table, now starting to fit the model")
             self.model.fit(train_df_processed, train_labels)
+            print(f"Finished fitting the TabICL model for classification.")
         elif task_type == "regression":
             raise NotImplementedError("TabICLClassifier currently does not support regression tasks.")
         else:
@@ -108,7 +110,9 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         """
         if task_type == "classification":
             test_df_processed = self._preprocess_for_tabicl(test_df)
+            print(f"Done preprocessing the table, now starting to predict the {len(test_df_processed)} test cases")
             proba_tuple = self.model.predict_proba(test_df_processed)
+            print(f"Finished predicting with the TabICL model.")
             
             if isinstance(proba_tuple, tuple):
                 logits = proba_tuple[0]
