@@ -22,3 +22,4 @@ xlsxwriter==3.2.9
 datasets==4.4.1
 qdrant-client==1.9.2
 python-dotenv==1.2.1
+skrub==0.7.0
