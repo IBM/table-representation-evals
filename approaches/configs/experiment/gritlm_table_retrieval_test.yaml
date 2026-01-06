@@ -1,0 +1,30 @@
+# @package _global_
+defaults:
+  - override /approach: GritLM
+
+hydra:
+  verbose: False # set to True for debug prints
+  sweeper:
+    params:
+      approach.embedding_model: GritLM/GritLM-7B
+      approach.table_row_limit: 100
+
+benchmark_output_dir: "tmp"
+
+benchmark_tasks:
+  ####################################
+  ###### Table Retrieval
+  ####################################
+  table_retrieval:
+    datasets:
+      - fetaqa
+      # - tabfact
+      # - ottqa
+      # - spider-train
+      # - spider-validation
+      # - spider-test
+      # - bird-validation
+
+    task_parameters:
+      force_embed_corpus: True
+

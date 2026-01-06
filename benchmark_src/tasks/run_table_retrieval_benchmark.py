@@ -62,10 +62,10 @@ def embed_corpus(
     required_keys = ["table", "database_id", "table_id"]
 
     # TODO: For testing purposes, limiting to a subset of corpus
-    corpus_subset = corpus.select(range(min(200, len(corpus))))
-    logger.warning(f"Embedding only {len(corpus_subset)} tables from the corpus.")
+    # corpus = corpus.select(range(min(200, len(corpus))))
+    # logger.warning(f"Embedding only {len(corpus)} tables from the corpus.")
 
-    for row in tqdm(corpus_subset, desc="Embedding tables"):
+    for row in tqdm(corpus, desc="Embedding tables"):
         missing = [k for k in required_keys if k not in row or row.get(k) is None]
         if missing:
             logger.error(f"Row missing required fields: {missing}. Skipping.")

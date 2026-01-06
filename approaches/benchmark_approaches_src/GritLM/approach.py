@@ -34,7 +34,9 @@ class GritLMEmbedder(BaseTabularEmbeddingApproach):
         # e.g. self.<your_parameter> = cfg.approach.<your_parameter>
 
         assert cfg.approach.embedding_model is not None, f"Please pass an embedding_model name"
+        assert cfg.approach.table_row_limit is not None, f"Please pass a table_row_limit"
         self.embedding_model_name = cfg.approach.embedding_model
+        self.table_row_limit = cfg.approach.table_row_limit
 
         logger.info("GritLMEmbedder: Initialized.")
 
@@ -59,7 +61,7 @@ class GritLMEmbedder(BaseTabularEmbeddingApproach):
         preprocessed_data = all_rows # return the preprocessed_data in which ever format you like
         return preprocessed_data
 
-    def train_model_self_supervised(self):
+    def train_model_self_supervised(self, your_custom_parameters=None):
         """
         If your approach is trained / adapted to the input table in a self-supervised way, 
         we recommend you to implement it here and call the method from the task-specific components.
@@ -73,6 +75,7 @@ class GritLMEmbedder(BaseTabularEmbeddingApproach):
         Load the trained model and set it as a class variable to access later
         """
 
+        logger.info(f"GritLM: Loading model {self.embedding_model_name}")
         model = GritLM(self.embedding_model_name, mode="embedding", torch_dtype=torch.float16, device_map='auto')
         logger.info(f"GritLM: Loaded model!")
         dtypes = {param.dtype for param in model.parameters()}
