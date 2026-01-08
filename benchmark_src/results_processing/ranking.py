@@ -11,7 +11,7 @@ from benchmark_src.utils import cfg_utils
 
 INITIAL_RATING = 1500.0
 
-def compute_dominance_and_avg_rank(df: pd.DataFrame, metric_col: str = 'In top-1 [%]_mean') -> pd.DataFrame:
+def compute_dominance_and_avg_rank(df: pd.DataFrame, metric_col: str = 'In top-1 [%]_mean', ascending: bool = False) -> pd.DataFrame:
     """
     Compute for each task/approach/configuration:
       - num_datasets_best: number of datasets where it reached the best score (including ties)
@@ -25,11 +25,17 @@ def compute_dominance_and_avg_rank(df: pd.DataFrame, metric_col: str = 'In top-1
         task_df = df[df['task'] == task]
         for dataset in task_df['dataset'].unique():
             dataset_df = task_df[task_df['dataset'] == dataset].copy()
-            max_val = dataset_df[metric_col].max()
+            if ascending:
+                max_val = dataset_df[metric_col].min()
+            else:
+                max_val = dataset_df[metric_col].max()
             best_rows = dataset_df[dataset_df[metric_col] == max_val]
 
             # Compute ranks
-            dataset_df['rank'] = dataset_df[metric_col].rank(ascending=False, method='min')
+            if ascending:
+                dataset_df['rank'] = dataset_df[metric_col].rank(ascending=True, method='min')
+            else:
+                dataset_df['rank'] = dataset_df[metric_col].rank(ascending=False, method='min')
 
             for _, row in dataset_df.iterrows():
                 # Check if sole best
