@@ -21,6 +21,9 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
         """
         self.approach_instance.load_trained_model()
 
+    def gritlm_instruction(self, instruction):
+        return "<|user|>\n" + instruction + "\n<|embed|>\n" if instruction else "<|embed|>\n"
+
     def create_column_embeddings_for_table(self, input_table: str):
         """
         Create an embedding for each column of the given table and return it as a numpy array.
