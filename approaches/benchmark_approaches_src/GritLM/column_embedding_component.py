@@ -31,7 +31,7 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
             Returns: 
                 np.ndarray: the matrix of the row embeddings with shape [#rows, embedding_dimension]
         """
-        all_columns = self.approach_instance.preprocessing(input_table=input_table, component=self)
+        all_columns = self.approach_instance.preprocessing(input_table=input_table)
         # encode the columns
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
             column_embeddings = self.approach_instance.model.encode(list(all_columns.values()),
