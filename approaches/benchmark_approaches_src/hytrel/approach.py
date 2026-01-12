@@ -417,7 +417,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         if table_embedding.ndim > 1:
             table_embedding = table_embedding.squeeze()
         
-        logger.info(f"Generated table embedding with shape: {table_embedding.shape}")
+        #logger.info(f"Generated table embedding with shape: {table_embedding.shape}")
         return table_embedding
 
     def _get_target_embeddings(self, input_table: pd.DataFrame) -> tuple:
