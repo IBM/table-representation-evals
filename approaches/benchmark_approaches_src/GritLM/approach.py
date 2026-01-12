@@ -42,24 +42,9 @@ class GritLMEmbedder(BaseTabularEmbeddingApproach):
 
     # --- Methods that you want to re-use in multiple components  ---
 
-    def preprocessing(self, input_table: pd.DataFrame):
-        """
-        Preprocess the data for GritLM
+    def preprocessing(self, input_table: pd.DataFrame, component):
+        return approach_utils.create_preprocessed_data(input_table, component)
 
-            Args:
-                dataset_information: dict   Additional information about the dataset, look into dataset for details
-        
-            Returns:
-                preprocessed_data in approach specific format
-        """
-        # convert all rows to strings
-        all_rows = []
-        for _, row in input_table.iterrows():
-            table_row_string = approach_utils.convert_row_to_string(row)
-            all_rows.append(table_row_string)
-
-        preprocessed_data = all_rows # return the preprocessed_data in which ever format you like
-        return preprocessed_data
 
     def train_model_self_supervised(self, your_custom_parameters=None):
         """

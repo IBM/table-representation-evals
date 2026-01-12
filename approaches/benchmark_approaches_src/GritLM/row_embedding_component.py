@@ -37,7 +37,7 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
                 np.ndarray: the matrix of the row embeddings with shape [#rows, embedding_dimension]
         """
         logger.debug(f"GritLM create_row_embeddings_for_table_called")
-        all_rows = self.approach_instance.preprocessing(input_table=input_table)
+        all_rows = self.approach_instance.preprocessing(input_table=input_table, component=self)
         logger.debug(f"GritLM: Preprocessed the rows, next encode them. Have {len(all_rows)} rows")
         # encode the rows
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):

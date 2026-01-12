@@ -1,5 +1,44 @@
 import pandas as pd
 from typing import Any, List
+from tqdm import tqdm
+
+from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
+from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
+from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
+
+
+def get_column_values(column, column_name):
+    distinct_string_values = get_unique_values(column)
+    distinct_string_values = [x for x in distinct_string_values if len(x) > 0]
+    return column_name + ":" + ' | '.join(distinct_string_values)
+
+
+def get_unique_values(column):
+    #return list(filter(lambda v: type(v) is str, distinct_values))
+    return list([str(x) for x in column.unique()])
+
+
+def create_preprocessed_data(input_table: pd.DataFrame, component:BaseTabularEmbeddingApproach):
+    if isinstance(component, RowEmbeddingInterface):
+        """
+        Linearize the rows into strings
+        """
+        # convert all rows to strings
+
+        all_rows = []
+        for _, row in tqdm(input_table.iterrows()):
+            table_row_string = convert_row_to_string(row)
+            all_rows.append(table_row_string)
+        preprocessed_data = all_rows  # return the preprocessed_data in which ever format you like
+
+    elif isinstance(component, ColumnEmbeddingInterface):
+        all_columns = {}
+        for c in tqdm(input_table.columns):
+            all_columns[c] = get_column_values(input_table[c], c)
+        preprocessed_data = all_columns
+
+    return preprocessed_data
+
 
 def convert_row_to_string(table_row: pd.Series):
     row_string = ""
