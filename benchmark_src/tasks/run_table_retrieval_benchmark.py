@@ -1,3 +1,4 @@
+import ast
 import logging
 import json
 from pathlib import Path
@@ -49,7 +50,11 @@ def infer_embedder_output_dim(
     if len(corpus) == 0:
         raise ValueError("Corpus is empty; cannot infer embedding dimension.")
 
-    sample_embedding = table_component.create_table_embedding(corpus[0]["table"])
+    sample_table = corpus[1]["table"]
+    # has to be a list of lists
+    if isinstance(sample_table, str):
+        sample_table = ast.literal_eval(sample_table)
+    sample_embedding = table_component.create_table_embedding(sample_table)
     return int(np.array(sample_embedding).shape[-1])
 
 
@@ -70,6 +75,11 @@ def embed_corpus(
         if missing:
             logger.error(f"Row missing required fields: {missing}. Skipping.")
             continue
+
+        # make sure that number of columns is the same in header and table rows
+        if len(row["table"]) > 1 and len(row["table"][0]) != len(row["table"][1]):
+            logger.info(f"Row has inconsistent table structure, skipping. database_id: {row.get('database_id')}, table_id: {row.get('table_id')}")
+            continue  # discard datapoint
 
         vec = table_component.create_table_embedding(row["table"])
         payload = {"database_id": row.get("database_id"), "table_id": row.get("table_id")}

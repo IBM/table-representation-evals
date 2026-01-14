@@ -403,6 +403,12 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             np.ndarray: Table embedding of shape (embedding_dim,)
         """
         self.load_trained_model()
+
+        # hytrel cannot deal with empty tables, fill first row with empty if needed
+        if input_table.shape[0] == 0:
+            print(f"Empty table detected, adding empty row for HyTrel processing: {input_table.shape}")
+            empty_row = pd.DataFrame([[ '' for _ in range(input_table.shape[1]) ]], columns=input_table.columns)
+            input_table = pd.concat([empty_row, input_table], ignore_index=True)
         
         # Get target embeddings (table + columns + rows)
         target_embeddings, num_rows, num_cols = self._get_target_embeddings(input_table)
