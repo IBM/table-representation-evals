@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import hashlib
 from collections import defaultdict
-from typing import Tuple, List, Dict
+from typing import Iterable, Tuple, List, Dict
 import itertools
 
 from benchmark_src.results_processing import results_helper
@@ -201,6 +201,7 @@ def get_elo_scores_for_task(
             .iterrows()
         }
         ratings = {combo: INITIAL_RATING for combo in present_combos}
+        comparisons_count = {combo: 0 for combo in present_combos}
 
         matches = []
 
@@ -248,6 +249,8 @@ def get_elo_scores_for_task(
                 ra_new, rb_new = update_elo(ra, rb, sa, sb, k_factor=k_factor)
                 ratings[(a_name, a_cfg)] = ra_new
                 ratings[(b_name, b_cfg)] = rb_new
+                comparisons_count[(a_name, a_cfg)] += 1
+                comparisons_count[(b_name, b_cfg)] += 1
 
         for (approach, config), rating in ratings.items():
             per_dataset_records.append(
@@ -257,6 +260,8 @@ def get_elo_scores_for_task(
                     "Approach": approach,
                     "Configuration": config,
                     "elo_score_dataset": float(rating),
+                    "elo_score_dataset_delta": float(rating - INITIAL_RATING),
+                    "num_comparisons_dataset": comparisons_count[(approach, config)]
                 }
             )
 
@@ -266,11 +271,12 @@ def get_elo_scores_for_task(
     task_dataset_df = pd.DataFrame(per_dataset_records)
 
     grouped = (
-        task_dataset_df
-        .groupby(["task", "Approach", "Configuration"], as_index=False)
-        ["elo_score_dataset"]
-        .mean()
-        .rename(columns={"elo_score_dataset": "elo_score_task"})
+    task_dataset_df
+    .groupby(["task", "Approach", "Configuration"], as_index=False)
+    .agg(
+        elo_score_task=('elo_score_dataset', 'mean'),
+        num_comparisons_task=('num_comparisons_dataset', 'sum')  # sum comparisons across datasets
+    )
     )
 
     return grouped
@@ -309,25 +315,113 @@ def compute_elo_scores(df: pd.DataFrame, seed: int = 123, k_factor: float = 32.0
                 'task': row['task'],
                 'Approach': row['Approach'],
                 'Configuration': row['Configuration'],
-                'elo_score_task': float(row['elo_score_task'])
+                'elo_score_task': float(row['elo_score_task']),
+                'num_comparisons_task': int(row['num_comparisons_task']),
+                'elo_task_delta': float(row['elo_score_task'] - INITIAL_RATING)
             })
 
-    # build DataFrames
+    if not per_task_records:
+        return pd.DataFrame(), pd.DataFrame()
+
     per_task_df = pd.DataFrame(per_task_records)
+    per_task_df = per_task_df.sort_values(['task', 'elo_score_task'], ascending=[True, False]).reset_index(drop=True)
 
-    if per_task_df.empty:
-        overall_df = pd.DataFrame()
-    else:
-        # overall: average elo_score_task across tasks per approach/config
-        overall_df = per_task_df.groupby(['Approach', 'Configuration'])['elo_score_task'].mean().reset_index()
-        overall_df = overall_df.rename(columns={'elo_score_task': 'elo_score_overall'}).sort_values(by='elo_score_overall', ascending=False).reset_index(drop=True)
+ # -------------------
+    # Overall aggregation
+    # -------------------
+    overall_df = (
+        per_task_df
+        .groupby(['Approach', 'Configuration'], as_index=False)
+        .agg(
+            elo_score_overall=('elo_score_task', 'mean'),
+            num_comparisons_total=('num_comparisons_task', 'sum'),
+            num_tasks_participated=('task', 'nunique'),
+        )
+    )
 
+    # Rounding
+    overall_df['elo_score_overall'] = overall_df['elo_score_overall'].round(2)
+    overall_df['difference_to_start'] = (
+        overall_df['elo_score_overall'] - INITIAL_RATING
+    ).round(1)
 
-    if not per_task_df.empty:
-        per_task_df = per_task_df.sort_values(['task', 'elo_score_task'], ascending=[True, False]).reset_index(drop=True)
+    # # Optional: display column for tables
+    # overall_df['elo_display'] = overall_df.apply(
+    #     lambda r: f"{r['elo_score_overall']:.2f} ± {r['difference_to_start']:.1f}",
+    #     axis=1
+    # )
+
+    overall_df = overall_df.sort_values(
+        'elo_score_overall',
+        ascending=False
+    ).reset_index(drop=True)
 
     print("%%%%%%%%%%%%%%%%%%%%%%%%")
     print("Overview ELO Scores:")
     print(overall_df)
 
     return per_task_df, overall_df
+## %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+##  Build table with probabilities of wins for reference
+## %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+def elo_win_probability(
+    start_rating: float,
+    rating_diff: float,
+    scale: float = 400.0,
+) -> float:
+    """
+    Compute the probability that a model with (start_rating + rating_diff)
+    beats a model with start_rating.
+
+    Parameters
+    ----------
+    start_rating : float
+        The reference Elo rating (e.g., 1500).
+    rating_diff : float
+        Elo difference relative to start_rating (can be negative).
+    scale : float
+        Elo scale factor (default 400, standard Elo).
+
+    Returns
+    -------
+    float
+        Win probability in [0, 1].
+    """
+    return 1.0 / (1.0 + 10.0 ** (-rating_diff / scale))
+
+
+def elo_win_probability_table(
+    start_rating: float,
+    deltas: Iterable[float],
+    scale: float = 400.0,
+) -> pd.DataFrame:
+    """
+    Create a table of Elo deltas vs. win probabilities.
+
+    Parameters
+    ----------
+    start_rating : float
+        Reference Elo rating (e.g., 1500).
+    deltas : Iterable[float]
+        Elo differences to evaluate (e.g., [-200, -100, 0, 100, 200]).
+    scale : float
+        Elo scale factor (default 400).
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: [elo_delta, win_probability]
+    """
+    rows = []
+    for d in deltas:
+        prob = elo_win_probability(start_rating, d, scale)
+        # format prob to 4 decimal places
+        prob = float(f"{prob:.4f}")
+        rows.append({
+            "elo_delta": d,
+            "win_probability": prob
+        })
+
+    return pd.DataFrame(rows)
