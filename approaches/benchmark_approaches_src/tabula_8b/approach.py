@@ -50,23 +50,20 @@ class TabuLA8BEmbedder(BaseTabularEmbeddingApproach):
             logger.error(f"Error loading TabuLA-8B model: {e}")
             raise
     
-    def preprocessing(self, input_table: pd.DataFrame):
+    def preprocessing(self, input_table):
         """
-        Preprocess the input table for TabuLA-8B.
-        
-        Args:
-            input_table: pd.DataFrame - The table to preprocess
-            
-        Returns:
-            list: List of preprocessed table strings
+        Preprocess a table or a single row for TabuLA-8B.
         """
         preprocessed_data = []
-        
-        for _, row in input_table.iterrows():
-            # Convert row to string format suitable for TabuLA-8B
-            table_row_string = self._convert_row_to_string(row)
-            preprocessed_data.append(table_row_string)
-        
+
+        if isinstance(input_table, pd.Series):
+            # Single row
+            preprocessed_data.append(self._convert_row_to_string(input_table))
+        else:
+            # DataFrame
+            for _, row in input_table.iterrows():
+                preprocessed_data.append(self._convert_row_to_string(row))
+
         return preprocessed_data
     
     def _convert_row_to_string(self, row: pd.Series):
@@ -186,26 +183,33 @@ class TabuLA8BEmbedder(BaseTabularEmbeddingApproach):
         """
         predictions = []
         
+        print(f"Starting few-shot predictions for {len(test_df)} test cases using Tabula-8B...")
         for idx, row in test_df.iterrows():
             # Create few-shot prompt with training examples
             prompt = self._create_few_shot_prompt(row, task_type)
+
+            print(f"Prompt for test case {idx}:\n{prompt}\n")
             
             # Generate response using Tabula-8B
             inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=self.cfg.approach.max_length)
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             with torch.no_grad():
-                outputs = self.model.generate(
+                outputs = self.model(
                     **inputs,
                     max_new_tokens=50,
                     do_sample=True,
                     temperature=0.1,
                     pad_token_id=self.tokenizer.eos_token_id
                 )
+
+            print(f"Generated output tokens: {outputs}")
             
             # Decode response
             response = self.tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
             
+            print(f"Model response: {response}")
+
             # Parse response based on task type
             if task_type == "classification":
                 prediction = self._parse_classification_response(response)
@@ -306,8 +310,12 @@ class TabuLA8BEmbedder(BaseTabularEmbeddingApproach):
                     pad_token_id=self.tokenizer.eos_token_id
                 )
             
+            print(f"Generated output tokens: {outputs}")
+
             # Decode the response
             response = self.tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
+
+            print(f"Model response: {response}")
             
             # Parse the response based on task type
             if task_type == "classification":
@@ -373,6 +381,8 @@ Answer:"""
         """
         # Clean the response
         response = response.strip().lower()
+
+        print(f"Model response for classification: {response}")
         
         # Try to find a match with unique labels
         for label in self.unique_labels:
@@ -391,15 +401,19 @@ Answer:"""
             float: Parsed numerical prediction.
         """
         import re
+
+        print(f"Model response for regression: {response}")
         
         # Extract numbers from the response
         numbers = re.findall(r'-?\d+\.?\d*', response)
         
         if numbers:
             try:
+                print(f"Extracted number for regression: {numbers[0]}")
                 return float(numbers[0])
             except ValueError:
                 pass
         
         # If no valid number found, return 0.0 as default
+        print("No valid number found in response for regression, defaulting to 0.0")
         return 0.0 

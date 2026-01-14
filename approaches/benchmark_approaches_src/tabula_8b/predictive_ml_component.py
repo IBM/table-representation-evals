@@ -19,6 +19,7 @@ class PredictiveMLComponent(PredictiveMLInterface):
             dataset_information (dict): Additional dataset info.
         """
         # Delegate to the approach instance
+        print(f"Setting up TabuLA-8B model for predictiveML task...")
         self.approach_instance.load_predictive_ml_model(train_df, train_labels, task_type, dataset_information)
 
     def predict_test_cases(self, test_df: pd.DataFrame, task_type: str):
