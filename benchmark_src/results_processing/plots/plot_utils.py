@@ -4,7 +4,11 @@ import numpy as np
 from pathlib import Path
 
 ### TODO: should be configured by user, not hardcoded here!
-def approach_name_for_plot(config_string: str):
+def approach_name_for_plot(approach_name: str, config_string: str):
+    if approach_name in ["tabicl", "tabpfn"]:
+        if "predML_based_on=row_embeddings" in config_string:
+            return f"{approach_name}-row_emb"
+
     if "GritLM" in config_string:
         return "GritLM-7B"
     elif "BAAI" in config_string:
@@ -79,7 +83,7 @@ def collect_data_for_plotting(df: pd.DataFrame, metric: str, is_aggregated: bool
         data["InferenceTime"] = []
         data["InferenceCPU"] = []
     for _, row in df.iterrows():
-        approach_name = approach_name_for_plot(row["Configuration"])
+        approach_name = approach_name_for_plot(row["Approach"],row["Configuration"])
         if not approach_name:
             approach_name = row["Approach"]
         #print(f"Approach name {approach_name}")

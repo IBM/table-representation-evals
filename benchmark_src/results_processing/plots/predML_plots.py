@@ -8,18 +8,18 @@ from benchmark_src.results_processing.aggregate import aggregate_results
 from benchmark_src.results_processing.plots import plot_utils
 
 def create_binary_barplot_altair(df: pd.DataFrame, results_folder: Path, aggregated: bool, dataset_name, model_name, plot_percentage_to_baseline: bool):
-    print("############## Started binary classification barplot (Altair)")
+    #print("############## Started binary classification barplot (Altair)")
 
     tooltip = ["Approach", "Performance"]
     if aggregated:
-        print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+        #print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
         group_cols = ["Approach", "Configuration", "task"]
         df = aggregate_results(df=df, grouping_columns=group_cols)
         tooltip.append("std")
         # assert that all _rows_count values are the same
         assert df['_rows_count'].nunique() == 1, "All _rows_count values should be the same"
         dataset_name += f" over {df['_rows_count'].iloc[0]} datasets"
-        print(dataset_name)
+        #print(dataset_name)
 
 
     metric = f"{model_name}_roc_auc_score (↑)"
@@ -81,7 +81,10 @@ def create_binary_barplot_altair(df: pd.DataFrame, results_folder: Path, aggrega
             color=alt.value('black')
         )
 
-        chart = (bars + error_bars + text).properties(width=500, height=400)
+        chart = (bars + error_bars + text).properties(
+            width='container',
+            height=250
+        )
 
     else:
         # Text showing only Performance
@@ -94,7 +97,10 @@ def create_binary_barplot_altair(df: pd.DataFrame, results_folder: Path, aggrega
             text=alt.Text('Performance:Q', format=".2f")
         )
 
-        chart = (bars + text).properties(width=500, height=400)
+        chart = (bars + text).properties(
+            width='container',
+            height=250
+        )
 
 
     # Save the chart to disk as HTML
@@ -106,7 +112,7 @@ def create_binary_barplot_altair(df: pd.DataFrame, results_folder: Path, aggrega
 
     save_path = results_folder / (filename + ".html")
     chart.save(str(save_path))
-    print(f"############## Saved Altair plot to {save_path}")
+    #print(f"############## Saved Altair plot to {save_path}")
 
 def create_binary_barplot(df: pd.DataFrame, results_folder: Path, model_name: str):
     print(f"############## Started binary classification barplot")
@@ -147,7 +153,7 @@ def create_binary_barplot(df: pd.DataFrame, results_folder: Path, model_name: st
     plt.ylabel(f'{model_name} - ROC AUC (↑)') 
 
     plt.savefig(results_folder / f"{model_name}_binary_barchart.png")
-    print(f"############## Finished binary classification barplot")
+    #print(f"############## Finished binary classification barplot")
 
     
 def create_multiclass_barplot(df: pd.DataFrame, results_folder: Path):
@@ -190,7 +196,7 @@ def create_multiclass_barplot(df: pd.DataFrame, results_folder: Path):
     ax.set_ylabel("Approach")
 
     plt.savefig(results_folder / "multiclass_barchart.png")
-    print(f"############## Finished multiclass classification barplot")
+    #print(f"############## Finished multiclass classification barplot")
 
     
 
