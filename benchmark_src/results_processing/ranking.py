@@ -238,11 +238,19 @@ def get_elo_scores_for_task(
         if not matches:
             print(f"No valid matches for dataset {dataset}, using initial ratings")
         else:
-            dataset_hash = int(
-                hashlib.md5(f"{task}-{dataset}".encode()).hexdigest(), 16
-            ) % 10000
-            rng = random.Random(seed + dataset_hash)
-            rng.shuffle(matches)
+            # dataset_hash = int(
+            #     hashlib.md5(f"{task}-{dataset}".encode()).hexdigest(), 16
+            # ) % 10000
+            # rng = random.Random(seed + dataset_hash)
+            # rng.shuffle(matches)
+            current_k_factor = k_factor
+            # repeat matches to make relative scores between models more consistent.
+            for repeat in range(20):
+                # reduce k_factor over time
+                if repeat>0 and repeat%2==0:
+                    current_k_factor /= 2
+                # shuffle match order. maybe not too impactful considering the 20 repeats.
+                random.shuffle(matches)
 
             for (a_name, a_cfg), (b_name, b_cfg), sa, sb in matches:
                 ra, rb = ratings[(a_name, a_cfg)], ratings[(b_name, b_cfg)]
