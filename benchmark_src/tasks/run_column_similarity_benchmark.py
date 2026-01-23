@@ -9,9 +9,12 @@ from pathlib import Path
 import statistics
 from tqdm import tqdm
 from hydra.utils import get_original_cwd
-import faiss
 import numpy as np
 import glob
+import gc
+import torch
+from qdrant_client import QdrantClient
+from qdrant_client.models import VectorParams, Distance, PointStruct
 
 # Add ContextAwareJoin to Python path
 # Path to src folder in ContextAwareJoin submodule
@@ -37,6 +40,13 @@ from benchmark_src.tasks import component_utils
 
 logger = logging.getLogger(__name__)
 
+
+def get_qdrant_client(cfg: DictConfig) -> QdrantClient:
+    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage"
+    qdrant_path.mkdir(parents=True, exist_ok=True)
+    client = QdrantClient(path=str(qdrant_path))
+    logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
+    return client
 
 def load_benchmark_data(cfg):
     if cfg.dataset_name == 'wikijoin_small':
@@ -160,12 +170,9 @@ def load_benchmark_data(cfg):
 
 @monitor_resources()
 def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
-    import gc
-    import torch
-    
-    results_file = os.path.join(cfg.cache_dir, "all_column_embeddings")
-    if not os.path.exists(results_file):
-        os.makedirs(results_file)
+
+    # Setup Qdrant client
+    client = get_qdrant_client(cfg)
 
     metric_res = {}
     resource_metrics_setup = None
@@ -173,204 +180,166 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     embedding_approach_class = framework.get_approach_class(cfg)
     embedder = embedding_approach_class(cfg)
 
+    # Load test cases (only paths + GT)
     test_cases = load_benchmark_data(cfg)
-    logger.info(f"Done loading the test cases.")
-    column_embedding_component = embedder._load_component("column_embedding_component", "ColumnEmbeddingComponent",
-                                                              ColumnEmbeddingInterface)
-    ## setup model
-    _, resource_metrics_setup = component_utils.run_model_setup(component=column_embedding_component,
-                                                                    input_table=None, dataset_information=None)
+    logger.info("Done loading the test cases.")
 
-    dataset_config_path = Path(get_original_cwd()) / Path("benchmark_src/config/dataset") / f"{cfg.dataset_name}.yaml"
+    column_embedding_component = embedder._load_component(
+        "column_embedding_component",
+        "ColumnEmbeddingComponent",
+        ColumnEmbeddingInterface
+    )
 
-    if not dataset_config_path.exists():
-        print(os.getcwd())
-        print(f"Could not find dataset config path: {dataset_config_path}")
-    try:
-        dataset_cfg = OmegaConf.load(str(dataset_config_path))
-    except Exception as e:
-        print(f"Could not load dataset config: {e}")
+    # Model setup
+    _, resource_metrics_setup = component_utils.run_model_setup(
+        component=column_embedding_component,
+        input_table=None,
+        dataset_information=None
+    )
 
     for testcase in test_cases:
-        logger.info(f"Working on testcase {testcase}")
-        table_paths, gt_data, dataset = test_cases[testcase]
-        
-        logger.info(f"Creating embeddings and building index in streaming fashion")
-        
-        # Build index incrementally without storing all embeddings
-        all_indexes = {}  # Maps index position -> (table, column)
-        index = None
-        embedding_dim = None
-        current_idx = 0
-        
-        # First pass: Build FAISS index incrementally
-        for table_idx, table_path in enumerate(table_paths):
-            file_format = table_paths[table_path]
-            df = load_dataframe(table_path, file_format=file_format)
-            
-            t = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
-            print(f'at table *{t}* with shape {df.shape}, progress: {table_idx+1} / {len(table_paths)}')
-            
-            column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=df)
-            assert len(column_names) > 1, f"Parsing issue? Got {column_names} as column name."
-            
-            # Move embeddings to CPU and convert to numpy immediately
+        logger.info(f"Processing testcase: {testcase}")
+        table_paths, gt_data, dataset_name = test_cases[testcase]
+
+        # First, infer embedding dimension using first available table
+        first_table = next(iter(table_paths))
+        df = load_dataframe(first_table, file_format=table_paths[first_table])
+        sample_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(df)
+        if hasattr(sample_embeddings, 'cpu'):
+            sample_embeddings = sample_embeddings.cpu().numpy()
+        embedding_dim = sample_embeddings[0].size
+        del df, sample_embeddings
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
+        # Create Qdrant collection if not exists
+        if client.collection_exists(collection_name=cfg.run_identifier + "_" + dataset_name):
+            client.delete_collection(collection_name=cfg.run_identifier + "_" + dataset_name)
+            logger.info(f"Deleted existing collection {cfg.run_identifier}_{dataset_name}")
+
+        client.create_collection(
+            collection_name=cfg.run_identifier + "_" + dataset_name,
+            vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
+        )
+        logger.info(f"Created Qdrant collection {dataset_name} with vector size {embedding_dim}")
+
+        # Streaming embedding and upsert
+        points = []
+        current_id = 0
+
+        for table_path in tqdm(table_paths, desc=f"Embedding tables for {dataset_name}"):
+            df = load_dataframe(table_path, file_format=table_paths[table_path])
+            tname = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
+
+            column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(df)
+
+            # Convert embeddings to numpy if needed
             if hasattr(column_embeddings, 'cpu'):
                 column_embeddings = column_embeddings.cpu().numpy()
             elif isinstance(column_embeddings, list):
                 column_embeddings = np.array([emb.cpu().numpy() if hasattr(emb, 'cpu') else emb for emb in column_embeddings])
-            
-            # Initialize FAISS index on first iteration
-            if index is None:
-                embedding_dim = column_embeddings[0].size
-                index = faiss.IndexFlatL2(embedding_dim)
-            
-            # Add embeddings to index and track mappings
-            for idx, c in enumerate(column_names):
-                full_col_name = t + '.' + c
-                all_indexes[current_idx] = (t, full_col_name)
-                current_idx += 1
-            
-            # Add all column embeddings from this table to index
-            index.add(column_embeddings)
-            
-            # Free memory immediately
+
+            # Create Qdrant Points
+            for idx, col_name in enumerate(column_names):
+                full_col_name = f"{tname}.{col_name}"
+                points.append(PointStruct(
+                    id=current_id,
+                    vector=column_embeddings[idx].tolist(),
+                    payload={"table": tname, "column": full_col_name}
+                ))
+                current_id += 1
+
+            # Upload in batches to save memory
+            if len(points) >= 1000:
+                client.upsert(collection_name=cfg.run_identifier + "_" + dataset_name, points=points)
+                points = []
+
             del df, column_embeddings, column_names
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             gc.collect()
-        
-        print(f"Built FAISS index with {len(all_indexes)} columns from {len(table_paths)} tables")
-        
-        # Prepare ground truth and search queries
+
+        # Upload any remaining points
+        if points:
+            client.upsert(collection_name=cfg.run_identifier + "_" + dataset_name, points=points)
+            points = []
+
+        # Prepare queries and ground truth
         new_gt = {}
+        search_queries = []
         top_k = 0
-        search_queries = []  # List of (table, column) tuples to search
-        
-        if cfg.dataset_name == 'valentine':
+
+        if cfg.dataset_name.lower() == "valentine":
             for match in gt_data['matches']:
-                table = match['source_table']
-                column = table + '.' + match['source_column']
-                if column not in new_gt:
-                    new_gt[column] = []
-                l = new_gt[column]
-                search_queries.append((table, column))
-                column = match['target_table'] + '.' + match['target_column']
-                l.append(column)
-            for c in new_gt:
-                if len(new_gt[c]) > top_k:
-                    top_k = len(new_gt[c])
+                col = f"{match['source_table']}.{match['source_column']}"
+                search_queries.append(col)
+                if col not in new_gt:
+                    new_gt[col] = []
+                new_gt[col].append(f"{match['target_table']}.{match['target_column']}")
+                top_k = max(top_k, len(new_gt[col]))
         else:
             for k in gt_data:
                 table = k.split('.')[0]
-                # Check if this column exists in our index
-                column_exists = any(all_indexes[i][1] == k for i in all_indexes if all_indexes[i][0] == table)
-                if column_exists:
-                    search_queries.append((table, k))
-                    new_gt[k] = gt_data[k]
-                    if len(gt_data[k]) > top_k:
-                        top_k = len(gt_data[k])
-                # otherwise skip this column as it is not in our index
-        
-        print('new_gt', new_gt)
-        print('search queries', search_queries)
-        assert len(new_gt) == len(search_queries)
-        
-        # Second pass: Extract search embeddings for queries only
-        search_sources = []
-        searched_indexes = []
-        
-        for table_path in table_paths:
-            file_format = table_paths[table_path]
-            t = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
-            
-            # Check if this table has any queries we need
-            relevant_queries = [(tbl, col) for tbl, col in search_queries if tbl == t]
-            if not relevant_queries:
-                continue
-            
-            # Load table and get embeddings
-            df = load_dataframe(table_path, file_format=file_format)
-            column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=df)
-            
-            # Move to CPU
-            if hasattr(column_embeddings, 'cpu'):
-                column_embeddings = column_embeddings.cpu().numpy()
-            elif isinstance(column_embeddings, list):
-                column_embeddings = np.array([emb.cpu().numpy() if hasattr(emb, 'cpu') else emb for emb in column_embeddings])
-            
-            # Extract only the embeddings we need for queries
-            for tbl, full_col in relevant_queries:
-                col_name = full_col.split('.', 1)[1]  # Remove table prefix
-                if col_name in column_names:
-                    idx = column_names.index(col_name)
-                    search_sources.append(column_embeddings[idx])
-                    searched_indexes.append((tbl, full_col))
-            
-            # Free memory
-            del df, column_embeddings, column_names
+                search_queries.append(k)
+                new_gt[k] = gt_data[k]
+                top_k = max(top_k, len(gt_data[k]))
+
+        # Search each query in Qdrant
+        result = {}
+        for query_col in tqdm(search_queries, desc="Searching columns"):
+            # Fetch query embedding
+            table_name, col_name = query_col.split('.', 1)
+            table_path = next((p for p in table_paths if os.path.basename(p).startswith(table_name)), None)
+            df = load_dataframe(table_path, file_format=table_paths[table_path])
+            col_idx = list(df.columns).index(col_name)
+            query_embedding = column_embedding_component.create_column_embeddings_for_table(df)[0][col_idx]
+            if hasattr(query_embedding, 'cpu'):
+                query_embedding = query_embedding.cpu().numpy()
+
+            # Search in Qdrant
+            hits = client.search(
+                collection_name=dataset_name,
+                query_vector=query_embedding.tolist(),
+                limit=top_k + 1,
+                with_payload=True
+            )
+
+            retrieved_cols = [hit.payload["column"] for hit in hits if hit.payload["column"] != query_col]
+            result[query_col] = retrieved_cols
+
+            del df
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             gc.collect()
-        
-        search_sources = np.asarray(search_sources)
-        print(f"Searching with {len(search_sources)} query embeddings")
-        assert len(new_gt) == len(search_sources)
-        
-        # Perform search
-        D, I = index.search(search_sources, top_k + 1)
-        
-        # Process results
-        result = {}
-        for x, i in enumerate(I):
-            source_table, source_col = searched_indexes[x]
-            joinable_list = []
-            result[source_col] = joinable_list
-            for y, neighbor in enumerate(i):
-                target_table, target_col = all_indexes[neighbor]
-                r = target_col
-                joinable_list.append(r)
-            if source_col in joinable_list:
-                joinable_list.remove(source_col)
 
-        missing_queries = set(new_gt.keys())-set(result.keys())
-        logger.info(f"Result file is missing {len(missing_queries)} queries out of {len(new_gt)}")
-        assert len(missing_queries) == 0, missing_queries
-        logger.info(f'top k is set to:{top_k}')
-
+        # Compute metrics
         MRR = compute_mrr_from_list(new_gt, result, top_k)
         MAP = compute_map_from_list(new_gt, result, top_k)
         Precision, Recall = compute_precision_recall_at_k(new_gt, result, top_k)
-        
-        metric_res[dataset] = {'MRR': MRR, 'MAP': MAP, 'Precision':Precision, 'Recall': Recall}
-        print('Expected', dataset, new_gt)
-        print('Result', result, top_k)
-        print(dataset, 'MRR', "MAP", "Precision", "Recall", MRR, MAP, Precision, Recall)
-        
-        # Clean up for next test case
-        del index, all_indexes, search_sources, D, I
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
-    result = {}
-    for dataset in metric_res:
-        for key in metric_res[dataset]:
-            if key not in result:
-                result[key] = []
-            result[key].append(metric_res[dataset][key])
+        metric_res[dataset_name] = {
+            "MRR": MRR,
+            "MAP": MAP,
+            "Precision": Precision,
+            "Recall": Recall
+        }
 
+        logger.info(f"{dataset_name} -> MRR: {MRR}, MAP: {MAP}, Precision: {Precision}, Recall: {Recall}")
+
+    # Summarize results
     summary_result = {}
-    if cfg.dataset_name == 'valentine':
-        for key in result:
-            summary_result[key] = statistics.mean(result[key])
-            summary_result[key + '_std'] = statistics.stdev(result[key])
-    else:
-        for key in result:
-            summary_result[key] = result[key][0]
+    for key in metric_res:
+        for metric in metric_res[key]:
+            summary_result.setdefault(metric, []).append(metric_res[key][metric])
 
-    return summary_result, resource_metrics_setup
+    final_summary = {}
+    for metric in summary_result:
+        final_summary[metric] = statistics.mean(summary_result[metric])
+        if len(summary_result[metric]) > 1:
+            final_summary[metric + "_std"] = statistics.stdev(summary_result[metric])
 
+    return final_summary, resource_metrics_setup
 
 def main(cfg: DictConfig):
     logger.debug(f"Started run_column_similarity_benchmark")
