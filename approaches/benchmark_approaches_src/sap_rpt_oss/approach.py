@@ -265,7 +265,7 @@ class SAP_RPT_OSS_Embedder(BaseTabularEmbeddingApproach):
 
                 query_reps = encoder_outputs[:, -1, :]
                 col_emb = query_reps.mean(dim=0)
-                col_embeddings.append(col_emb.detach().cpu().numpy())
+                col_embeddings.append(col_emb.detach().cpu().float().numpy())
 
         column_embeddings = np.vstack(col_embeddings) if col_embeddings else np.zeros((0, 0), dtype=np.float32)
         
