@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_qdrant_client(cfg: DictConfig) -> QdrantClient:
-    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage"
+    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage" / f"qdrant_storage_{cfg.run_identifier}"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
@@ -85,13 +85,12 @@ def load_benchmark_data(cfg):
     if len(leaf_dirs) == 0:
         raise ValueError(f"Did not find the dataset. leaf_dirs={leaf_dirs}")
 
-    print('LEAF_DIRS', leaf_dirs)
+    logger.debug('LEAF_DIRS', leaf_dirs)
     
     for dataset in leaf_dirs:
         ############################
         # Load GT first
         ############################
-        print("Dataset name", cfg.dataset_name.lower())
 
         if cfg.dataset_name.lower() == "valentine":
             gt = glob.glob(f"{dataset}/*mapping.json", recursive=True)
@@ -99,12 +98,12 @@ def load_benchmark_data(cfg):
             gt = glob.glob(f"{dataset}/gt_small.*", recursive=True)
         elif cfg.dataset_name.lower() == "nextia":
             d = dataset.replace('/datalake', '')
-            print(d)
+            logger.debug(d)
             gt = glob.glob(f"{d}/**/gt.*", recursive=True)
         else:
             gt = glob.glob(f"{dataset}/**/gt.*", recursive=True)
             gt = [x for x in gt if x.endswith('json') or x.endswith('jsonl') or x.endswith('pickle')]
-            print(f"else case. Found gt: {gt}")
+            logger.debug(f"else case. Found gt: {gt}")
 
         assert len(gt) == 1, f"Error: gt is {gt}"
         gt = gt[0]
@@ -201,7 +200,9 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         logger.info(f"Processing testcase: {testcase}")
         table_paths, gt_data, dataset_name = test_cases[testcase]
 
-        # First, infer embedding dimension using first available table
+        collection_name = f"{dataset_name}"
+
+        # Infer embedding dimension from first available table
         first_table = next(iter(table_paths))
         df = load_dataframe(first_table, file_format=table_paths[first_table])
         sample_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(df)
@@ -213,19 +214,20 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             torch.cuda.empty_cache()
         gc.collect()
 
-        # Create Qdrant collection if not exists
-        if client.collection_exists(collection_name=cfg.run_identifier + "_" + dataset_name):
-            client.delete_collection(collection_name=cfg.run_identifier + "_" + dataset_name)
-            logger.info(f"Deleted existing collection {cfg.run_identifier}_{dataset_name}")
+        # Create fresh Qdrant collection
+        if client.collection_exists(collection_name=collection_name):
+            client.delete_collection(collection_name=collection_name)
+            logger.info(f"Deleted existing collection {collection_name}")
 
         client.create_collection(
-            collection_name=cfg.run_identifier + "_" + dataset_name,
+            collection_name=collection_name,
             vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
         )
-        logger.info(f"Created Qdrant collection {dataset_name} with vector size {embedding_dim}")
+        logger.info(f"Created Qdrant collection {collection_name} with vector size {embedding_dim}")
 
         # Streaming embedding and upsert
         points = []
+        col_embeddings_dict = {}  # key: full_col_name -> embedding
         current_id = 0
 
         for table_path in tqdm(table_paths, desc=f"Embedding tables for {dataset_name}"):
@@ -234,15 +236,16 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
             column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(df)
 
-            # Convert embeddings to numpy if needed
+            # Convert embeddings to numpy
             if hasattr(column_embeddings, 'cpu'):
                 column_embeddings = column_embeddings.cpu().numpy()
             elif isinstance(column_embeddings, list):
                 column_embeddings = np.array([emb.cpu().numpy() if hasattr(emb, 'cpu') else emb for emb in column_embeddings])
 
-            # Create Qdrant Points
+            # Create Qdrant Points & store in dict
             for idx, col_name in enumerate(column_names):
                 full_col_name = f"{tname}.{col_name}"
+                col_embeddings_dict[full_col_name] = column_embeddings[idx]
                 points.append(PointStruct(
                     id=current_id,
                     vector=column_embeddings[idx].tolist(),
@@ -250,9 +253,9 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 ))
                 current_id += 1
 
-            # Upload in batches to save memory
-            if len(points) >= 1000:
-                client.upsert(collection_name=cfg.run_identifier + "_" + dataset_name, points=points)
+            # Upload in batches
+            if len(points) >= 500:
+                client.upsert(collection_name=collection_name, points=points)
                 points = []
 
             del df, column_embeddings, column_names
@@ -262,7 +265,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
         # Upload any remaining points
         if points:
-            client.upsert(collection_name=cfg.run_identifier + "_" + dataset_name, points=points)
+            client.upsert(collection_name=collection_name, points=points)
             points = []
 
         # Prepare queries and ground truth
@@ -280,26 +283,23 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 top_k = max(top_k, len(new_gt[col]))
         else:
             for k in gt_data:
-                table = k.split('.')[0]
                 search_queries.append(k)
                 new_gt[k] = gt_data[k]
                 top_k = max(top_k, len(gt_data[k]))
 
-        # Search each query in Qdrant
+        # Search each query in Qdrant using cached embeddings
         result = {}
         for query_col in tqdm(search_queries, desc="Searching columns"):
-            # Fetch query embedding
-            table_name, col_name = query_col.split('.', 1)
-            table_path = next((p for p in table_paths if os.path.basename(p).startswith(table_name)), None)
-            df = load_dataframe(table_path, file_format=table_paths[table_path])
-            col_idx = list(df.columns).index(col_name)
-            query_embedding = column_embedding_component.create_column_embeddings_for_table(df)[0][col_idx]
+            if query_col not in col_embeddings_dict:
+                logger.warning(f"Query column {query_col} not in embeddings dict, skipping.")
+                continue
+
+            query_embedding = col_embeddings_dict[query_col]
             if hasattr(query_embedding, 'cpu'):
                 query_embedding = query_embedding.cpu().numpy()
 
-            # Search in Qdrant
             hits = client.search(
-                collection_name=dataset_name,
+                collection_name=collection_name,
                 query_vector=query_embedding.tolist(),
                 limit=top_k + 1,
                 with_payload=True
@@ -307,11 +307,6 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
             retrieved_cols = [hit.payload["column"] for hit in hits if hit.payload["column"] != query_col]
             result[query_col] = retrieved_cols
-
-            del df
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            gc.collect()
 
         # Compute metrics
         MRR = compute_mrr_from_list(new_gt, result, top_k)
@@ -326,6 +321,12 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         }
 
         logger.info(f"{dataset_name} -> MRR: {MRR}, MAP: {MAP}, Precision: {Precision}, Recall: {Recall}")
+
+        # Cleanup
+        del col_embeddings_dict
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
 
     # Summarize results
     summary_result = {}
