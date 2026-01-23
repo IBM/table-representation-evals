@@ -89,6 +89,7 @@ def load_benchmark_data(cfg):
             gt = glob.glob(f"{dataset}/gt_small.*", recursive=True)
         elif cfg.dataset_name.lower() == "nextia":
             d = dataset.replace('/datalake', '')
+            print(d)
             gt = glob.glob(f"{d}/**/gt.*", recursive=True)
         else:
             gt = glob.glob(f"{dataset}/**/gt.*", recursive=True)
@@ -108,50 +109,60 @@ def load_benchmark_data(cfg):
             raise NotImplementedError
 
         ############################
-        # Load datalake tables
+        # Load datalake tables - STORE PATHS ONLY
         ############################
         datalake_tables = glob.glob(f"{dataset}/**/*{file_format}", recursive=True)
-        # for column similarity tasks, groups of tables are in datalakes
-        # maintain a mapping of datalake to tables
-        table2dfs = {}
-    #   TBD unclear why logger does not work
-    #   for table in tqdm(datalake_tables, desc="Computing Embeddings", file=logger):
-        use_tqdm = len(datalake_tables) > 20
-        iterator = tqdm(datalake_tables, desc="Computing Embeddings") if use_tqdm else datalake_tables
-        for table in iterator:
-            try:
-                logger.debug(f'loading table: {table}')
-                df = load_dataframe(table, file_format=file_format)
-                table2dfs[table] = df
-            except:
-                logger.error(f"Cannot find table: {table}")
-
+        
+        # Filter tables for wikijoin_small upfront
         if cfg.dataset_name.lower() == "wikijoin_small":
             l = [x.split('.')[0] + '.csv' for x in gt_data.keys()]
             alx = []
             for x in gt_data.values():
                 for y in x:
                     alx.append(y.split('.')[0] + '.csv')
-            fls = l + alx
-            new_table2dfs = {}
-            for k in table2dfs:
-                x = k.split('/')[-1]
+            fls = set(l + alx)  # Use set for faster lookup
+            
+            filtered_tables = []
+            for table in datalake_tables:
+                x = table.split('/')[-1]
                 if x in fls:
-                    new_table2dfs[k] = table2dfs[k]
-            assert len(new_table2dfs) < len(table2dfs)
-            assert len(new_table2dfs) > 0, new_table2dfs
-            print('created a small version of wikijoin', len(new_table2dfs))
-            table2dfs = new_table2dfs
+                    filtered_tables.append(table)
+            
+            assert len(filtered_tables) < len(datalake_tables)
+            assert len(filtered_tables) > 0, filtered_tables
+            print('created a small version of wikijoin', len(filtered_tables))
+            datalake_tables = filtered_tables
 
-        test_cases[dataset] = table2dfs, gt_data, dataset.replace('/', '_')
+        # Validate tables can be loaded (optional check)
+        use_tqdm = len(datalake_tables) > 20
+        iterator = tqdm(datalake_tables, desc="Validating Datasets") if use_tqdm else datalake_tables
+        valid_tables = []
+        for table in iterator:
+            try:
+                logger.debug(f'validating table: {table}')
+                df = load_dataframe(table, file_format=file_format)
+                # make sure there is at least one row
+                if len(df) == 0:
+                    continue
+                if len(df.columns) == 1:
+                    raise Exception(f"Table {table} loaded with {len(df.columns)} columns: {df.columns}")
+                valid_tables.append(table)
+                del df  # Free memory immediately
+            except Exception as e:
+                logger.error(e)
+
+        # Store table paths instead of loaded dataframes
+        table_paths = {table: file_format for table in valid_tables}
+        test_cases[dataset] = table_paths, gt_data, dataset.replace('/', '_')
 
     return test_cases
 
 
 @monitor_resources()
 def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
-    # get column embeddings and assert they have the correct format and shape
-    # instantiate the embedding approach clas
+    import gc
+    import torch
+    
     results_file = os.path.join(cfg.cache_dir, "all_column_embeddings")
     if not os.path.exists(results_file):
         os.makedirs(results_file)
@@ -163,6 +174,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     embedder = embedding_approach_class(cfg)
 
     test_cases = load_benchmark_data(cfg)
+    logger.info(f"Done loading the test cases.")
     column_embedding_component = embedder._load_component("column_embedding_component", "ColumnEmbeddingComponent",
                                                               ColumnEmbeddingInterface)
     ## setup model
@@ -180,47 +192,61 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         print(f"Could not load dataset config: {e}")
 
     for testcase in test_cases:
-        all_columns = {}
-        table2dfs, gt_data, dataset = test_cases[testcase]
-        if not os.path.exists(f'{results_file}/{dataset}.pkl'):
-            for table in table2dfs:
-                t = os.path.basename(table).replace('.csv', '').replace('.df', '')
-                print('at table', t)
-                all_columns[t] = {}
-                column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=table2dfs[table])
-                for idx, c in enumerate(column_names):
-                    c = t + '.' + c
-                    all_columns[t][c] = column_embeddings[idx]
-            with open(f'{results_file}/{dataset}.pkl', "wb") as file:
-                pickle.dump(all_columns, file)
-        else:
-            with open(f'{results_file}/{dataset}.pkl', "rb") as file:
-                all_columns = pickle.load(file)
-                resource_metrics_setup = None
-
-        all_cols = []
-        all_indexes = {}
-        i = 0
-        for table in all_columns:
-            for column in all_columns[table]:
-                all_indexes[i] = table, column
-                i += 1
-                all_cols.append(all_columns[table][column])
-        assert len(all_cols) == len(all_indexes)
-        arr = np.asarray(all_cols)
-
-        index = faiss.IndexFlatL2(arr[0].size)
-        index.add(arr)
-        search_sources = []
-        searched_indexes = []
-
-        for k in all_columns:
-            if k.startswith('animal'):
-                for v in all_columns[k]:
-                    print("table column", k, v)
+        logger.info(f"Working on testcase {testcase}")
+        table_paths, gt_data, dataset = test_cases[testcase]
+        
+        logger.info(f"Creating embeddings and building index in streaming fashion")
+        
+        # Build index incrementally without storing all embeddings
+        all_indexes = {}  # Maps index position -> (table, column)
+        index = None
+        embedding_dim = None
+        current_idx = 0
+        
+        # First pass: Build FAISS index incrementally
+        for table_idx, table_path in enumerate(table_paths):
+            file_format = table_paths[table_path]
+            df = load_dataframe(table_path, file_format=file_format)
+            
+            t = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
+            print(f'at table *{t}* with shape {df.shape}, progress: {table_idx+1} / {len(table_paths)}')
+            
+            column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=df)
+            assert len(column_names) > 1, f"Parsing issue? Got {column_names} as column name."
+            
+            # Move embeddings to CPU and convert to numpy immediately
+            if hasattr(column_embeddings, 'cpu'):
+                column_embeddings = column_embeddings.cpu().numpy()
+            elif isinstance(column_embeddings, list):
+                column_embeddings = np.array([emb.cpu().numpy() if hasattr(emb, 'cpu') else emb for emb in column_embeddings])
+            
+            # Initialize FAISS index on first iteration
+            if index is None:
+                embedding_dim = column_embeddings[0].size
+                index = faiss.IndexFlatL2(embedding_dim)
+            
+            # Add embeddings to index and track mappings
+            for idx, c in enumerate(column_names):
+                full_col_name = t + '.' + c
+                all_indexes[current_idx] = (t, full_col_name)
+                current_idx += 1
+            
+            # Add all column embeddings from this table to index
+            index.add(column_embeddings)
+            
+            # Free memory immediately
+            del df, column_embeddings, column_names
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            gc.collect()
+        
+        print(f"Built FAISS index with {len(all_indexes)} columns from {len(table_paths)} tables")
+        
+        # Prepare ground truth and search queries
         new_gt = {}
         top_k = 0
-        print(all_columns.keys())
+        search_queries = []  # List of (table, column) tuples to search
+        
         if cfg.dataset_name == 'valentine':
             for match in gt_data['matches']:
                 table = match['source_table']
@@ -228,35 +254,73 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 if column not in new_gt:
                     new_gt[column] = []
                 l = new_gt[column]
-                searched_indexes.append((table, column))
-                search_sources.append(all_columns[table][column])
+                search_queries.append((table, column))
                 column = match['target_table'] + '.' + match['target_column']
                 l.append(column)
             for c in new_gt:
                 if len(new_gt[c]) > top_k:
                     top_k = len(new_gt[c])
         else:
-            # set k to max of gt data
-            new_gt = {}
-        
             for k in gt_data:
                 table = k.split('.')[0]
-                if table in all_columns:
-                    search_sources.append(all_columns[table][k])
-                    searched_indexes.append((table, k))
+                # Check if this column exists in our index
+                column_exists = any(all_indexes[i][1] == k for i in all_indexes if all_indexes[i][0] == table)
+                if column_exists:
+                    search_queries.append((table, k))
                     new_gt[k] = gt_data[k]
                     if len(gt_data[k]) > top_k:
                         top_k = len(gt_data[k])
-
-        search_sources = np.asarray(search_sources)
+                # otherwise skip this column as it is not in our index
+        
         print('new_gt', new_gt)
-        print('search indexes', searched_indexes)
-        assert len(new_gt) == len(search_sources)
+        print('search queries', search_queries)
+        assert len(new_gt) == len(search_queries)
+        
+        # Second pass: Extract search embeddings for queries only
+        search_sources = []
+        searched_indexes = []
+        
+        for table_path in table_paths:
+            file_format = table_paths[table_path]
+            t = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
             
-        # check if there are column
-        # need to add 1 to top_k so the search is adjusted for returning searched column
+            # Check if this table has any queries we need
+            relevant_queries = [(tbl, col) for tbl, col in search_queries if tbl == t]
+            if not relevant_queries:
+                continue
+            
+            # Load table and get embeddings
+            df = load_dataframe(table_path, file_format=file_format)
+            column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(input_table=df)
+            
+            # Move to CPU
+            if hasattr(column_embeddings, 'cpu'):
+                column_embeddings = column_embeddings.cpu().numpy()
+            elif isinstance(column_embeddings, list):
+                column_embeddings = np.array([emb.cpu().numpy() if hasattr(emb, 'cpu') else emb for emb in column_embeddings])
+            
+            # Extract only the embeddings we need for queries
+            for tbl, full_col in relevant_queries:
+                col_name = full_col.split('.', 1)[1]  # Remove table prefix
+                if col_name in column_names:
+                    idx = column_names.index(col_name)
+                    search_sources.append(column_embeddings[idx])
+                    searched_indexes.append((tbl, full_col))
+            
+            # Free memory
+            del df, column_embeddings, column_names
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            gc.collect()
+        
+        search_sources = np.asarray(search_sources)
+        print(f"Searching with {len(search_sources)} query embeddings")
+        assert len(new_gt) == len(search_sources)
+        
+        # Perform search
         D, I = index.search(search_sources, top_k + 1)
-
+        
+        # Process results
         result = {}
         for x, i in enumerate(I):
             source_table, source_col = searched_indexes[x]
@@ -268,22 +332,26 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
                 joinable_list.append(r)
             if source_col in joinable_list:
                 joinable_list.remove(source_col)
-            #logger.debug('neighbors for ', x, i.tolist(), source_col, joinable_list)
 
         missing_queries = set(new_gt.keys())-set(result.keys())
-
         logger.info(f"Result file is missing {len(missing_queries)} queries out of {len(new_gt)}")
         assert len(missing_queries) == 0, missing_queries
         logger.info(f'top k is set to:{top_k}')
 
         MRR = compute_mrr_from_list(new_gt, result, top_k)
         MAP = compute_map_from_list(new_gt, result, top_k)
-
-        Precision, Recall  = compute_precision_recall_at_k(new_gt, result, top_k)
+        Precision, Recall = compute_precision_recall_at_k(new_gt, result, top_k)
+        
         metric_res[dataset] = {'MRR': MRR, 'MAP': MAP, 'Precision':Precision, 'Recall': Recall}
         print('Expected', dataset, new_gt)
         print('Result', result, top_k)
         print(dataset, 'MRR', "MAP", "Precision", "Recall", MRR, MAP, Precision, Recall)
+        
+        # Clean up for next test case
+        del index, all_indexes, search_sources, D, I
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     result = {}
     for dataset in metric_res:
@@ -312,7 +380,7 @@ def main(cfg: DictConfig):
 
     # run inference with model
     logger.info(f"Running column similarity based on column embeddings")
-    cluster_ranges =[1000]
+    cluster_ranges = [1000]
 
     result, resource_metrics_task = run_inference_based_on_column_embeddings(cluster_ranges=cluster_ranges, cfg=cfg)
     result_metrics, resource_metrics_setup = result
@@ -323,6 +391,3 @@ def main(cfg: DictConfig):
 
     # save the other metrics to disk
     result_utils.save_results(cfg=cfg, metrics=result_metrics)
-
-    
-
