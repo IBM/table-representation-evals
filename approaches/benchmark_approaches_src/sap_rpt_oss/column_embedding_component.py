@@ -18,6 +18,7 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
         self.approach_instance.load_trained_model()
 
     def create_column_embeddings_for_table(self, input_table: pd.DataFrame):
+        # limit table size to first 1000 rows for efficiency
         if len(input_table) > 1000:
             # if there are more than 500 columns, take only the first 100 rows:
             if len(input_table.columns) > 500:

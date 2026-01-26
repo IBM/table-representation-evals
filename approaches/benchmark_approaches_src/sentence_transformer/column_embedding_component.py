@@ -1,10 +1,12 @@
 import pandas as pd
+import logging
+import torch
 from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
 
 ### Implement this component if your approach is able to provide row embeddings for a given table in a self-supervised way (no labels).
 ### Otherwise, just delete this file.
 
-
+logger = logging.getLogger(__name__)
 class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
 
     def __init__(self, approach_instance):
@@ -30,7 +32,21 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
             Returns: 
                 np.ndarray: the matrix of the row embeddings with shape [#rows, embedding_dimension]
         """
+         # limit table size to first 1000 rows for efficiency
+        if len(input_table) > 1000:
+            # if there are more than 500 columns, take only the first 100 rows:
+            if len(input_table.columns) > 500:
+                input_table = input_table.head(100)
+            else:
+                input_table = input_table.head(1000)
+                
+        logger.debug("starting preprocessing for column embedding generation")
         all_columns = self.approach_instance.preprocessing(input_table=input_table, component=self)
+        logger.debug(f"finished preprocessing for column embedding generation, found {len(all_columns)} columns, starting encoding now")
         # encode the columns
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.debug(f"PyTorch sees device: {device}")
+        logger.debug(f"Model is on device: {next(self.approach_instance.model.parameters()).device}")
         column_embeddings = self.approach_instance.model.encode(list(all_columns.values()), show_progress_bar=True)
-        return column_embeddings, all_columns.keys()
+        logger.debug("finished encoding")
+        return column_embeddings, list(all_columns.keys())
