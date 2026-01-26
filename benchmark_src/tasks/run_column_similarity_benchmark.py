@@ -48,13 +48,49 @@ def get_qdrant_client(cfg: DictConfig) -> QdrantClient:
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
     return client
 
+def normalize_column_name(col_name: str) -> str:
+    """
+    Normalize column names by removing file extensions.
+    
+    Ensures consistency between:
+    - Ground truth references (may include .csv)
+    - Embedded column names (stripped of extensions)
+    """
+    return col_name.replace('.csv', '').replace('.df', '')
+
+def get_leaf_dirs(root_dir, keep=None):
+    """
+    Find all lowest-level subdirectories (leaves in directory tree).
+    
+    Args:
+        root_dir: Root directory to search
+        keep: Optional substring that must be in path
+    """
+    leaf_dirs = []
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        if keep and keep not in dirpath:
+            continue
+        if not dirnames:  # No subdirectories = leaf
+            leaf_dirs.append(dirpath)
+    return leaf_dirs
+
+
 def load_benchmark_data(cfg):
+    """
+    Load benchmark datasets with lazy loading (paths only, not data).
+    
+    Returns:
+        dict: {testcase_path: (table_paths, gt_data, dataset_name)}
+        
+    Memory-efficient: Only stores file paths, not actual dataframes.
+    """
+    # Determine dataset directory
     if cfg.dataset_name == 'wikijoin_small':
         dataset_dir = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / "wikijoin")
     else:
         dataset_dir = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / cfg.dataset_name)
+    
     logger.debug(f"Looking for datasets in dir: {dataset_dir}")
-
     assert Path(dataset_dir).exists(), f"Could not find dataset dir: {dataset_dir}"
 
     if cfg.dataset_name == 'opendata':
@@ -62,19 +98,8 @@ def load_benchmark_data(cfg):
     else:
         file_format = '.csv'
 
-    # Helper to find all lowest-level subfolders
-    def get_leaf_dirs(root_dir, keep=None):
-        leaf_dirs = []
-        for dirpath, dirnames, filenames in os.walk(root_dir):
-            if keep and keep not in dirpath:
-                continue
-            # If a directory has no subdirectories, it is a leaf
-            if not dirnames:
-                leaf_dirs.append(dirpath)
-        return leaf_dirs
-
-
-    test_cases = {}
+    # Determine leaf directories based on dataset type
+    
     if cfg.dataset_name.lower() == "valentine":
         leaf_dirs = get_leaf_dirs(dataset_dir, keep='Joinable')
     elif cfg.dataset_name.lower() == "nextia":
@@ -85,13 +110,13 @@ def load_benchmark_data(cfg):
     if len(leaf_dirs) == 0:
         raise ValueError(f"Did not find the dataset. leaf_dirs={leaf_dirs}")
 
-    logger.debug('LEAF_DIRS', leaf_dirs)
+    logger.debug(f'LEAF_DIRS: {leaf_dirs}')
     
+    test_cases = {}
     for dataset in leaf_dirs:
         ############################
         # Load GT first
         ############################
-
         if cfg.dataset_name.lower() == "valentine":
             gt = glob.glob(f"{dataset}/*mapping.json", recursive=True)
         elif cfg.dataset_name.lower() == "wikijoin_small":
@@ -108,6 +133,7 @@ def load_benchmark_data(cfg):
         assert len(gt) == 1, f"Error: gt is {gt}"
         gt = gt[0]
 
+        # Load ground truth data
         if gt.endswith('.json'):
             gt_data = json.load(open(gt, 'r'))
         elif gt.endswith('.jsonl'):
@@ -117,12 +143,10 @@ def load_benchmark_data(cfg):
         else:
             raise NotImplementedError
 
-        ############################
-        # Load datalake tables - STORE PATHS ONLY
-        ############################
+         # Find all datalake tables
         datalake_tables = glob.glob(f"{dataset}/**/*{file_format}", recursive=True)
         
-        # Filter tables for wikijoin_small upfront
+        # Filter tables for wikijoin_small upfront (only include tables referenced in GT)
         if cfg.dataset_name.lower() == "wikijoin_small":
             l = [x.split('.')[0] + '.csv' for x in gt_data.keys()]
             alx = []
@@ -139,7 +163,7 @@ def load_benchmark_data(cfg):
             
             assert len(filtered_tables) < len(datalake_tables)
             assert len(filtered_tables) > 0, filtered_tables
-            print('created a small version of wikijoin', len(filtered_tables))
+            print(f'created a small version of wikijoin with {len(filtered_tables)} tables')
             datalake_tables = filtered_tables
 
         # Validate tables can be loaded (optional check)
@@ -179,10 +203,16 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     embedding_approach_class = framework.get_approach_class(cfg)
     embedder = embedding_approach_class(cfg)
 
+    #######################################
     # Load test cases (only paths + GT)
+    #######################################
     test_cases = load_benchmark_data(cfg)
     logger.info("Done loading the test cases.")
 
+
+    ####################################################
+    # Load Column Embedding Component and run setup
+    ####################################################
     column_embedding_component = embedder._load_component(
         "column_embedding_component",
         "ColumnEmbeddingComponent",
@@ -200,6 +230,16 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         logger.info(f"Processing testcase: {testcase}")
         table_paths, gt_data, dataset_name = test_cases[testcase]
 
+
+        # collect the query columns
+        query_columns = set()
+        if cfg.dataset_name.lower() == "valentine":
+            for match in gt_data["matches"]:
+                query_columns.add(f"{match['source_table']}.{match['source_column']}")
+        else:
+            for k in gt_data:
+                query_columns.add(k)
+
         collection_name = f"{dataset_name}"
 
         # Infer embedding dimension from first available table
@@ -215,6 +255,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         gc.collect()
 
         # Create fresh Qdrant collection
+        # TODO: reuse existing collection if it's complete, how to check completeness? Add file in folder
         if client.collection_exists(collection_name=collection_name):
             client.delete_collection(collection_name=collection_name)
             logger.info(f"Deleted existing collection {collection_name}")
@@ -227,7 +268,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
         # Streaming embedding and upsert
         points = []
-        col_embeddings_dict = {}  # key: full_col_name -> embedding
+        query_embedding_cache = {}  # key: full_col_name -> embedding
         current_id = 0
 
         for table_path in tqdm(table_paths, desc=f"Embedding tables for {dataset_name}"):
@@ -235,6 +276,20 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             tname = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
 
             column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(df)
+
+            if np.isnan(column_embeddings).any():
+                logger.warning(f"Found NaNs in embeddings for table {tname} before any processing.")
+
+            # check that column_embeddings have the expected shape, otherwise skip
+            if len(column_embeddings) != len(column_names):
+                logger.error(f"Skipping table {tname} due to mismatch in embeddings and column names length. Expected {len(column_names)}, got  embeddings of shape {column_embeddings.shape}.")
+                continue
+
+            # check that there are no NaNs in the embeddings
+            if np.isnan(column_embeddings).any():
+                # convert to 0s
+                column_embeddings = np.nan_to_num(column_embeddings, nan=0.0)
+                logger.warning(f"Found NaNs in embeddings for table {tname}, converted to 0s.")
 
             # Convert embeddings to numpy
             if hasattr(column_embeddings, 'cpu'):
@@ -245,7 +300,12 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             # Create Qdrant Points & store in dict
             for idx, col_name in enumerate(column_names):
                 full_col_name = f"{tname}.{col_name}"
-                col_embeddings_dict[full_col_name] = column_embeddings[idx]
+
+                # store embedding in RAM only if it's a query column
+                if full_col_name in query_columns:
+                    query_embedding_cache[full_col_name] = column_embeddings[idx]
+
+                # but store all columns in Qdrant
                 points.append(PointStruct(
                     id=current_id,
                     vector=column_embeddings[idx].tolist(),
@@ -290,11 +350,11 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         # Search each query in Qdrant using cached embeddings
         result = {}
         for query_col in tqdm(search_queries, desc="Searching columns"):
-            if query_col not in col_embeddings_dict:
+            if query_col not in query_embedding_cache:
                 logger.warning(f"Query column {query_col} not in embeddings dict, skipping.")
                 continue
 
-            query_embedding = col_embeddings_dict[query_col]
+            query_embedding = query_embedding_cache[query_col]
             if hasattr(query_embedding, 'cpu'):
                 query_embedding = query_embedding.cpu().numpy()
 
@@ -308,10 +368,26 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             retrieved_cols = [hit.payload["column"] for hit in hits if hit.payload["column"] != query_col]
             result[query_col] = retrieved_cols
 
+        # Ensure ALL queries are in result, even if empty
+        for query_col in search_queries:
+            if query_col not in result:
+                result[query_col] = []  # No matches = 0 score
+                logger.info(f"No results for query column {query_col}, setting empty result.")
+
+
         # Compute metrics
-        MRR = compute_mrr_from_list(new_gt, result, top_k)
-        MAP = compute_map_from_list(new_gt, result, top_k)
-        Precision, Recall = compute_precision_recall_at_k(new_gt, result, top_k)
+        if len(result) == 0:
+            logger.warning(f"No results found for dataset {dataset_name}, results set to zero.")
+            MRR = 0.0
+            MAP = 0.0
+            Precision = 0.0
+            Recall = 0.0
+            
+        else:
+            logger.info(f"Computing metrics for dataset {dataset_name}: based on {len(result)} queries, new_gt has length {len(new_gt)}, top_k={top_k}.")
+            MRR = compute_mrr_from_list(new_gt, result, top_k)
+            MAP = compute_map_from_list(new_gt, result, top_k)
+            Precision, Recall = compute_precision_recall_at_k(new_gt, result, top_k)
 
         metric_res[dataset_name] = {
             "MRR": MRR,
@@ -323,7 +399,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         logger.info(f"{dataset_name} -> MRR: {MRR}, MAP: {MAP}, Precision: {Precision}, Recall: {Recall}")
 
         # Cleanup
-        del col_embeddings_dict
+        del query_embedding_cache
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         gc.collect()
