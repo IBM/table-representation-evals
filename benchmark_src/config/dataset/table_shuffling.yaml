@@ -1,0 +1,21 @@
+dataset_name: table_shuffling
+
+random_seed: 42
+
+variations:
+  variation_0:
+    dataset_name: fetaqa
+    dataset:
+      num_databases: 1
+      tables_per_db: 20
+      min_rows: 10
+      max_rows: 50
+      min_cols: 3
+      max_cols: 10
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: both        # one of "row_reorder", "col_reorder", "both"
+      pos_strength: 0.5     # fraction [0..1] of rows/cols to shuffle
+    neg_params:
+      neg_columns_frac: 0.3 # fraction [0..1] of columns to permute
+      neg_degree: 0.8       # [0..1] how shuffled each chosen column is
