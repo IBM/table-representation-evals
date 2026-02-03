@@ -261,9 +261,11 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         skip_embeddings = False
         if client.collection_exists(collection_name=collection_name):
             if completed_file_path.exists():
-                logger.info(f"Collection {collection_name} already fully processed. Skipping embedding.")
-                # comment out this line to enforce to create new embeddings
-                skip_embeddings = True
+                logger.info(f"Collection {collection_name} already fully processed.")
+
+                # TODO: also need to pickle query_embedding_cache to disk and add parameter into config to force new embeddings if needed
+                #skip_embeddings = True
+                #logger.info(f"Skipping embeddings")
             
             if not skip_embeddings:
                 client.delete_collection(collection_name=collection_name)
