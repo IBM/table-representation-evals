@@ -1,214 +1,148 @@
 import psutil
 import os
-import GPUtil
-import multiprocessing
 import threading
 import time
-import math
 from functools import wraps
 import logging
 import pandas as pd
+import pynvml
+import json
 
 logger = logging.getLogger(__name__)
 
-class ResourceMonitorProcess:
-    def __init__(self, pid_to_monitor, metrics_queue, ready_event, stop_event, sample_interval=0.1):
-        self._pid_to_monitor = pid_to_monitor
-        self._metrics_queue = metrics_queue
-        self._ready_event = ready_event
-        self._stop_event = stop_event  
-        self._sample_interval = sample_interval
+class ResourceMonitorThread:
+    """
+    Monitors CPU, RAM, and VRAM for a given PID and its children.
+    Runs in a thread inside the same process to reliably capture GPU allocations.
+    """
+
+    def __init__(self, pid_to_monitor, sample_interval=0.1):
+        self._pid = pid_to_monitor
+        self._interval = sample_interval
+        self._stop_event = threading.Event()
+
         self._cpu_samples = []
         self._memory_samples = []
-        self._gpu_util_samples = []
         self._gpu_memory_samples = []
-        self._gpu_available = self._check_gpu_availability()
 
-    def _check_gpu_availability(self):
+        # NVML setup
         try:
-            GPUtil.getGPUs()
-            return True
-        except:
-            return False
+            pynvml.nvmlInit()
+            self._nvml_available = True
+        except pynvml.NVMLError:
+            self._nvml_available = False
+            logger.warning("NVML not available. GPU metrics will be disabled.")
 
-    def run(self):
-        try:
-            parent_process = psutil.Process(self._pid_to_monitor)
-            logger.debug(f"Have in total {len(parent_process.children(recursive=True))} children")
+    def start(self):
+        self._thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._thread.start()
 
-            # Prime cpu_percent
-            parent_process.cpu_percent(interval=None)
-            logger.debug(f"Sample interval: {self._sample_interval}")
-            self._ready_event.set()
+    def stop(self):
+        self._stop_event.set()
+        self._thread.join()
 
-            while not self._stop_event.is_set():  # Check for the stop signal
-                try:
-                    time.sleep(self._sample_interval)
-                    total_cpu_percent = parent_process.cpu_percent(interval=None)
-                    total_memory_usage = parent_process.memory_info().rss / (1024 * 1024) # Or memory_info().rss
+    def _monitor_loop(self):
+        parent_proc = psutil.Process(self._pid)
+        while not self._stop_event.is_set():
+            time.sleep(self._interval)
+            try:
+                # CPU and RAM
+                total_cpu = parent_proc.cpu_percent(interval=None)
+                total_mem = parent_proc.memory_info().rss / (1024 ** 2)
 
-                    # Monitor child processes recursively
-                    for child in parent_process.children(recursive=True):
-                        try:
-                            if child.is_running(): # Check if the child process is still alive
-                                total_cpu_percent += child.cpu_percent(interval=None)
-                                total_memory_usage += child.memory_info().rss / (1024 * 1024)
-                        except psutil.NoSuchProcess:
-                            pass # Child process terminated, ignore
+                for child in parent_proc.children(recursive=True):
+                    try:
+                        if child.is_running():
+                            total_cpu += child.cpu_percent(interval=None)
+                            total_mem += child.memory_info().rss / (1024 ** 2)
+                    except psutil.NoSuchProcess:
+                        pass
 
-                    self._cpu_samples.append(total_cpu_percent)
-                    self._memory_samples.append(total_memory_usage)
+                self._cpu_samples.append(total_cpu)
+                self._memory_samples.append(total_mem)
 
-                    # GPU usage (if available)
-                    if self._gpu_available:
-                        gpus = GPUtil.getGPUs()
-                        if gpus:
-                            # TODO
-                            # Assuming you have a single GPU or want to monitor the first one
-                            gpu = gpus[0]
-                            self._gpu_util_samples.append(gpu.load * 100)
-                            self._gpu_memory_samples.append(gpu.memoryUsed)
+                # GPU VRAM
+                if self._nvml_available:
+                    tracked_pids = {parent_proc.pid} | {c.pid for c in parent_proc.children(recursive=True)}
+                    total_gpu_mem = 0.0
+                    for i in range(pynvml.nvmlDeviceGetCount()):
+                        handle = pynvml.nvmlDeviceGetHandleByIndex(i)
+                        for proc in pynvml.nvmlDeviceGetComputeRunningProcesses(handle):
+                            if proc.pid in tracked_pids:
+                                total_gpu_mem += proc.usedGpuMemory / (1024 ** 2)
+                    self._gpu_memory_samples.append(total_gpu_mem)
+            except psutil.NoSuchProcess:
+                break
+
+    def get_metrics(self):
+        metrics = {}
+        # CPU
+        if self._cpu_samples:
+            metrics["peak_cpu (%)"] = max(self._cpu_samples)
+            metrics["average_cpu (%)"] = sum(self._cpu_samples) / len(self._cpu_samples)
+        # RAM
+        if self._memory_samples:
+            metrics["peak_memory (MB)"] = max(self._memory_samples)
+            metrics["average_memory (MB)"] = sum(self._memory_samples) / len(self._memory_samples)
+        # GPU
+        if self._gpu_memory_samples:
+            metrics["peak_gpu_memory (MB)"] = max(self._gpu_memory_samples)
+            metrics["average_gpu_memory (MB)"] = sum(self._gpu_memory_samples) / len(self._gpu_memory_samples)
+        return metrics
 
 
-                except psutil.NoSuchProcess:
-                    # The monitored process has terminated, so stop monitoring
-                    break
-
-            # Put the collected metrics onto the queue before stopping
-            self._metrics_queue.put({
-                'cpu_samples': self._cpu_samples,
-                'memory_samples': self._memory_samples,
-                'gpu_util_samples': self._gpu_util_samples,
-                'gpu_memory_samples': self._gpu_memory_samples
-            })
-
-            self._metrics_queue.put(None) 
-
-        except Exception as e:
-            logger.error(f"Error in ResourceMonitorProcess: {e}")
-            self._metrics_queue.put(None) 
-
-
-def monitor_resources(sample_interval=0.1):
-    def decorator(func): 
-        """Decorator to measure peak and average resource usage during function execution."""
+def monitor_resources(sample_interval=0.1, post_buffer=0.2):
+    """
+    Decorator to monitor CPU, RAM, and VRAM of a function.
+    post_buffer: seconds to keep monitoring after function returns to catch async GPU allocations.
+    """
+    def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            multiprocessing.set_start_method('spawn', force=True)
-
-            metrics_queue = multiprocessing.Queue()
-            ready_event = multiprocessing.Event()
-            stop_event = multiprocessing.Event()
-
-            # Create and start the monitor process
-            monitor_process = multiprocessing.Process(
-                target=ResourceMonitorProcess(
-                    pid_to_monitor=os.getpid(),  # Monitor the current process
-                    metrics_queue=metrics_queue,
-                    stop_event=stop_event,
-                    ready_event=ready_event,
-                    sample_interval=sample_interval
-                ).run
-            )
-            monitor_process.start()
-            ready_event.wait()
-
-            # Run the function to be monitored
+            monitor = ResourceMonitorThread(pid_to_monitor=os.getpid(), sample_interval=sample_interval)
+            monitor.start()
             start_time = time.perf_counter()
             result = func(*args, **kwargs)
             end_time = time.perf_counter()
-            logger.debug(f"Finished running Function '{func.__name__}'")
 
-            # Signal the monitor process to stop and wait for it to finish
-            stop_event.set()
-            logger.debug(f"Sent stop event")
+            # Keep monitoring a bit longer for async GPU allocations
+            time.sleep(post_buffer)
+            monitor.stop()
 
-            # Collect metrics (and consume the queue to avoid deadlock)
-            all_metrics = []
-            while True:
-                metric = metrics_queue.get()
-                if metric is None: # Check for the sentinel value
-                    break
-                all_metrics.append(metric)
-
-            if len(all_metrics) > 0:
-                collected_metrics = all_metrics[0] # is a single dictionary
-            else:
-                logger.error("No metrics collected.")
-                collected_metrics = None
-
-            monitor_process.join(timeout=10)
-            logger.debug(f"Finished joining of processes")
-
-            # Retrieve metrics from the queue
-            resource_metrics = {}
-            resource_metrics["function"] = func.__name__
-            resource_metrics["execution_time (s)"] = end_time - start_time
-            if collected_metrics is not None:
-                resource_metrics.update(get_metrics(collected_metrics))
-            
-                logger.info(f"Function '{func.__name__}' execution time: {resource_metrics['execution_time (s)']:.4f} seconds")
-                logger.debug("Resource Metrics:")
-                for key, value in resource_metrics.items():
-                    if type(value) != str:
-                        logger.debug(f"  {key}: {value:.4f}")
-
-            del monitor_process
-
+            resource_metrics = {"function": func.__name__, "execution_time (s)": end_time - start_time}
+            resource_metrics.update(monitor.get_metrics())
             return result, resource_metrics
         return wrapper
     return decorator
 
-def get_metrics(collected_metrics):
-        """Calculates and returns peak and average metrics."""
-        metrics = {}
 
-        # CPU metrics
-        if collected_metrics["cpu_samples"]:
-            cpu_samples = collected_metrics["cpu_samples"]
-            metrics["peak_cpu (%)"] = max(cpu_samples)
-            metrics["average_cpu (%)"] = sum(cpu_samples) / len(cpu_samples)
-
-        # Memory metrics
-        if collected_metrics["memory_samples"]:
-            memory_samples = collected_metrics["memory_samples"]
-            metrics["peak_memory (MB)"] = max(memory_samples)
-            metrics["average_memory (MB)"] = sum(memory_samples) / len(memory_samples)
-
-        if False:
-            # GPU metrics (if available)
-            if self._gpu_available and self._gpu_util_samples:
-                # Ensure there are no NaN values before calculating max/average
-                valid_gpu_util = [u for u in self._gpu_util_samples if not math.isnan(u)]
-                if valid_gpu_util:
-                    metrics["peak_gpu_utilization"] = max(valid_gpu_util)
-                    metrics["average_gpu_utilization"] = sum(valid_gpu_util) / len(valid_gpu_util)
-
-            if self._gpu_available and self._gpu_memory_samples:
-                # Ensure there are no NaN values before calculating max/average
-                valid_gpu_memory = [m for m in self._gpu_memory_samples if not math.isnan(m)]
-                if valid_gpu_memory:
-                    metrics["peak_gpu_memory_mb"] = max(valid_gpu_memory)
-                    metrics["average_gpu_memory_mb"] = sum(valid_gpu_memory) / len(valid_gpu_memory)
-
-        return metrics
-
-
-def save_resource_metrics_to_disk(cfg, resource_metrics_setup: dict, resource_metrics_task: dict):
+def save_resource_metrics_to_disk(cfg, resource_metrics_setup, resource_metrics_task):
+    # Label functions explicitly
     resource_metrics_setup["function"] = "model_setup"
     resource_metrics_task["function"] = "task_inference"
-    all_resource_metrics = [resource_metrics_setup, resource_metrics_task]
-    resource_metrics_df = pd.DataFrame(all_resource_metrics)
-    resource_metrics_df["approach"] = cfg.approach.approach_name
-    resource_metrics_df.to_csv(f"resource_metrics.csv", index=False)
 
-    resource_metrics_combined = {"approach": cfg.approach.approach_name}
+    all_metrics = [resource_metrics_setup, resource_metrics_task]
 
-    for d in all_resource_metrics:
-        function = d["function"]
-        for key, value in d.items():
-            if key != "function":
-                resource_metrics_combined[(function, key)] = value
+    # --- CSV raw ---
+    df = pd.DataFrame(all_metrics)
+    df["approach"] = cfg.approach.approach_name
+    df.to_csv("resource_metrics.csv", index=False)
 
-    resource_df = pd.DataFrame([resource_metrics_combined])
-    resource_df.to_csv(f"resource_metrics_formatted.csv", index=False)
+    # --- CSV formatted ---
+    combined = {"approach": cfg.approach.approach_name}
+    for d in all_metrics:
+        fn = d["function"]
+        for k, v in d.items():
+            if k != "function":
+                combined[(fn, k)] = v
+    pd.DataFrame([combined]).to_csv("resource_metrics_formatted.csv", index=False)
+
+    # --- JSON setup ---
+    with open("resource_metrics_setup.json", "w") as f:
+        json.dump(resource_metrics_setup, f, indent=4)
+
+    # --- JSON task ---
+    with open("resource_metrics_task.json", "w") as f:
+        json.dump(resource_metrics_task, f, indent=4)
+
+    logger.info("Saved resource metrics: CSV + JSON for setup and task.")
