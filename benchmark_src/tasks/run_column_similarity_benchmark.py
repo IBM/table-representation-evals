@@ -31,11 +31,11 @@ if str(context_aware_join_src) not in sys.path:
 
 
 from myutils.evaluation import compute_mrr_from_list, compute_map_from_list, compute_ndcg, compute_precision_recall_at_k
-from myutils.utilities import load_dataframe, convert_to_dict_of_list, get_groundtruth_with_scores
+from myutils.utilities import convert_to_dict_of_list, get_groundtruth_with_scores
 
 from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
-from benchmark_src.utils import framework, result_utils
+from benchmark_src.utils import framework, result_utils, load_benchmark
 from benchmark_src.tasks import component_utils
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def get_qdrant_client(cfg: DictConfig) -> QdrantClient:
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
-    return client
+    return client, qdrant_path
 
 def normalize_column_name(col_name: str) -> str:
     """
@@ -110,83 +110,83 @@ def load_benchmark_data(cfg):
     if len(leaf_dirs) == 0:
         raise ValueError(f"Did not find the dataset. leaf_dirs={leaf_dirs}")
 
+    # for valentine do the loading, for the others get the filepaths and gt from cache!
+
     logger.debug(f'LEAF_DIRS: {leaf_dirs}')
     
     test_cases = {}
-    for dataset in leaf_dirs:
-        ############################
-        # Load GT first
-        ############################
-        if cfg.dataset_name.lower() == "valentine":
-            gt = glob.glob(f"{dataset}/*mapping.json", recursive=True)
-        elif cfg.dataset_name.lower() == "wikijoin_small":
-            gt = glob.glob(f"{dataset}/gt_small.*", recursive=True)
-        elif cfg.dataset_name.lower() == "nextia":
-            d = dataset.replace('/datalake', '')
-            logger.debug(d)
-            gt = glob.glob(f"{d}/**/gt.*", recursive=True)
-        else:
-            gt = glob.glob(f"{dataset}/**/gt.*", recursive=True)
-            gt = [x for x in gt if x.endswith('json') or x.endswith('jsonl') or x.endswith('pickle')]
-            logger.debug(f"else case. Found gt: {gt}")
+    num_gt_test_cases = []
+    num_tables = 0
+    tables_num_rows = []
+    tables_num_cols = []
+    if cfg.dataset_name.lower() == "valentine":
+        for dataset in leaf_dirs:
+            ############################
+            # Load GT first
+            ############################
+            if cfg.dataset_name.lower() == "valentine":
+                gt = glob.glob(f"{dataset}/*mapping.json", recursive=True)
 
-        assert len(gt) == 1, f"Error: gt is {gt}"
-        gt = gt[0]
+            assert len(gt) == 1, f"Error: gt is {gt}"
+            gt = gt[0]
 
-        # Load ground truth data
-        if gt.endswith('.json'):
-            gt_data = json.load(open(gt, 'r'))
-        elif gt.endswith('.jsonl'):
-            gt_data = convert_to_dict_of_list(gt)
-        elif gt.endswith('.pickle'):
-            raise NotImplementedError
-        else:
-            raise NotImplementedError
+            # Load ground truth data
+            if gt.endswith('.json'):
+                gt_data = json.load(open(gt, 'r'))
+            elif gt.endswith('.jsonl'):
+                gt_data = convert_to_dict_of_list(gt)
+            elif gt.endswith('.pickle'):
+                raise NotImplementedError
+            else:
+                raise NotImplementedError
 
-         # Find all datalake tables
-        datalake_tables = glob.glob(f"{dataset}/**/*{file_format}", recursive=True)
-        
-        # Filter tables for wikijoin_small upfront (only include tables referenced in GT)
-        if cfg.dataset_name.lower() == "wikijoin_small":
-            l = [x.split('.')[0] + '.csv' for x in gt_data.keys()]
-            alx = []
-            for x in gt_data.values():
-                for y in x:
-                    alx.append(y.split('.')[0] + '.csv')
-            fls = set(l + alx)  # Use set for faster lookup
+            # Find all datalake tables
+            datalake_tables = glob.glob(f"{dataset}/**/*{file_format}", recursive=True)
             
-            filtered_tables = []
-            for table in datalake_tables:
-                x = table.split('/')[-1]
-                if x in fls:
-                    filtered_tables.append(table)
-            
-            assert len(filtered_tables) < len(datalake_tables)
-            assert len(filtered_tables) > 0, filtered_tables
-            print(f'created a small version of wikijoin with {len(filtered_tables)} tables')
-            datalake_tables = filtered_tables
+            # Validate tables can be loaded (optional check)
+            use_tqdm = len(datalake_tables) > 20
+            iterator = tqdm(datalake_tables, desc="Validating Datasets") if use_tqdm else datalake_tables
 
-        # Validate tables can be loaded (optional check)
-        use_tqdm = len(datalake_tables) > 20
-        iterator = tqdm(datalake_tables, desc="Validating Datasets") if use_tqdm else datalake_tables
-        valid_tables = []
-        for table in iterator:
-            try:
-                logger.debug(f'validating table: {table}')
-                df = load_dataframe(table, file_format=file_format)
-                # make sure there is at least one row
-                if len(df) == 0:
-                    continue
-                if len(df.columns) == 1:
-                    raise Exception(f"Table {table} loaded with {len(df.columns)} columns: {df.columns}")
-                valid_tables.append(table)
-                del df  # Free memory immediately
-            except Exception as e:
-                logger.error(e)
+            valid_tables = []
+            for table in iterator:
+                try:
+                    logger.debug(f'validating table: {table}')
+                    df = load_benchmark.load_dataframe(table, file_format=file_format)
+                    # make sure there is at least one row
+                    if len(df) == 0:
+                        continue
+                    if len(df.columns) == 1:
+                        raise Exception(f"Table {table} loaded with {len(df.columns)} columns: {df.columns}")
+                    tables_num_rows.append(len(df))
+                    tables_num_cols.append(len(df.columns))
+                    valid_tables.append(table)
+                    num_tables += 1
+                    del df  # Free memory immediately
+                except Exception as e:
+                    logger.error(e)
+            num_gt_test_cases.append(len(gt_data))
+            # Store table paths instead of loaded dataframes
+            table_paths = {table: file_format for table in valid_tables}
+            test_cases[dataset] = table_paths, gt_data, dataset.replace('/', '_')
+    else:
+        # load valid data from cache
+        dataset_cache_path = Path(get_original_cwd()) / cfg.cache_dir / "datasets" / "column_similarity_search" / cfg.dataset_name
+        print(dataset_cache_path)
+        assert dataset_cache_path.exists(), f"Could not find path: {dataset_cache_path}"
+        with open(dataset_cache_path / "valid_data.json") as file:
+            cached_data = json.load(file)
+        for sub_dataset in cached_data.keys():
+            table_paths = cached_data[sub_dataset]["table_paths"]
+            gt_data = cached_data[sub_dataset]["gt_data"]
+            sub_dataset_name = cached_data[sub_dataset]["sub_dataset_name"]
+            test_cases[sub_dataset] = table_paths, gt_data, sub_dataset_name
+            num_gt_test_cases.append(len(gt_data))
+            num_tables += len(table_paths)
+           
+    logger.info(f"Loaded benchmark: {num_tables} tables, num test cases (gt): {sum(num_gt_test_cases)}.")
+    logger.info(f"Tables stats - Avg rows: {statistics.mean(tables_num_rows) if tables_num_rows else 0}, Avg cols: {statistics.mean(tables_num_cols) if tables_num_cols else 0}")
 
-        # Store table paths instead of loaded dataframes
-        table_paths = {table: file_format for table in valid_tables}
-        test_cases[dataset] = table_paths, gt_data, dataset.replace('/', '_')
+    logger.info(f"Total test cases loaded: {len(test_cases)} in cfg dataset {cfg.dataset_name}")
 
     return test_cases
 
@@ -195,7 +195,7 @@ def load_benchmark_data(cfg):
 def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
     # Setup Qdrant client
-    client = get_qdrant_client(cfg)
+    client, qdrant_path = get_qdrant_client(cfg)
 
     metric_res = {}
     resource_metrics_setup = None
@@ -208,7 +208,6 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     #######################################
     test_cases = load_benchmark_data(cfg)
     logger.info("Done loading the test cases.")
-
 
     ####################################################
     # Load Column Embedding Component and run setup
@@ -242,9 +241,13 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
         collection_name = f"{dataset_name}"
 
+        completed_file_path = qdrant_path / "collection" / collection_name / "COMPLETED"
+
+
         # Infer embedding dimension from first available table
         first_table = next(iter(table_paths))
-        df = load_dataframe(first_table, file_format=table_paths[first_table])
+        first_table_path = Path(get_original_cwd()) / first_table
+        df = load_benchmark.load_dataframe(first_table_path, file_format=table_paths[first_table])
         sample_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(df)
         if hasattr(sample_embeddings, 'cpu'):
             sample_embeddings = sample_embeddings.cpu().numpy()
@@ -255,103 +258,111 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
         gc.collect()
 
         # Create fresh Qdrant collection
-        # TODO: reuse existing collection if it's complete, how to check completeness? Add file in folder
+        skip_embeddings = False
         if client.collection_exists(collection_name=collection_name):
-            client.delete_collection(collection_name=collection_name)
-            logger.info(f"Deleted existing collection {collection_name}")
+            if completed_file_path.exists():
+                logger.info(f"Collection {collection_name} already fully processed. Skipping embedding.")
+                # comment out this line to enforce to create new embeddings
+                skip_embeddings = True
+            
+            if not skip_embeddings:
+                client.delete_collection(collection_name=collection_name)
+                logger.info(f"Deleted existing collection {collection_name}")
 
-        client.create_collection(
-            collection_name=collection_name,
-            vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
-        )
-        logger.info(f"Created Qdrant collection {collection_name} with vector size {embedding_dim}")
+        if not skip_embeddings:
+            client.create_collection(
+                collection_name=collection_name,
+                vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
+            )
+            logger.info(f"Created Qdrant collection {collection_name} with vector size {embedding_dim}")
 
-        # Streaming embedding and upsert
-        points = []
-        query_embedding_cache = {}  # key: full_col_name -> embedding
-        current_id = 0
+            # Streaming embedding and upsert
+            points = []
+            query_embedding_cache = {}  # key: full_col_name -> embedding
+            current_id = 0
 
-        for table_path in tqdm(table_paths, desc=f"Embedding tables for {dataset_name}"):
-            df = load_dataframe(table_path, file_format=table_paths[table_path])
-            tname = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
+            for table_path in tqdm(table_paths, desc=f"Embedding tables for {dataset_name}"):
+                full_table_path = Path(get_original_cwd()) / table_path
+                df = load_benchmark.load_dataframe(full_table_path, file_format=table_paths[table_path])
+                tname = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
 
-            column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(df)
+                column_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(df)
 
-            if np.isnan(column_embeddings).any():
-                logger.warning(f"Found NaNs in embeddings for table {tname} before any processing.")
+                if np.isnan(column_embeddings).any():
+                    logger.warning(f"Found NaNs in embeddings for table {tname} before any processing.")
 
-            # check that column_embeddings have the expected shape, otherwise skip
-            if len(column_embeddings) != len(column_names):
-                logger.error(f"Skipping table {tname} due to mismatch in embeddings and column names length. Expected {len(column_names)}, got  embeddings of shape {column_embeddings.shape}.")
-                continue
+                # check that column_embeddings have the expected shape, otherwise skip
+                if len(column_embeddings) != len(column_names):
+                    logger.error(f"Skipping table {tname} due to mismatch in embeddings and column names length. Expected {len(column_names)}, got  embeddings of shape {column_embeddings.shape}.")
+                    continue
 
-            # check that there are no NaNs in the embeddings
-            if np.isnan(column_embeddings).any():
-                # convert to 0s
-                column_embeddings = np.nan_to_num(column_embeddings, nan=0.0)
-                logger.warning(f"Found NaNs in embeddings for table {tname}, converted to 0s.")
+                # check that there are no NaNs in the embeddings
+                if np.isnan(column_embeddings).any():
+                    # convert to 0s
+                    column_embeddings = np.nan_to_num(column_embeddings, nan=0.0)
+                    logger.warning(f"Found NaNs in embeddings for table {tname}, converted to 0s.")
 
-            # Convert embeddings to numpy
-            if hasattr(column_embeddings, 'cpu'):
-                column_embeddings = column_embeddings.cpu().numpy()
-            elif isinstance(column_embeddings, list):
-                column_embeddings = np.array([emb.cpu().numpy() if hasattr(emb, 'cpu') else emb for emb in column_embeddings])
+                # Convert embeddings to numpy
+                if hasattr(column_embeddings, 'cpu'):
+                    column_embeddings = column_embeddings.cpu().numpy()
+                elif isinstance(column_embeddings, list):
+                    column_embeddings = np.array([emb.cpu().numpy() if hasattr(emb, 'cpu') else emb for emb in column_embeddings])
 
-            # Create Qdrant Points & store in dict
-            for idx, col_name in enumerate(column_names):
-                full_col_name = f"{tname}.{col_name}"
+                # Create Qdrant Points & store in dict
+                for idx, col_name in enumerate(column_names):
+                    full_col_name = f"{tname}.{col_name}"
 
-                # store embedding in RAM only if it's a query column
-                if full_col_name in query_columns:
-                    query_embedding_cache[full_col_name] = column_embeddings[idx]
+                    # store embedding in RAM only if it's a query column
+                    if full_col_name in query_columns:
+                        query_embedding_cache[full_col_name] = column_embeddings[idx]
 
-                # but store all columns in Qdrant
-                points.append(PointStruct(
-                    id=current_id,
-                    vector=column_embeddings[idx].tolist(),
-                    payload={"table": tname, "column": full_col_name}
-                ))
-                current_id += 1
+                    # but store all columns in Qdrant
+                    points.append(PointStruct(
+                        id=current_id,
+                        vector=column_embeddings[idx].tolist(),
+                        payload={"table": tname, "column": full_col_name}
+                    ))
+                    current_id += 1
 
-            # Upload in batches
-            if len(points) >= 500:
+                # Upload in batches
+                if len(points) >= 500:
+                    client.upsert(collection_name=collection_name, points=points)
+                    points = []
+
+                del df, column_embeddings, column_names
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                gc.collect()
+
+            # Upload any remaining points
+            if points:
                 client.upsert(collection_name=collection_name, points=points)
                 points = []
 
-            del df, column_embeddings, column_names
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            gc.collect()
+            # save completed file into collection folder
+            # Mark collection as complete
+            completed_file_path.write_text("All embeddings successfully created.")
+            logger.info(f"Marked collection {collection_name} as complete with COMPLETED file.")
 
-        # Upload any remaining points
-        if points:
-            client.upsert(collection_name=collection_name, points=points)
-            points = []
-
-        # Prepare queries and ground truth
-        new_gt = {}
-        search_queries = []
-        top_k = 0
-
+        # need to bring valentine gt into correct format
         if cfg.dataset_name.lower() == "valentine":
+            new_gt = {}
             for match in gt_data['matches']:
                 col = f"{match['source_table']}.{match['source_column']}"
-                search_queries.append(col)
                 if col not in new_gt:
                     new_gt[col] = []
                 new_gt[col].append(f"{match['target_table']}.{match['target_column']}")
-                top_k = max(top_k, len(new_gt[col]))
-        else:
-            for k in gt_data:
-                search_queries.append(k)
-                new_gt[k] = gt_data[k]
-                top_k = max(top_k, len(gt_data[k]))
+            gt_data = new_gt
+
+        search_queries = list(gt_data.keys())
+        top_k = max(len(v) for v in gt_data.values()) if gt_data else 0 
 
         # Search each query in Qdrant using cached embeddings
         result = {}
         for query_col in tqdm(search_queries, desc="Searching columns"):
             if query_col not in query_embedding_cache:
-                logger.warning(f"Query column {query_col} not in embeddings dict, skipping.")
+                logger.warning(f"Query column {query_col} not in query_embedding_cache, skipping.")
+                result[query_col] = []  # ensure all queries have a result
                 continue
 
             query_embedding = query_embedding_cache[query_col]
@@ -368,13 +379,6 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             retrieved_cols = [hit.payload["column"] for hit in hits if hit.payload["column"] != query_col]
             result[query_col] = retrieved_cols
 
-        # Ensure ALL queries are in result, even if empty
-        for query_col in search_queries:
-            if query_col not in result:
-                result[query_col] = []  # No matches = 0 score
-                logger.info(f"No results for query column {query_col}, setting empty result.")
-
-
         # Compute metrics
         if len(result) == 0:
             logger.warning(f"No results found for dataset {dataset_name}, results set to zero.")
@@ -384,10 +388,10 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             Recall = 0.0
             
         else:
-            logger.info(f"Computing metrics for dataset {dataset_name}: based on {len(result)} queries, new_gt has length {len(new_gt)}, top_k={top_k}.")
-            MRR = compute_mrr_from_list(new_gt, result, top_k)
-            MAP = compute_map_from_list(new_gt, result, top_k)
-            Precision, Recall = compute_precision_recall_at_k(new_gt, result, top_k)
+            logger.info(f"Computing metrics for dataset {dataset_name}: based on {len(result)} queries, gt_data has length {len(gt_data)}, top_k={top_k}.")
+            MRR = compute_mrr_from_list(gt_data, result, top_k)
+            MAP = compute_map_from_list(gt_data, result, top_k)
+            Precision, Recall = compute_precision_recall_at_k(gt_data, result, top_k)
 
         metric_res[dataset_name] = {
             "MRR": MRR,
@@ -427,6 +431,8 @@ def main(cfg: DictConfig):
     # run inference with model
     logger.info(f"Running column similarity based on column embeddings")
     cluster_ranges = [1000]
+
+    # TODO: setup und inference trennen!
 
     result, resource_metrics_task = run_inference_based_on_column_embeddings(cluster_ranges=cluster_ranges, cfg=cfg)
     result_metrics, resource_metrics_setup = result

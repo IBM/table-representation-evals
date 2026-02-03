@@ -3,11 +3,73 @@ import pandas as pd
 from pathlib import Path
 import logging
 from io import StringIO
+import os
 
 DATA_PATH = Path("data/MusicBrainz")
 
 logger = logging.getLogger(__name__)
 
+def robust_csv_loader(dataset_path: "Path | str") -> pd.DataFrame:
+    """
+    Loads a CSV file robustly.
+    - Detects encoding using chardet
+    - Handles different delimiters
+    - Automatically tries fallback encodings (utf-8, latin1, windows-1252)
+    - Adds unicode_escape only if file contains escape sequences
+    - Reads only first N rows for overview
+    """
+    # normalize dataset_path to Path
+    dataset_path = Path(dataset_path)
+
+    # --- Check if file is completely empty (size 0) ---
+    if dataset_path.stat().st_size == 0:
+        logger.error(f"File {dataset_path} is empty. Returning empty DataFrame.")
+        return pd.DataFrame()
+
+    # --- Read a sample of raw bytes to detect encoding and inspect content ---
+    with open(dataset_path, "rb") as f:
+        rawdata = f.read(10000)
+
+    # If the first chunk is empty or only whitespace bytes, conservatively check the whole file
+    if not rawdata.strip():
+        # read entire file size is non-zero but content may be whitespace; read safely with binary check
+        with open(dataset_path, "rb") as f:
+            all_bytes = f.read()
+        if not all_bytes.strip():
+            logger.error(f"File {dataset_path} contains only whitespace. Returning empty DataFrame.")
+            return pd.DataFrame()
+
+    encodings_to_try = [
+        "utf-8",
+        "latin1",
+        "unicode_escape"
+        "windows-1252",
+    ]
+
+    # --- Try different encodings and delimiters ---
+    delimiters = [",", ";", "\t", "|"]
+    for enc in encodings_to_try:
+        for delim in delimiters:
+            try:
+                df = pd.read_csv(dataset_path, delimiter=delim, encoding=enc)
+                if len(df.columns) > 1:  # sanity check
+                    logger.debug(f"Loaded successfully with encoding='{enc}', delimiter='{delim}'")
+                    return df
+            except Exception as e:
+                logger.debug(f"Failed with encoding={enc}, delimiter={delim} ({type(e).__name__})")
+
+    raise ValueError(f"Could not robustly load CSV file: {dataset_path}")
+
+
+def load_dataframe(file_path, file_format=".csv"):
+    assert os.path.isfile(file_path), f"Could not find {file_path} on disk"
+    if file_format == '.parquet':
+        df = pd.read_parquet(file_path, engine='pyarrow')
+    elif file_format == '.csv':
+        df = robust_csv_loader(Path(file_path))
+    elif file_format == '.df':
+        df = pd.read_pickle(file_path)
+    return df
 
 def get_input_table(dataset_path: Path, verbose=False):
     input_table = pd.read_csv(dataset_path / "input_table.csv")

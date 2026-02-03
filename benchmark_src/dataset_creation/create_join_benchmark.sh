@@ -34,9 +34,11 @@ else
     wget -O Valentine-datasets.zip "https://zenodo.org/records/5084605/files/Valentine-datasets.zip?download=1"
     unzip Valentine-datasets.zip
     rm -rf ./valentine
-    mkdir ./valentine
-    mv Valentine-datasets ./valentine
-    for f in ./valentine/*/Semantically-Joinable/*/*mapping*.json;do `python convert_valentine_gt.py $f`;done
+    mv Valentine-datasets valentine
+    for f in ./valentine/*/Semantically-Joinable/*/*mapping*.json; do
+        # echo "$f"
+        python convert_valentine_gt.py "$f"
+    done
     rm Valentine-datasets.zip
 fi
 
@@ -56,6 +58,15 @@ else
     mv testbedM/datasets ./nextia/testbedM/datalake
     rm -rf testbedM
     rm testbedM.zip
+
+    # rename some files!
+    cd nextia/testbedM/datalake
+    mv '2020-04-16 Coronavirus Tweets.CSV' '2020-04-16_Coronavirus_Tweets.CSV' 
+    mv '2020-04-25 Coronavirus Tweets.CSV' '2020-04-25_Coronavirus_Tweets.CSV' 
+    mv '2020-04-26 Coronavirus Tweets.CSV' '2020-04-26_Coronavirus_Tweets.CSV' 
+    mv '2020-04-27 Coronavirus Tweets.CSV' '2020-04-27_Coronavirus_Tweets.CSV' 
+    mv '2020-04-29 Coronavirus Tweets.CSV' '2020-04-29_Coronavirus_Tweets.CSV' 
+    mv '2020-04-16 Coronavirus Tweets.CSV' '2020-04-16_Coronavirus_Tweets.CSV' 
 fi
 
 # Wiki Join
@@ -67,6 +78,8 @@ else
     echo "Setting up Wiki Join"
     cd wikijoin
     tar -xvzf gt.jsonl.tar.gz
+    # take the first 100 rows from gt file to create wikijoin-small version
+    head -n 100 gt.jsonl > gt_small.jsonl
     mkdir ./datalake
     tar -xjf ./original.tar.bz2
     mv wiki-join-search/tables-with-headers/ datalake
@@ -74,6 +87,7 @@ else
     rm -r ./original.tar.bz2
     echo "WikiJoin Setup Done"
     cd ..
+
 fi
 
 # Auto Join
@@ -91,6 +105,6 @@ else
     echo "AutoJoin Setup Done"
 fi
 
-
 popd
 
+python benchmark_src/dataset_creation/validate_join_benchmark.py 
