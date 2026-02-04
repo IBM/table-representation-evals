@@ -21,6 +21,7 @@ else
     echo "Downloading OpenData"
     wget https://zenodo.org/records/15881731/files/opendata-contextawarejoins.zip
     unzip opendata-contextawarejoins.zip 
+    rm -rf ./opendata
     mv opendata-contextawarejoins opendata
     rm opendata-contextawarejoins.zip 
     echo "OpenData Setup Done"
@@ -49,12 +50,14 @@ if [ -d "./nextia/testbedS/datalake" ] && [ "$(ls -A ./nextia/testbedS/datalake)
 else
     wget -O testbedS.zip https://mydisk.cs.upc.edu/s/dX3FajwWZn7rrrd/download
     unzip testbedS.zip
+    rm -rf ./nextia/testbedS/datalake
     mv testbedS/datasets ./nextia/testbedS/datalake
     rm -rf testbedS
     rm testbedS.zip
 
     wget -O testbedM.zip https://mydisk.cs.upc.edu/s/niPyR4WTtxydprj/download
     unzip testbedM.zip
+    rm -rf ./nextia/testbedM/datalake
     mv testbedM/datasets ./nextia/testbedM/datalake
     rm -rf testbedM
     rm testbedM.zip
@@ -82,6 +85,7 @@ else
     head -n 100 gt.jsonl > gt_small.jsonl
     mkdir ./datalake
     tar -xjf ./original.tar.bz2
+    rm -rf datalake
     mv wiki-join-search/tables-with-headers/ datalake
     rm -r wiki-join-search
     rm -r ./original.tar.bz2
