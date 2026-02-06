@@ -61,12 +61,60 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
     for results_file in results_folder.rglob("*/results.json"):
         # get configuration name based on folder names
         _, _, configuration_name = results_helper.get_setup_infos(results_file)
+        current_result_subfolder = results_file.parent
+        run_name = results_file.parent.parent.parent.parent.parent.name
         
         with open(results_file, "r") as f:
             result_dict = json.load(f)
 
         result_dict["configuration"] = configuration_name
-        result_dict["run"] = "TODO"
+        result_dict["run"] = run_name
+
+        # need resource file from the folder of the results file
+        new_metrics_file = current_result_subfolder / "resource_metrics_task.json"
+        if new_metrics_file.exists():
+            with open(new_metrics_file) as file:
+                metrics = json.load(file)
+
+            # take only the inference metrics!
+            result_dict["execution_time (s)"] = metrics["execution_time (s)"]
+            result_dict["peak_cpu (%)"] = metrics["peak_cpu (%)"]
+            result_dict["peak_memory (MB)"] = metrics["peak_memory (MB)"]
+            try:
+                result_dict["peak_gpu_memory (MB)"] = metrics["peak_gpu_memory (MB)"]
+            except KeyError:
+                result_dict["peak_gpu_memory (MB)"] = None
+        else:
+            old_metrics_file = current_result_subfolder / "resource_metrics.csv"
+            if old_metrics_file.exists():
+                metrics = pd.read_csv(old_metrics_file)
+
+                # Select only the inference row
+                inference_row = metrics[metrics["function"] == "task_inference"]
+
+                if inference_row.empty:
+                    raise ValueError("No task_inference row found in old metrics file")
+
+                # Take the first (and usually only) matching row
+                inference_row = inference_row.iloc[0]
+
+                # Fill result_dict with inference metrics
+                result_dict["execution_time (s)"] = inference_row["execution_time (s)"]
+                result_dict["peak_cpu (%)"] = inference_row["peak_cpu (%)"]
+                result_dict["peak_memory (MB)"] = inference_row["peak_memory (MB)"]
+
+                # Old format may not have GPU memory
+                if "peak_gpu_memory (MB)" in inference_row:
+                    result_dict["peak_gpu_memory (MB)"] = inference_row["peak_gpu_memory (MB)"]
+                else:
+                    result_dict["peak_gpu_memory (MB)"] = None
+            else:
+                print(f"Don't have resource metrics for {current_result_subfolder}")
+                result_dict["execution_time (s)"] = None
+                result_dict["peak_cpu (%)"] = None
+                result_dict["peak_memory (MB)"] = None
+                result_dict["peak_gpu_memory (MB)"] = None
+
         data.append(result_dict)
 
     # create a single dataframe
@@ -106,7 +154,7 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
 
     # compute ratios for each col
     for col, col_type in results_helper.performance_cols.items():
-        print(f"Computing ratio for column: {col}")
+        #print(f"Computing ratio for column: {col}")
         # if approach_ prefixed column exists merge it with performance_col temporarily and use it for ratio computation
         if col in gathered_results_df.columns:
             approach_metric = "approach_" + "_".join(col.split("_")[1:])
