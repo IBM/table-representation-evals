@@ -64,8 +64,8 @@ def main(cfg: DictConfig):
                 from benchmark_src.tasks import run_table_retrieval_benchmark
                 run_table_retrieval_benchmark.main(cfg)
             elif cfg.task.task_name == "cell_task":
-                from benchmark_src.tasks import run_cell_benchmark
-                run_cell_benchmark.main(cfg)
+                from benchmark_src.tasks import run_cell_semantic_retrieval_benchmark
+                run_cell_semantic_retrieval_benchmark.main(cfg)
             else:
                 logger.error("Unknown task:", cfg.task)
         except Exception as e:
