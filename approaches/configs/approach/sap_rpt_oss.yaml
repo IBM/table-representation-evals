@@ -12,9 +12,11 @@ bagging: 1
 max_context_size: 2048
 device: "auto"
 
-# Benchmark tasks configuration
-benchmark_tasks:
-  predictive_ml:
-    task_parameters:
-      run_task_based_on: "custom_predictiveML_model"
+predML_based_on: ~
+
+# # Benchmark tasks configuration
+# benchmark_tasks:
+#   predictive_ml:
+#     task_parameters:
+#       run_task_based_on: "custom_predictiveML_model"
 

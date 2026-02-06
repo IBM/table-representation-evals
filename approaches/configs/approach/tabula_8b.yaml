@@ -7,6 +7,8 @@ class_name: TabuLA8BEmbedder
 # Model name - should point to the TabuLA-8B model on Hugging Face
 model_name: "mlfoundations/tabula-8b"
 
+predML_based_on: ~
+
 # Device to run the model on (cuda/cpu)
 device: ~
 
