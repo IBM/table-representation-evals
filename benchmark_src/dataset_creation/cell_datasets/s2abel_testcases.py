@@ -59,10 +59,13 @@ def generate_triplet_testcases(
     all_cells = {}
     table_to_cells = {}
     cell_to_class = {}
-    for entity, papers in entity_links.items():
+    for entity in sorted(entity_links):
+        papers = entity_links[entity]
         entity_class = entity.split("/")[-2]  # e.g., 'method'
-        for paper_id, tables in papers.items():
-            for table_id, cells in tables.items():
+        for paper_id in sorted(papers):
+            tables = papers[paper_id]
+            for table_id in sorted(tables):
+                cells = tables[table_id]
                 table_filename = f"{paper_id}_{table_id}"
                 table_to_cells.setdefault(table_filename, set())
                 for cell_id in cells:
@@ -83,7 +86,7 @@ def generate_triplet_testcases(
     used_triplets = set()  # track (anchor, positive, negative)
 
     # Precompute all candidate anchor cells and shuffle deterministically
-    candidate_cells = [c for tbl in table_list for c in table_to_cells[tbl]]
+    candidate_cells = [c for tbl in table_list for c in sorted(table_to_cells[tbl])]
     print(f"Total candidate cells for triplet generation: {len(candidate_cells)}")
     random.shuffle(candidate_cells)
 
@@ -160,6 +163,7 @@ def generate_triplet_testcases(
             json.dump(triplet, f, indent=2)
 
 
+# TODO: Idea: could make testcases more difficult by including cells from the same table but only querying other tables
 def generate_cell_retrieval_testcases(
     entity_links,
     csv_folder="data",
@@ -168,128 +172,160 @@ def generate_cell_retrieval_testcases(
     seed=42
 ):
     """
-    Generate entity-coherent cell retrieval testcases:
-    - Each testcase has a query cell
-    - All tables that contain the same entity as the query (up to 3) are included
-    - Ground truth contains all cells with that entity in those tables
-    - top_k = number of matching cells
+    Generate entity-coherent cell retrieval testcases.
+
+    Each testcase contains:
+    - A query cell (the "anchor")
+    - At least one other table containing the same entity
+    - Ground-truth cells: all other cells of the same entity in the selected tables (query excluded)
+    - top_k: number of ground-truth cells
+
+    Testcase JSON structure:
+    {
+        "tables": [...list of table filenames involved...],
+        "query": {paper_id, table_id, row, col, text, header, entity},
+        "ground_truth": [{paper_id, table_id, row, col, text, header, entity}, ...],
+        "top_k": int
+    }
+
+    Args:
+        entity_links (dict): Mapping of entity -> paper -> table -> set of cell_ids (paper/table/row/col)
+        csv_folder (str): Path to folder containing CSV files
+        output_dir (str): Folder to save testcases
+        num_testcases (int): Number of testcases to generate
+        seed (int): Random seed for determinism
     """
+     # ----------------------------- Setup -----------------------------
     random.seed(seed)
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
 
-    # --- Flatten all cells and map entity to cells ---
-    all_cells = {}
-    entity_to_cells = defaultdict(list)
-    table_to_cells = defaultdict(set)
+    all_cells = {} # cell_id -> metadata (paper, table, row, col, entity)
+    entity_to_cells = defaultdict(list)  # entity -> list of cell_ids
+    table_to_cells = defaultdict(set) # table_filename -> set of cell_ids
 
-    print(f"Processing entity linking data for testcase generation, having {len(entity_links)} entities.")
-
-    for entity, papers in entity_links.items():
-        entity_class = entity.split("/")[-2]  # e.g., 'method'
+    # --- Flatten cells ---
+    for entity in sorted(entity_links):
+        # skip certain entity types
+        entity_class = entity.split("/")[-2]
         if entity_class in ["dataset"]:
-            continue  # skip less useful entities
-        for paper_id, tables in papers.items():
-            for table_id, cells in tables.items():
+            continue
+
+        papers = entity_links[entity]
+        for paper_id in sorted(papers):
+            tables = papers[paper_id]
+            for table_id in sorted(tables):
+                cells = tables[table_id]
                 table_filename = f"{paper_id}_{table_id}"
                 table_to_cells[table_filename].update(cells)
+
                 for cell_id in cells:
                     paper, table, row, col = cell_id.split("/")
-                    row, col = int(row), int(col)
                     all_cells[cell_id] = {
                         "paper_id": paper,
                         "table_id": table,
-                        "row": row,
-                        "col": col,
+                        "row": int(row),
+                        "col": int(col),
                         "entity": entity
                     }
                     entity_to_cells[entity].append(cell_id)
 
-    all_entities = list(entity_to_cells.keys())
-    random.shuffle(all_entities)
+    # --- Build query pool (all possible (entity, query_cell) pairs) ---
+    query_pool = []
+    for entity in sorted(entity_to_cells):
+        cells = entity_to_cells[entity]
+        for cell_id in cells:
+            query_pool.append((entity, cell_id))
 
-    print(f"Total entities for retrieval testcase generation: {len(all_entities)}")
+    random.shuffle(query_pool)
 
+    # ----------------------------- Generate testcases -----------------------------
+    seen = set() # to avoid duplicate testcases
     testcase_counter = 0
 
-    for entity in all_entities:
+    for entity, query_id in query_pool:
         if testcase_counter >= num_testcases:
             break
 
-        entity_cells = entity_to_cells[entity]
-        if not entity_cells:
+        query_info = all_cells[query_id]
+        query_table = f"{query_info['paper_id']}_{query_info['table_id']}"
+
+        # --- Tables containing this entity ---
+        tables_with_entity = set(
+            f"{all_cells[c]['paper_id']}_{all_cells[c]['table_id']}"
+            for c in entity_to_cells[entity]
+        )
+
+        # Always include query table
+        if query_table not in tables_with_entity:
+            tables_with_entity = [query_table] + tables_with_entity
+
+        
+        # Skip if not enough tables for a meaningful retrieval testcase
+        if len(tables_with_entity) < 2:
             continue
 
-        # --- Pick a random query cell ---
-        query_id = random.choice(entity_cells)
-        query_info = all_cells[query_id]
-
-        # --- Find all tables that contain this entity ---
-        tables_with_entity = set()
-        for cell_id in entity_cells:
-            paper_id = all_cells[cell_id]["paper_id"]
-            table_id = all_cells[cell_id]["table_id"]
-            tables_with_entity.add(f"{paper_id}_{table_id}")
-
-        # --- Always include query's table ---
-        query_table = f"{query_info['paper_id']}_{query_info['table_id']}"
-        tables_with_entity.add(query_table)
-
-        # --- Limit to at most 3 tables ---
+        # --- Limit to 3 tables but keep query table ---
         if len(tables_with_entity) > 3:
-            other_tables = list(tables_with_entity - {query_table})
-            sampled = random.sample(other_tables, 3 - 1)
-            tables_with_entity = [query_table] + sampled
+            others = sorted(tables_with_entity - {query_table})
+            tables_with_entity = [query_table] + random.sample(others, 2)
         else:
             tables_with_entity = list(tables_with_entity)
 
-        # --- Load table data ---
+        # ---------------- Avoid duplicate testcases ----------------
+        tables_key = frozenset(tables_with_entity)
+        testcase_key = (entity, query_id, tables_key)
+
+        if testcase_key in seen:
+            continue
+        seen.add(testcase_key)
+
+        # --- Load tables ---
         table_data = {}
         for tbl in tables_with_entity:
-            table_path = os.path.join(csv_folder, tbl)
-            if os.path.exists(table_path):
-                df = pd.read_csv(table_path, header=None, dtype=str).fillna("")
-                table_data[tbl] = df
+            path = os.path.join(csv_folder, tbl)
+            if os.path.exists(path):
+                table_data[tbl] = pd.read_csv(path, header=None, dtype=str).fillna("")
 
-        # --- Collect ground truth cells ---
+        # --- Ground truth (exclude query) ---
         ground_truth = []
         for tbl in tables_with_entity:
             df = table_data[tbl]
-            for cell_id in table_to_cells[tbl]:
+            for cell_id in sorted(table_to_cells[tbl]):
                 if all_cells[cell_id]["entity"] == entity:
-                    row_idx, col_idx = all_cells[cell_id]["row"], all_cells[cell_id]["col"]
-                    cell_text = df.iloc[row_idx, col_idx]
-                    header_text = df.iloc[0, col_idx] if row_idx != 0 else df.iloc[row_idx, col_idx]
+                    # skip the query cell
+                    if cell_id == query_id:
+                        continue
+                    r, c = all_cells[cell_id]["row"], all_cells[cell_id]["col"]
                     ground_truth.append({
                         **all_cells[cell_id],
-                        "text": str(cell_text),
-                        "header": str(header_text)
+                        "text": str(df.iloc[r, c]),
+                        "header": str(df.iloc[0, c] if r != 0 else df.iloc[r, c])
                     })
 
-        top_k = len(ground_truth)
+        if not ground_truth:
+            continue # skip if no other cells exist
 
-        # --- Build query cell info ---
-        query_df = table_data[query_table]
-        row_idx, col_idx = query_info["row"], query_info["col"]
-        query_text = query_df.iloc[row_idx, col_idx]
-        query_header = query_df.iloc[0, col_idx] if row_idx != 0 else query_df.iloc[row_idx, col_idx]
+        # --- Query info ---
+        qdf = table_data[query_table]
+        r, c = query_info["row"], query_info["col"]
 
-        # --- Build testcase JSON ---
         testcase = {
             "tables": tables_with_entity,
             "query": {
                 **query_info,
-                "text": str(query_text),
-                "header": str(query_header)
+                "text": str(qdf.iloc[r, c]),
+                "header": str(qdf.iloc[0, c] if r != 0 else qdf.iloc[r, c])
             },
             "ground_truth": ground_truth,
-            "top_k": top_k
+            "top_k": len(ground_truth)
         }
 
-        # --- Save JSON ---
         testcase_counter += 1
-        filename = os.path.join(output_dir, f"retrieval_testcase_{testcase_counter:03d}.json")
-        with open(filename, "w") as f:
+        with open(
+            os.path.join(output_dir, f"retrieval_testcase_{testcase_counter:03d}.json"),
+            "w"
+        ) as f:
             json.dump(testcase, f, indent=2)
 
-    print(f"Generated {testcase_counter} entity-coherent cell-retrieval testcases in '{output_dir}'")
+    print(f"Generated {testcase_counter} unique retrieval testcases")

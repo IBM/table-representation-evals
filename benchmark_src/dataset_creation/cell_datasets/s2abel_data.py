@@ -324,16 +324,16 @@ def save_relational_tables_as_csv(data_path: Path, verbose: bool = False):
     print(f"\nSaved {saved_tables}/{total_tables} tables to {tables_output_path}")
     return saved_tables, total_tables
 
-def create_s2abel_dataset(cfg):
+def create_s2abel_dataset(cfg, needs_download: bool = True):
     cache_path_dataset = Path(get_original_cwd()) / Path(cfg.cache_dir) / "cell_level_data" / cfg.dataset_name
-    
-    # TODO: wieder einfügen
-    #download_s2abel_dataset(cache_path_dataset)
-    
-    #load_and_clean_papers(cache_path_dataset)
 
-    # TODO: continue with saving tables as csv files and creating metadata
-    #save_relational_tables_as_csv(cache_path_dataset)
+    if needs_download:
+        download_s2abel_dataset(cache_path_dataset)
+
+        load_and_clean_papers(cache_path_dataset)
+
+        # continue with saving tables as csv files and creating metadata
+        save_relational_tables_as_csv(cache_path_dataset)
 
     # create triplet testcases out of entity linking annotations
     entity_linking_data = s2abel_testcases.restructure_entity_linking_annotations(
@@ -341,12 +341,12 @@ def create_s2abel_dataset(cfg):
         table_folder=cache_path_dataset / "tables_csv"
         )
     
-    # s2abel_testcases.generate_triplet_testcases(
-    #     entity_links=entity_linking_data,
-    #     csv_folder=cache_path_dataset / "tables_csv",
-    #     output_dir=cache_path_dataset / "testcases_triplets",
-    #     max_testcases=1000
-    #     )
+    s2abel_testcases.generate_triplet_testcases(
+        entity_links=entity_linking_data,
+        csv_folder=cache_path_dataset / "tables_csv",
+        output_dir=cache_path_dataset / "testcases_triplets",
+        max_testcases=1000
+        )
 
     s2abel_testcases.generate_cell_retrieval_testcases(
         entity_links=entity_linking_data,
