@@ -3,15 +3,14 @@ dataset_name: table_shuffling
 random_seed: 42
 
 variations:
-  variation_0:
+  fetaqa_v0:
     dataset_name: fetaqa
     dataset:
-      num_databases: 1
-      tables_per_db: 20
-      min_rows: 10
+      max_tables: 500
+      min_rows: 5
       max_rows: 50
       min_cols: 3
-      max_cols: 10
+      max_cols: 20
     triplets_per_anchor: 1
     pos_params:
       pos_type: both        # one of "row_reorder", "col_reorder", "both"

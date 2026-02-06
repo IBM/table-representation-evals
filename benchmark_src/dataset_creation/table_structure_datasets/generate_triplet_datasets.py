@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
 import pandas as pd
+import Levenshtein
 from hydra.utils import get_original_cwd
 from omegaconf import OmegaConf, DictConfig
 from tqdm import tqdm
@@ -40,25 +41,6 @@ def convert_array_to_markdown(table_array: List[List[Any]], max_rows: int = -1) 
     # Join all lines with a newline and add a final newline
     return "\n".join(lines) + "\n"
 
-def levenshtein_distance(a: str, b: str) -> int:
-    if a == b:
-        return 0
-    la, lb = len(a), len(b)
-    if la == 0:
-        return lb
-    if lb == 0:
-        return la
-    prev = list(range(lb + 1))
-    for i, ca in enumerate(a, start=1):
-        cur = [i] + [0] * lb
-        for j, cb in enumerate(b, start=1):
-            cost = 0 if ca == cb else 1
-            cur[j] = min(prev[j] + 1,
-                         cur[j-1] + 1,
-                         prev[j-1] + cost)
-        prev = cur
-    return prev[lb]
-
 # -----------------------------
 # Textual-change metric: normalized Levenshtein
 # -----------------------------
@@ -66,7 +48,8 @@ def normalized_levenshtein(a: str, b: str) -> float:
     max_len = max(len(a), len(b))
     if max_len == 0:
         return 0.0
-    return levenshtein_distance(a, b) / max_len
+    return Levenshtein.distance(a, b) / max_len
+
 def shuffle_rows(table: List[List[Optional[str]]], pos_strength: float
                 ) -> Tuple[List[List[Optional[str]]], List[int], List[int]]:
     n_rows = len(table)
@@ -371,9 +354,9 @@ def _select_corpus_subset(
     """
     Apply simple filtering based on the dataset block:
       - keep tables whose #rows and #cols fall into the configured ranges
-      - take at most num_databases * tables_per_db tables.
+      - take at most max_tables tables.
     """
-    max_tables = int(dataset_cfg.num_databases) * int(dataset_cfg.tables_per_db)
+    max_tables = int(dataset_cfg.max_tables)
     min_rows = int(dataset_cfg.min_rows)
     max_rows = int(dataset_cfg.max_rows)
     min_cols = int(dataset_cfg.min_cols)
