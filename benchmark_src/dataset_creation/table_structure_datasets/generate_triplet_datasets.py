@@ -11,6 +11,9 @@ from tqdm import tqdm
 
 from benchmark_src.dataset_creation.target.collect_all_target_datasets import get_target_dataset_by_name
 
+MIN_TABLE_ROWS = 2
+MIN_TABLE_COLS = 3
+
 
 def convert_array_to_markdown(table_array: List[List[Any]], max_rows: int = -1) -> str:
     """
@@ -347,20 +350,40 @@ def load_table_shuffling_config() -> DictConfig:
     return OmegaConf.load(str(config_path))
 
 
+def _get_int_or_unbound(dataset_cfg: DictConfig, key: str) -> int:
+    """Get int from config; -1 or unset means unbounded (return -1 for caller to interpret)."""
+    v = OmegaConf.select(dataset_cfg, key, default=-1)
+    if v is None:
+        return -1
+    return int(v)
+
+
+def _resolve_dataset_limits(dataset_cfg: DictConfig) -> Tuple[int, Optional[int], int, Optional[int], Optional[int]]:
+    raw_min_rows = _get_int_or_unbound(dataset_cfg, "min_rows")
+    raw_max_rows = _get_int_or_unbound(dataset_cfg, "max_rows")
+    raw_min_cols = _get_int_or_unbound(dataset_cfg, "min_cols")
+    raw_max_cols = _get_int_or_unbound(dataset_cfg, "max_cols")
+    raw_max_tables = _get_int_or_unbound(dataset_cfg, "max_tables")
+
+    min_rows = MIN_TABLE_ROWS if raw_min_rows == -1 else raw_min_rows
+    max_rows = None if raw_max_rows == -1 else raw_max_rows
+    min_cols = MIN_TABLE_COLS if raw_min_cols == -1 else raw_min_cols
+    max_cols = None if raw_max_cols == -1 else raw_max_cols
+    max_tables = None if raw_max_tables == -1 else raw_max_tables
+
+    return min_rows, max_rows, min_cols, max_cols, max_tables
+
+
 def _select_corpus_subset(
     corpus,
     dataset_cfg: DictConfig,
 ) -> List[Dict[str, Any]]:
     """
-    Apply simple filtering based on the dataset block:
+    Apply filtering based on the dataset block:
       - keep tables whose #rows and #cols fall into the configured ranges
-      - take at most max_tables tables.
+      - randomly sample up to max_tables from the qualifying tables or all if max_tables is unset.
     """
-    max_tables = int(dataset_cfg.max_tables)
-    min_rows = int(dataset_cfg.min_rows)
-    max_rows = int(dataset_cfg.max_rows)
-    min_cols = int(dataset_cfg.min_cols)
-    max_cols = int(dataset_cfg.max_cols)
+    min_rows, max_rows, min_cols, max_cols, max_tables = _resolve_dataset_limits(dataset_cfg)
 
     selected_indices: List[int] = []
 
@@ -372,17 +395,18 @@ def _select_corpus_subset(
         num_rows = len(table) - 1  # exclude header
         num_cols = len(table[0])
 
-        if not (min_rows <= num_rows <= max_rows):
+        if num_rows < min_rows or (max_rows is not None and num_rows > max_rows):
             continue
-        if not (min_cols <= num_cols <= max_cols):
+        if num_cols < min_cols or (max_cols is not None and num_cols > max_cols):
             continue
 
         selected_indices.append(idx)
-        if len(selected_indices) >= max_tables:
-            break
 
     if not selected_indices:
         return corpus.to_list()
+
+    if max_tables is not None and len(selected_indices) > max_tables:
+        selected_indices = random.sample(selected_indices, max_tables)
 
     return corpus.select(selected_indices).to_list()
 

@@ -1,6 +1,13 @@
 dataset_name: table_shuffling
 
-random_seed: 42
+random_seed: 1
+
+# Dataset block (per variation): filter and cap which tables are used.
+# Use -1 or omit the key for "unbounded":
+#   - min_rows: unspecified -> default 2 (minimum data rows, excluding header)
+#   - min_cols: unspecified -> default 3 (minimum columns)
+#   - max_rows, max_cols, max_tables: unspecified -> no upper bound (use all qualifying tables).
+# When max_tables is set, that many tables are chosen randomly from the qualifying subset.
 
 variations:
   fetaqa_v0:
@@ -8,9 +15,9 @@ variations:
     dataset:
       max_tables: 500
       min_rows: 5
-      max_rows: 50
+      max_rows: 100
       min_cols: 3
-      max_cols: 20
+      max_cols: 100
     triplets_per_anchor: 1
     pos_params:
       pos_type: both        # one of "row_reorder", "col_reorder", "both"
