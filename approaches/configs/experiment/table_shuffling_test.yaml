@@ -1,0 +1,25 @@
+# @package _global_
+defaults:
+  - override /approach: sentence_transformer
+
+hydra:
+  verbose: False  # set to True for debug outprints, set to False for Info prints only
+  sweeper:
+    params:
+      approach.embedding_model: all-MiniLM-L6-v2
+      approach.table_row_limit: 100
+
+benchmark_output_dir: "tmp"
+
+benchmark_tasks:
+  ####################################
+  ###### Table Shuffling
+  ####################################
+  table_shuffling:
+    datasets:
+      # Each entry here maps directly to a variation key
+      # defined in benchmark_src/config/dataset/table_shuffling.yaml
+      - fetaqa_v0
+      # Example future variations:
+      # - spider_v0
+      # - tabfact_v0

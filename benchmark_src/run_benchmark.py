@@ -63,6 +63,9 @@ def main(cfg: DictConfig):
             elif cfg.task.task_name == "table_retrieval":
                 from benchmark_src.tasks import run_table_retrieval_benchmark
                 run_table_retrieval_benchmark.main(cfg)
+            elif cfg.task.task_name == "table_shuffling":
+                from benchmark_src.tasks import run_table_shuffling_benchmark
+                run_table_shuffling_benchmark.main(cfg)
             elif cfg.task.task_name == "cell_task":
                 from benchmark_src.tasks import run_cell_semantic_retrieval_benchmark
                 run_cell_semantic_retrieval_benchmark.main(cfg)

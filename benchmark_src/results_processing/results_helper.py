@@ -24,8 +24,13 @@ performance_cols = {
     'In top-3 [%]': 'higher_is_better',
     'In top-5 [%]': 'higher_is_better',
     'In top-10 [%]': 'higher_is_better',
-    'MRR': 'higher_is_better', # mean reciprocal rank
-    'Recall@1': 'higher_is_better'
+    'MRR': 'higher_is_better',  # mean reciprocal rank
+    'Recall@1': 'higher_is_better',
+    # table shuffling / triplet metrics
+    'TripletAccuracy': 'higher_is_better',
+    'Triplet Silhouette Score': 'higher_is_better',
+    'Bounded Contrastive Score': 'lower_is_better',
+    'TextualBias_pearson': 'lower_is_better',
 }
 
 
