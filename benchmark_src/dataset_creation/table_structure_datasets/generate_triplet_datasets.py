@@ -471,9 +471,9 @@ def run_variation(
     )
 
 
-def main() -> None:
+def _load_table_shuffling_variation_context() -> Tuple[int, Path, DictConfig]:
     cfg = load_table_shuffling_config()
-    root_seed = int(cfg.get("random_seed", 42))
+    root_seed = int(cfg["random_seed"])
 
     try:
         project_root = Path(get_original_cwd())
@@ -484,6 +484,29 @@ def main() -> None:
     base_output_dir.mkdir(parents=True, exist_ok=True)
 
     variations = cfg.get("variations", {})
+    return root_seed, base_output_dir, variations
+
+
+def run_variation_by_name(variation_name: str) -> Path:
+    root_seed, base_output_dir, variations = _load_table_shuffling_variation_context()
+    if variation_name not in variations:
+        available = ", ".join(sorted(variations.keys()))
+        raise ValueError(
+            f"Unknown table_shuffling variation '{variation_name}'. Available variations: {available}"
+        )
+
+    run_variation(
+        variation_name=variation_name,
+        variation_cfg=variations[variation_name],
+        base_output_dir=base_output_dir,
+        root_random_seed=root_seed,
+    )
+
+    return base_output_dir / variation_name
+
+
+def main() -> None:
+    root_seed, base_output_dir, variations = _load_table_shuffling_variation_context()
     if not variations:
         raise ValueError("No variations defined in table_shuffling config.")
 

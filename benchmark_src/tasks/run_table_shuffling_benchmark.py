@@ -12,8 +12,9 @@ from omegaconf import DictConfig
 from benchmark_src.approach_interfaces.table_embedding_interface import (
     TableEmbeddingInterface,
 )
-from benchmark_src.dataset_creation.table_structure_datasets.generate_triplet_datasets import (  # noqa: E501
+from benchmark_src.dataset_creation.table_structure_datasets.generate_triplet_datasets import (
     load_table_shuffling_config,
+    run_variation_by_name,
 )
 from benchmark_src.utils import result_utils
 from benchmark_src.utils.framework import get_approach_class
@@ -84,10 +85,20 @@ def load_triplets_for_variation(variation_name: str) -> List[TripletCase]:
     variation_dir = project_root / "cache" / "table_shuffling" / variation_name
 
     if not variation_dir.exists():
-        raise FileNotFoundError(
+        logger.info(
             f"Expected variation directory not found at {variation_dir}. "
-            "Please run the table shuffling triplet generation script first."
+            "Attempting to generate triplets for this variation now."
         )
+        try:
+            run_variation_by_name(variation_name)
+        except ValueError as e:
+            raise FileNotFoundError(
+                f"Expected variation directory not found at {variation_dir}, and variation '{variation_name}' "
+                "is not defined in table_shuffling.yaml."
+            ) from e
+
+        if not variation_dir.exists():
+            raise FileNotFoundError(f"Failed to generate variation directory at {variation_dir} for variation '{variation_name}'.")
 
     summary_path = variation_dir / "triplet_generation_summary.jsonl"
     if not summary_path.exists():
@@ -221,7 +232,10 @@ def run_benchmark(
 
     detailed_results: List[Dict[str, Any]] = []
 
-    for t in triplets:
+    total_triplets = len(triplets)
+    correct_count = 0
+
+    for i, t in enumerate(triplets):
         emb_anchor = np.asarray(
             table_embedding_component.create_table_embedding(t.anchor_table),
             dtype=float,
@@ -241,7 +255,15 @@ def run_benchmark(
         d_pos_list.append(d_pos)
         d_neg_list.append(d_neg)
 
-        correct_flags.append(d_pos < d_neg)
+        is_correct = d_pos < d_neg
+        correct_flags.append(is_correct)
+        if is_correct:
+            correct_count += 1
+
+        if (i + 1) % 10 == 0:
+            logger.info(
+                f"Table shuffling progress: {i + 1}/{total_triplets} | correct={correct_count}"
+            )
 
         # Triplet Silhouette: (d_neg - d_pos) / max(d_pos, d_neg), range [-1, 1]
         denom_sil = max(d_pos, d_neg) + eps
