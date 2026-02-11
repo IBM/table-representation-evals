@@ -2,34 +2,26 @@ dataset_name: table_shuffling
 
 random_seed: 1
 
-# Dataset block (per variation): filter and cap which tables are used.
+# Table shuffling configuration:
+# - Global variations (v0, v1, ...) define row/column filters and perturbation params.
+# - Per-dataset blocks only define dataset-specific settings such as max_tables.
+
 # Use -1 or omit the key for "unbounded":
-#   - min_rows: unspecified -> default 2 (minimum data rows, excluding header)
-#   - min_cols: unspecified -> default 3 (minimum columns)
-#   - max_rows, max_cols, max_tables: unspecified -> no upper bound (use all qualifying tables).
+#   - min_rows: -1/unset -> default 2 (minimum data rows, excluding header)
+#   - min_cols: -1/unset -> default 3 (minimum columns)
+#   - max_rows, max_cols, max_tables: -1/unset -> no upper bound (use all qualifying tables).
 # When max_tables is set, that many tables are chosen randomly from the qualifying subset.
 
-variations:
-  fetaqa_v0:
-    dataset_name: fetaqa
-    dataset:
-      max_tables: 500
-      min_rows: 5
-      max_rows: 100
-      min_cols: 3
-      max_cols: 100
-    triplets_per_anchor: 1
-    pos_params:
-      pos_type: both        # one of "row_reorder", "col_reorder", "both"
-      pos_strength: 0.5     # fraction [0..1] of rows/cols to shuffle
-    neg_params:
-      neg_columns_frac: 0.3 # fraction [0..1] of columns to permute
-      neg_degree: 0.8       # [0..1] how shuffled each chosen column is
+datasets:
+  fetaqa:
+    max_tables: 500
+  tabfact:
+    max_tables: -1  # use all tables passing the global filters
 
-  tabfact_v0:
-    dataset_name: tabfact
+variations:
+  v0:
+    # Global row/column filters shared across all datasets for this variation
     dataset:
-      max_tables: 500
       min_rows: 5
       max_rows: 100
       min_cols: 3
@@ -41,3 +33,16 @@ variations:
     neg_params:
       neg_columns_frac: 0.3 # fraction [0..1] of columns to permute
       neg_degree: 0.8       # [0..1] how shuffled each chosen column is
+  v1:
+    dataset:
+      min_rows: 5
+      max_rows: 100
+      min_cols: 3
+      max_cols: 100
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: row_reorder
+      pos_strength: 0.5
+    neg_params:
+      neg_columns_frac: 0.3
+      neg_degree: 0.8

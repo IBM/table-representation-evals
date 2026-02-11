@@ -17,9 +17,8 @@ benchmark_tasks:
   ####################################
   table_shuffling:
     datasets:
-      # Each entry here maps directly to a variation key
-      # defined in benchmark_src/config/dataset/table_shuffling.yaml
-      - fetaqa_v0
-      # Example future variations:
-#       - spider_v0
-      - tabfact_v0
+      # Each entry here is of the form "<dataset_id>@@<variation_id>",
+      # where dataset_id is defined under `datasets:` and variation_id under `variations:` in benchmark_src/config/dataset/table_shuffling.yaml.
+      - fetaqa@@v0
+      - tabfact@@v0
+      - fetaqa@@v1

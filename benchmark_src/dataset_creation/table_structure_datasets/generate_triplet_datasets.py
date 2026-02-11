@@ -1,4 +1,5 @@
 import json
+import logging
 import random
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
@@ -11,8 +12,11 @@ from tqdm import tqdm
 
 from benchmark_src.dataset_creation.target.collect_all_target_datasets import get_target_dataset_by_name
 
+logger = logging.getLogger(__name__)
+
 MIN_TABLE_ROWS = 2
 MIN_TABLE_COLS = 3
+eps = 1e-8
 
 
 def convert_array_to_markdown(table_array: List[List[Any]], max_rows: int = -1) -> str:
@@ -26,7 +30,7 @@ def convert_array_to_markdown(table_array: List[List[Any]], max_rows: int = -1) 
         max_rows: The maximum number of data rows to include. If -1, there is no limit.
     """
     if not table_array or not table_array[0]:
-        print("ERROR: Empty table array provided.")
+        logger.error("Empty table array provided.")
         return ""
 
     headers = [str(h) for h in table_array[0]]
@@ -36,7 +40,6 @@ def convert_array_to_markdown(table_array: List[List[Any]], max_rows: int = -1) 
 
     if max_rows != -1 and len(data_rows) > max_rows:
         data_rows = data_rows[:max_rows]
-        # print(f"Limiting table (with {len(table_array)-1} rows) to first {max_rows} rows.")
 
     for row in data_rows:
         lines.append("| " + " | ".join(str(item) for item in row) + " |")
@@ -220,6 +223,11 @@ def generate_triplets_from_dataset(
 
             delta_pos = normalized_levenshtein(serialized_anchor, convert_array_to_markdown(pos_table))
             delta_neg = normalized_levenshtein(serialized_anchor, convert_array_to_markdown(neg_table))
+
+            # When doing randomized perturbations, it's possible to swap identical rows/columns or end up with no effective change.
+            # Filter out these cases to ensure a cleaner dataset and more meaningful metrics.
+            if delta_neg <= eps or delta_pos <= eps:
+                continue
 
             triplets.append({
                 "database_id": anchor_rec["database_id"],
@@ -412,22 +420,33 @@ def _select_corpus_subset(
 
 
 def run_variation(
-    variation_name: str,
+    dataset_id: str,
+    dataset_cfg: DictConfig,
+    variation_id: str,
     variation_cfg: DictConfig,
     base_output_dir: Path,
     root_random_seed: int,
 ) -> None:
     """
-    Run triplet generation for a single variation and write outputs to disk.
+    Run triplet generation for a single (dataset, variation) pair and write outputs to disk.
+
+    - dataset_id: logical dataset key (e.g. "fetaqa"), used for get_target_dataset_by_name.
+    - dataset_cfg: per-dataset config (currently only max_tables).
+    - variation_id: global variation id (e.g. "v0"), defining filters and perturbation params.
+    - variation_cfg: variation config from table_shuffling.yaml.
     """
-    # Derive a deterministic seed per variation from the root seed and name
-    seed = int(root_random_seed) + abs(hash(variation_name)) % (2**16)
+    # Derive a deterministic seed per dataset×variation from the root seed and ids
+    seed = int(root_random_seed) + abs(hash(f"{dataset_id}@@{variation_id}")) % (2**16)
     random.seed(seed)
 
-    corpus = get_target_dataset_by_name(variation_cfg.dataset_name).corpus
+    corpus = get_target_dataset_by_name(dataset_id).corpus
 
-    dataset_block = variation_cfg.dataset
-    corpus_list = _select_corpus_subset(corpus, dataset_block)
+    # Global row/column filters live on the variation under "dataset".
+    filters_cfg = variation_cfg["dataset"]
+
+    # Combine global filters with per-dataset settings (e.g. max_tables).
+    # dataset_cfg is expected to only add/override keys like max_tables.
+    corpus_list = _select_corpus_subset(corpus, OmegaConf.merge(filters_cfg, dataset_cfg))
 
     pos_params = dict(variation_cfg.pos_params)
     neg_params = dict(variation_cfg.neg_params)
@@ -437,10 +456,10 @@ def run_variation(
         triplets_per_anchor=int(variation_cfg.triplets_per_anchor),
         pos_params=pos_params,
         neg_params=neg_params,
-        variation_name=variation_name,
+        variation_name=f"{dataset_id}@@{variation_id}",
     )
 
-    variation_dir = base_output_dir / variation_name
+    variation_dir = base_output_dir / dataset_id / variation_id
     variation_dir.mkdir(parents=True, exist_ok=True)
 
     # Write summary JSONL
@@ -448,8 +467,8 @@ def run_variation(
     summarize_triplets(
         triplets=triplets,
         out_path=summary_path,
-        variation_name=variation_name,
-        dataset_name=variation_cfg.dataset_name,
+        variation_name=variation_id,
+        dataset_name=dataset_id,
         pos_params=pos_params,
         neg_params=neg_params,
         avg_delta_pos=avg_delta_pos,
@@ -464,14 +483,10 @@ def run_variation(
             csv_path = variation_dir / f"{triplet_id}_{kind}.csv"
             table_df.to_csv(csv_path, index=False)
 
-    # Optionally, log aggregate stats for debugging
-    print(
-        f"[{variation_name}] Generated {len(triplets)} triplets "
-        f"(avg delta_text pos={avg_delta_pos:.4f}, neg={avg_delta_neg:.4f})"
-    )
+    logger.info(f"[{dataset_id}@@{variation_id}] Generated {len(triplets)} triplets (avg delta_text pos={avg_delta_pos:.4f}, neg={avg_delta_neg:.4f})")
 
 
-def _load_table_shuffling_variation_context() -> Tuple[int, Path, DictConfig]:
+def load_table_shuffling_context():
     cfg = load_table_shuffling_config()
     root_seed = int(cfg["random_seed"])
 
@@ -483,42 +498,55 @@ def _load_table_shuffling_variation_context() -> Tuple[int, Path, DictConfig]:
     base_output_dir = project_root / "cache" / "table_shuffling"
     base_output_dir.mkdir(parents=True, exist_ok=True)
 
-    variations = cfg.get("variations", {})
-    return root_seed, base_output_dir, variations
+    datasets_cfg = cfg["datasets"]
+    variations_cfg = cfg["variations"]
+
+    if not datasets_cfg:
+        raise ValueError("No datasets defined in table_shuffling config.")
+    if not variations_cfg:
+        raise ValueError("No variations defined in table_shuffling config.")
+
+    return root_seed, base_output_dir, datasets_cfg, variations_cfg
 
 
-def run_variation_by_name(variation_name: str) -> Path:
-    root_seed, base_output_dir, variations = _load_table_shuffling_variation_context()
-    if variation_name not in variations:
-        available = ", ".join(sorted(variations.keys()))
+def run_variation_by_name(dataset_id: str, variation_id: str) -> None:
+    root_seed, base_output_dir, datasets_cfg, variations_cfg = load_table_shuffling_context()
+
+    if dataset_id not in datasets_cfg:
+        available = ", ".join(sorted(datasets_cfg.keys()))
         raise ValueError(
-            f"Unknown table_shuffling variation '{variation_name}'. Available variations: {available}"
+            f"Unknown table_shuffling dataset_id '{dataset_id}'. Available datasets: {available}"
+        )
+    if variation_id not in variations_cfg:
+        available = ", ".join(sorted(variations_cfg.keys()))
+        raise ValueError(
+            f"Unknown table_shuffling variation_id '{variation_id}'. Available variations: {available}"
         )
 
     run_variation(
-        variation_name=variation_name,
-        variation_cfg=variations[variation_name],
+        dataset_id=dataset_id,
+        dataset_cfg=datasets_cfg[dataset_id],
+        variation_id=variation_id,
+        variation_cfg=variations_cfg[variation_id],
         base_output_dir=base_output_dir,
         root_random_seed=root_seed,
     )
 
-    return base_output_dir / variation_name
-
 
 def main() -> None:
-    root_seed, base_output_dir, variations = _load_table_shuffling_variation_context()
-    if not variations:
-        raise ValueError("No variations defined in table_shuffling config.")
+    root_seed, base_output_dir, datasets_cfg, variations_cfg = load_table_shuffling_context()
 
-    for variation_name, variation_cfg in variations.items():
-        print(f"Running variation: {variation_name}")
-        run_variation(
-            variation_name=variation_name,
-            variation_cfg=variation_cfg,
-            base_output_dir=base_output_dir,
-            root_random_seed=root_seed,
-        )
-
+    for dataset_id, dataset_cfg in datasets_cfg.items():
+        for variation_id, variation_cfg in variations_cfg.items():
+            logger.info(f"Running dataset='{dataset_id}', variation='{variation_id}'")
+            run_variation(
+                dataset_id=dataset_id,
+                dataset_cfg=dataset_cfg,
+                variation_id=variation_id,
+                variation_cfg=variation_cfg,
+                base_output_dir=base_output_dir,
+                root_random_seed=root_seed,
+            )
 
 if __name__ == "__main__":
     main()
