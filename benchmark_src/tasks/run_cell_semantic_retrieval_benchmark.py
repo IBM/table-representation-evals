@@ -60,14 +60,22 @@ def table_embeddings_to_dict(df, embeddings, paper_id, table_id):
 
 
 def load_benchmark_data(cfg):
+    # split cfg.dataset_name by @ 
+    dataset_name = cfg.dataset_name.split("@")[0]
+    variaton_name = cfg.dataset_name.split("@")[1] if "@" in cfg.dataset_name else None
+
     # check if the dataset is in the cache
-    dataset_folder = Path(get_original_cwd()) / Path(cfg.cache_dir) / "cell_level_data" / cfg.dataset_name
+    dataset_folder = Path(get_original_cwd()) / Path(cfg.cache_dir) / "cell_level_data" / dataset_name
 
     # if it isn't, create the dataset
     needs_download = False
     if not dataset_folder.exists():
         logger.info(f"Need to create the dataset")
         needs_download = True
+
+    # if there is a variation name, add it to the dataset folder path (e.g. s2abel@clean -> dataset_folder/cell_level_data/s2abel/clean)
+    if variaton_name is not None:
+        dataset_folder = dataset_folder / variaton_name
 
     # check if the testcases exist
     testcases_folder = dataset_folder / "testcases_retrieval_consistency"

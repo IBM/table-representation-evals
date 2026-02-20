@@ -12,11 +12,17 @@ row_similarity_search_datasets: # comment out the datasets you do not want to ev
   - MusicBrainz # 19375 rows, 10 columns 
   - Walmart-Amazon # 24628 rows, 6 columns
 
-#################################### 
-###### Embeddings More Similar Than
-####################################
+################################### 
+##### Embeddings More Similar Than
+###################################
 more_similar_than_datasets:
-  - wikidata_books   
+  - wikidata_books
+  - wikidata_books@no_genre   
+  - wikidata_books@only_five_cols
+  - wikidata_books@no_col_names
+  - wikidata_books@no_pid_in_col_names
+  - astronomical_objects
+  - astronomical_objects@only-text
 
 ####################################
 ###### Column Similarity Search
@@ -27,6 +33,13 @@ column_similarity_search_datasets: # comment out the datasets you do not want to
   - opendata
   - autojoin
   - nextia
+
+#################################### 
+###### Cell Level Task
+#################################### 
+cell_task_datasets:
+  - s2abel@clean
+  - s2abel@dirty
 
 ####################################
 ###### Table Retrieval
@@ -40,9 +53,9 @@ table_retrieval_datasets:
   - spider-test # 180 tables, 2147 queries
   - bird-validation # 75 tables, 1534 queries
 
-#################################### 
-###### Predictive ML
-#################################### 
+################################### 
+##### Predictive ML
+################################### 
 predictive_ml_datasets:
   #################################### 
   ## Binary-classification (contain string columns)

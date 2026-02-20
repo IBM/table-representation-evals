@@ -1,6 +1,6 @@
 
 def create_cell_dataset(cfg, needs_download: bool = True):
-    if cfg.dataset_name == "s2abel":
+    if "s2abel" in cfg.dataset_name:
         from benchmark_src.dataset_creation.cell_datasets.s2abel_data import create_s2abel_dataset
         create_s2abel_dataset(cfg, needs_download)
     else:

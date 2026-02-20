@@ -64,53 +64,35 @@ def download_s2abel_dataset(output_path: Path):
     tar_path.unlink()
     print("Tar file removed.")
     
-patterns = {
-            # Remove XML/HTML-like tags
-            'xml_tags': re.compile(r'<[^>]+>'),
-            # Remove LaTeX references like \ref{...}
-            'latex_ref': re.compile(r'\\ref\{[^}]+\}'),
-            # Remove LaTeX citations like \cite{...}
-            'latex_cite': re.compile(r'\\cite\{[^}]+\}'),
-            # Remove other LaTeX commands
-            'latex_cmd': re.compile(r'\\[a-zA-Z]+\{[^}]*\}'),
-            # Remove standalone LaTeX commands
-            'latex_standalone': re.compile(r'\\[a-zA-Z]+'),
-            # Clean up multiple spaces
-            'multi_space': re.compile(r'\s+'),
-            # Remove special unicode characters that might be artifacts
-            'unicode_artifacts': re.compile(r'[\u2020\u2217\u00a0]'),
-        }
-
 def clean_cell(text: str) -> str:
-    """
-    Clean a single text string by removing all markup.
-    
-    Args:
-        text: Raw text with potential markup
-        
-    Returns:
-        Cleaned text string
-    """
     if not isinstance(text, str):
         return text
-    
-    cleaned = text
-    
-    # Apply all cleaning patterns in order
-    cleaned = patterns['xml_tags'].sub('', cleaned)
-    cleaned = patterns['latex_ref'].sub('', cleaned)
-    cleaned = patterns['latex_cite'].sub('', cleaned)
-    cleaned = patterns['latex_cmd'].sub('', cleaned)
-    cleaned = patterns['latex_standalone'].sub('', cleaned)
-    cleaned = patterns['unicode_artifacts'].sub('', cleaned)
-    
-    # Clean up whitespace
-    cleaned = patterns['multi_space'].sub(' ', cleaned)
-    cleaned = cleaned.strip()
-    
-    return cleaned
 
-def clean_table_data(table_data: List[List[str]]) -> List[List[str]]:
+    cleaned = text
+
+    # 1. Replace XML/HTML tags with empty string
+    cleaned = re.sub(r'</?[^>]+>', ' ', cleaned)
+
+    # 2. Remove LaTeX references/citations
+    cleaned = re.sub(r'\\ref\{[^}]+\}', '', cleaned)
+    cleaned = re.sub(r'\\cite\{[^}]+\}', '', cleaned)
+
+    # 3. Keep content inside LaTeX commands with braces
+    cleaned = re.sub(r'\\[a-zA-Z]+\{([^}]*)\}', r'\1', cleaned)
+
+    # 4. Remove remaining standalone LaTeX commands like \textsc
+    cleaned = re.sub(r'\\[a-zA-Z]+', '', cleaned)
+
+    # 5. Remove unicode artifacts
+    cleaned = re.sub(r'[\u2020\u2217\u00a0]', '', cleaned)
+
+    # 6. Normalize whitespace
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+
+    return cleaned.strip()
+
+
+def clean_table_data(table_data: List[List[str]], do_cleaning: bool = True) -> List[List[str]]:
     """
     Clean all cells in a table.
     
@@ -122,13 +104,16 @@ def clean_table_data(table_data: List[List[str]]) -> List[List[str]]:
     """
     cleaned_table = []
     for row in table_data:
-        cleaned_row = [clean_cell(cell) for cell in row]
+        if do_cleaning:
+            cleaned_row = [clean_cell(cell) for cell in row]
+        else:
+            cleaned_row = [cell for cell in row]
         cleaned_table.append(cleaned_row)
     return cleaned_table
 
-def load_and_clean_papers(data_path: Path):
+def load_and_clean_papers(download_data_path: Path, save_data_path: Path, do_cleaning: bool = True) -> List[dict]:
 
-    papers_path = data_path / "papers.jsonl"
+    papers_path = download_data_path / "papers.jsonl"
 
     # load papers.jsonl 
     papers = []
@@ -141,7 +126,7 @@ def load_and_clean_papers(data_path: Path):
                 if 'tables' in paper and isinstance(paper['tables'], dict):
                     cleaned_tables = {}
                     for table_name, table_data in paper['tables'].items():
-                        cleaned_tables[table_name] = clean_table_data(table_data)
+                        cleaned_tables[table_name] = clean_table_data(table_data, do_cleaning=do_cleaning)
                     paper['tables'] = cleaned_tables
 
                     # try to load each table into pandas to check if it is valid
@@ -163,11 +148,11 @@ def load_and_clean_papers(data_path: Path):
                 print(f"Error parsing line {line_num}: {e}")
                 continue
     
-    print(f"Loaded and cleaned {len(papers)} papers")
+    print(f"Loaded and prepared {len(papers)} papers, cleaned? {do_cleaning}")
 
-    # save papers_cleaned.jsonl file
-    cleaned_papers_path = data_path / "papers_cleaned.jsonl"
-    with open(cleaned_papers_path, 'w', encoding='utf-8') as f:
+    # save papers_prepared.jsonl file
+    prepared_papers_path = save_data_path / "papers_prepared.jsonl"
+    with open(prepared_papers_path, 'w', encoding='utf-8') as f:
         for paper in papers:
             json_line = json.dumps(paper)
             f.write(json_line + '\n')
@@ -277,7 +262,7 @@ class SimpleTableFilter:
 def save_relational_tables_as_csv(data_path: Path, verbose: bool = False):
     """Save only relational tables as CSV files."""
     
-    cleaned_papers_path = data_path / "papers_cleaned.jsonl"
+    prepared_papers_path = data_path / "papers_prepared.jsonl"
     tables_output_path = data_path / "tables_csv"
     tables_output_path.mkdir(parents=True, exist_ok=True)
     
@@ -286,7 +271,7 @@ def save_relational_tables_as_csv(data_path: Path, verbose: bool = False):
     total_tables = 0
     saved_tables = 0
     
-    with open(cleaned_papers_path, 'r', encoding='utf-8') as f:
+    with open(prepared_papers_path, 'r', encoding='utf-8') as f:
         for line_num, line in enumerate(f, 1):
             try:
                 paper = json.loads(line)
@@ -325,28 +310,38 @@ def save_relational_tables_as_csv(data_path: Path, verbose: bool = False):
     return saved_tables, total_tables
 
 def create_s2abel_dataset(cfg, needs_download: bool = True):
-    cache_path_dataset = Path(get_original_cwd()) / Path(cfg.cache_dir) / "cell_level_data" / cfg.dataset_name
+    dataset_name = cfg.dataset_name.split("@")[0]
+    variaton_name = cfg.dataset_name.split("@")[1] if "@" in cfg.dataset_name else None
+    cache_path_download = Path(get_original_cwd()) / Path(cfg.cache_dir) / "cell_level_data" / dataset_name
+    if variaton_name is not None:
+        cache_path_dataset = cache_path_download / variaton_name
+    else:
+        cache_path_dataset = cache_path_download
+    cache_path_dataset.mkdir(parents=True, exist_ok=True)
 
     if needs_download:
-        download_s2abel_dataset(cache_path_dataset)
+        download_s2abel_dataset(cache_path_download)
 
-        load_and_clean_papers(cache_path_dataset)
+
+    else:
+        do_cleaning = variaton_name == "clean"
+        load_and_clean_papers(cache_path_download, cache_path_dataset, do_cleaning=do_cleaning)
 
         # continue with saving tables as csv files and creating metadata
         save_relational_tables_as_csv(cache_path_dataset)
 
     # create triplet testcases out of entity linking annotations
     entity_linking_data = s2abel_testcases.restructure_entity_linking_annotations(
-        file=cache_path_dataset / "entity_linking.jsonl",
+        file=cache_path_download / "entity_linking.jsonl",
         table_folder=cache_path_dataset / "tables_csv"
         )
     
-    s2abel_testcases.generate_triplet_testcases(
-        entity_links=entity_linking_data,
-        csv_folder=cache_path_dataset / "tables_csv",
-        output_dir=cache_path_dataset / "testcases_triplets",
-        max_testcases=1000
-        )
+    # s2abel_testcases.generate_triplet_testcases(
+    #     entity_links=entity_linking_data,
+    #     csv_folder=cache_path_dataset / "tables_csv",
+    #     output_dir=cache_path_dataset / "testcases_triplets",
+    #     max_testcases=1000
+    #     )
 
     s2abel_testcases.generate_cell_retrieval_testcases(
         entity_links=entity_linking_data,
