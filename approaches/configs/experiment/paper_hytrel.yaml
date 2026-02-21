@@ -1,0 +1,51 @@
+# @package _global_
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: hytrel # must be how you named the config file for your approach
+
+hydra:
+  verbose: True # set to True for debug outprints, set to False for Info prints only
+
+benchmark_output_dir: main_experiments 
+#benchmark_output_dir: testing
+
+benchmark_tasks:
+  #################################### 
+  ###### Row Similarity Search
+  #################################### 
+  # row_similarity_search: # comment out the tasks you do not want to evaluate on
+  #   datasets: ${experiment_datasets.row_similarity_search_datasets} # use the datasets from global config
+  #   # exclude_datasets: # list datasets to exclude (e.g. if they are too large for the approach)
+  #   task_parameters:
+  #     run_similarity_search_based_on: row_embeddings # needs to be either "row_embeddings" or "custom_function"
+  
+  # ####################################################################### 
+  # ###### Triplet-based Row Evaluations - based on Wikidata Hierarchies
+  # ####################################################################### 
+  # more_similar_than:
+  #   datasets: ${experiment_datasets.more_similar_than_datasets}
+  
+  # ###################################
+  # ##### Column Similarity Search
+  # ###################################
+  # column_similarity_search: # comment out the tasks you do not want to evaluate on
+  #   datasets:  ${experiment_datasets.column_similarity_search_datasets} 
+  #   task_parameters:
+  #     run_similarity_search_based_on: "column_embeddings" 
+  
+  #################################### 
+  ###### Cell Level Task
+  #################################### 
+  cell_task: 
+    datasets:   ${experiment_datasets.cell_task_datasets} 
+
+  ################################### 
+  ###### Predictive ML
+  #################################### 
+  # predictive_ml:
+  #   datasets: ${experiment_datasets.predictive_ml_datasets} 
+  #   task_parameters:
+  #     run_task_based_on: row_embeddings 
+ 
+
+# Made with Bob
