@@ -25,6 +25,8 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         super().__init__(cfg)
         self.cfg = cfg
         self.model = None
+        self.train_size = getattr(self.cfg.approach, "train_size", None)
+        self._use_train_size_for_embeddings = getattr(self.cfg.approach, "use_train_size_for_embeddings", False)
         logger.info("TabICLEmbedder: Initialized.")
 
     def load_trained_model(self):
@@ -55,24 +57,43 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
     def preprocessing(self, input_table: pd.DataFrame):
         return input_table
 
-    def get_row_embeddings(self, input_table: pd.DataFrame):
+    def get_row_embeddings(self, input_table: pd.DataFrame, train_size: int = None, train_labels: np.ndarray = None):
         
         self.load_trained_model()
         print("input_table shape:", input_table.shape)
         
         input_table_clean = self._preprocess_for_tabicl(input_table)
 
-        y = np.zeros(len(input_table_clean))
-        self.model.fit(input_table_clean, y)
-        _, row_embeddings, _ = self.model.predict_proba(input_table_clean)
+        # Use train_size parameter if provided, otherwise check config
+        effective_train_size = train_size if train_size is not None else (self.train_size if self._use_train_size_for_embeddings else None)
         
-        n_samples = len(input_table_clean)
-        test_embeddings = row_embeddings[n_samples:]
+        # If train_labels are provided, use them for fitting
+        if train_labels is not None:
+            if effective_train_size is not None:
+                # Fit on training portion with actual labels
+                self.model.fit(input_table_clean[:effective_train_size], train_labels)
+                _, row_embeddings, _ = self.model.predict_proba(input_table_clean)
+                # Extract embeddings for rows after train_size
+                test_embeddings = row_embeddings[effective_train_size:]
+            else:
+                # Fit on all data with provided labels
+                self.model.fit(input_table_clean, train_labels)
+                _, row_embeddings, _ = self.model.predict_proba(input_table_clean)
+                n_samples = len(input_table_clean)
+                test_embeddings = row_embeddings[n_samples:]
+        else:
+            # Use dummy labels when train_labels not provided
+            # Old behavior: use all data as training with dummy labels
+            y = np.zeros(len(input_table_clean))
+            self.model.fit(input_table_clean, y)
+            _, row_embeddings, _ = self.model.predict_proba(input_table_clean)
+            n_samples = len(input_table_clean)
+            test_embeddings = row_embeddings[n_samples:]
         
         print("single_row_embeddings shape:", test_embeddings.shape)
         single_row_embeddings = np.array(test_embeddings, dtype=np.float32)
         
-        return single_row_embeddings 
+        return single_row_embeddings
 
     def load_predictive_ml_model(self, train_df: pd.DataFrame, train_labels: pd.Series, task_type: str, dataset_information: dict):
         """
@@ -173,9 +194,11 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         print(f"input_table_clean shape after preprocessing: {input_table_clean.shape}")
         print(f"Original columns: {len(input_table.columns)}, Clean table columns: {len(input_table_clean.columns)}")
         
+        # Always use all data as training for column embeddings
         y = np.zeros(len(input_table_clean))
         logger.info("Fitting model for column embeddings")
         self.model.fit(input_table_clean, y)
+        
         _, _, column_embeddings = self.model.predict_proba(input_table_clean)
         
         print(f"column_embeddings shape: {column_embeddings.shape}")
