@@ -89,11 +89,21 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
             idx_of_positive_label
     """
     logger.debug(f"Called run_task_based_on_row_embeddings")
+    logger.info(f"Training phase: whole_table shape={whole_table.shape}, train_table shape={train_table.shape}")
     # setup approach model
     row_embedding_component.setup_model_for_task(input_table=whole_table, dataset_information=dataset_information)
 
     # get row embeddings and assert they have the correct format and shape
-    train_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=train_table)
+    # For TabICL/TabPFN: pass train_labels but NO train_size during training
+    # For other methods: pass train_table without extra parameters
+    approach_name = row_embedding_component.approach_instance.cfg.approach.get("name", "").lower()
+    logger.info(f"Detected approach name: '{approach_name}'")
+    if "tabicl" in approach_name or "tabpfn" in approach_name:
+        logger.info(f"TabICL/TabPFN training: calling create_row_embeddings with train_table shape={train_table.shape}, train_labels provided, train_size=None")
+        train_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=train_table, train_size=None, train_labels=train_labels)
+    else:
+        logger.info(f"Standard training: calling create_row_embeddings with train_table shape={train_table.shape}")
+        train_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=train_table)
     component_utils.assert_row_embedding_format(row_embeddings=train_row_embeddings, input_table=train_table)
 
     X_train = train_row_embeddings
@@ -187,10 +197,13 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
     return models, idx_positive_label
 
 @monitor_resources()
-def run_inference_based_on_row_embeddings(models, row_embedding_component, test_table, task_type, num_classes=None, idx_positive_label=None):
+def run_inference_based_on_row_embeddings(models, row_embedding_component, test_table, task_type, num_classes=None, idx_positive_label=None, train_size=None, actual_test_table=None, train_labels=None):
     # get row embeddings and assert they have the correct format and shape
-    test_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=test_table)
-    component_utils.assert_row_embedding_format(row_embeddings=test_row_embeddings, input_table=test_table)
+    # Pass train_size and train_labels to allow the approach to use them for embedding generation
+    test_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=test_table, train_size=train_size, train_labels=train_labels)
+    # Use actual_test_table for validation if provided (for TabICL), otherwise use test_table
+    validation_table = actual_test_table if actual_test_table is not None else test_table
+    component_utils.assert_row_embedding_format(row_embeddings=test_row_embeddings, input_table=validation_table)
 
     X_test = test_row_embeddings
 
@@ -256,7 +269,32 @@ def main(cfg: DictConfig):
         models, idx_positive_label = training_output
 
         # run inference with model
-        y_pred_values, resource_metrics_task = run_inference_based_on_row_embeddings(models=models, row_embedding_component=row_embedding_component, test_table=test_table, task_type=task_type, num_classes=dataset_information["num_classes"], idx_positive_label=idx_positive_label)
+        # For TabICL/TabPFN: pass whole_table with train_size to get test embeddings with full context
+        # For other methods: pass test_table without train_size (backward compatible)
+        approach_name = embedder.cfg.approach.get("name", "").lower()
+        if "tabicl" in approach_name or "tabpfn" in approach_name:
+            logger.info(f"TabICL/TabPFN mode: whole_table shape={whole_table.shape}, train_table shape={train_table.shape}, test_table shape={test_table.shape}")
+            # Pass whole table but also pass actual test_table for proper validation
+            y_pred_values, resource_metrics_task = run_inference_based_on_row_embeddings(
+                models=models,
+                row_embedding_component=row_embedding_component,
+                test_table=whole_table,  # Pass whole table for TabICL/TabPFN
+                task_type=task_type,
+                num_classes=dataset_information["num_classes"],
+                idx_positive_label=idx_positive_label,
+                train_size=len(train_table),  # Mark where training ends
+                actual_test_table=test_table,  # For validation
+                train_labels=train_labels  # Pass training labels
+            )
+        else:
+            y_pred_values, resource_metrics_task = run_inference_based_on_row_embeddings(
+                models=models,
+                row_embedding_component=row_embedding_component,
+                test_table=test_table,
+                task_type=task_type,
+                num_classes=dataset_information["num_classes"],
+                idx_positive_label=idx_positive_label
+            )
     elif run_task_based_on == "custom_predictiveML_model":
         ## load the needed component
         predictive_ml_component = embedder._load_component("predictive_ml_component", "PredictiveMLComponent", PredictiveMLInterface)

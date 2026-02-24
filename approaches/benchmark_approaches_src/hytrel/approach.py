@@ -333,8 +333,8 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         """
         self.load_trained_model()
         
-        # Get target embeddings (table + columns + rows)
-        target_embeddings, num_rows, num_cols = self._get_target_embeddings(input_table)
+        # Get embeddings
+        _, target_embeddings, num_rows, num_cols = self._get_embeddings(input_table)
         
         # Extract row embeddings (indices num_cols+1 to num_cols+num_rows)
         row_start_idx = 1 + num_cols
@@ -348,7 +348,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             )
         
         # Convert to numpy
-        row_embeddings = row_embeddings.cpu().numpy() if isinstance(row_embeddings, torch.Tensor) else row_embeddings
+        row_embeddings = row_embeddings.cpu().numpy()
         logger.info(f"Generated row embeddings with shape: {row_embeddings.shape}")
         return row_embeddings
 
@@ -365,26 +365,13 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         # Preprocess to get the exact table used in embedding generation
         input_table_clean = self.preprocessing(input_table)
-        
         column_names = list(input_table_clean.columns)
-        num_rows = len(input_table_clean)
-        num_cols = len(column_names)
         
-        # Build hypergraph and forward using hytrel_src defaults
-        bigraph = self._convert_table_to_hytrel_format(input_table_clean)
-    
-        with torch.no_grad():
-            bigraph = bigraph.to(self.device)
-            outputs = self.model(bigraph)
-            # hytrel_src.model.Encoder returns (embedding_s, embedding_t)
-            if isinstance(outputs, tuple):
-                _, embedding_t = outputs
-            else:
-                embedding_t = outputs
+        # Get embeddings
+        _, target_embeddings, num_rows, num_cols = self._get_embeddings(input_table)
 
         # Use target hyperedge embeddings for columns: indices 1..num_cols (index 0 is table)
-        column_embeddings_tensor = embedding_t[1:num_cols + 1]
-        column_embeddings = column_embeddings_tensor.detach().cpu().numpy()
+        column_embeddings = target_embeddings[1:num_cols + 1].cpu().numpy()
 
         logger.info(f"Generated column embeddings with shape: {column_embeddings.shape}")
         return column_embeddings, column_names
@@ -410,14 +397,11 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             empty_row = pd.DataFrame([[ '' for _ in range(input_table.shape[1]) ]], columns=input_table.columns)
             input_table = pd.concat([empty_row, input_table], ignore_index=True)
         
-        # Get target embeddings (table + columns + rows)
-        target_embeddings, num_rows, num_cols = self._get_target_embeddings(input_table)
+        # Get embeddings
+        _, target_embeddings, num_rows, num_cols = self._get_embeddings(input_table)
         
         # Extract table embedding (index 0 is the table/caption hyperedge)
-        table_embedding = target_embeddings[0]
-        
-        # Convert to numpy
-        table_embedding = table_embedding.cpu().numpy() if isinstance(table_embedding, torch.Tensor) else table_embedding
+        table_embedding = target_embeddings[0].cpu().numpy()
         
         # Ensure it's 1D (remove any extra dimensions)
         if table_embedding.ndim > 1:
@@ -426,14 +410,52 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         #logger.info(f"Generated table embedding with shape: {table_embedding.shape}")
         return table_embedding
 
-    def _get_target_embeddings(self, input_table: pd.DataFrame) -> tuple:
-        """Get target embeddings from HyTrel model for the given table.
+    def get_cell_embeddings(self, input_table: pd.DataFrame) -> np.ndarray:
+        """Generate cell embeddings using HyTrel model.
+        
+        Uses column hyperedge embeddings for headers and source node embeddings for data cells.
+        
+        Args:
+            input_table (pd.DataFrame): Input table with cells to embed
+            
+        Returns:
+            np.ndarray: Cell embeddings of shape (num_rows+1, num_cols, embedding_dim)
+                       Row 0 contains header embeddings, rows 1+ contain data cell embeddings
+        """
+        self.load_trained_model()
+        
+        # Get both source and target embeddings
+        source_embeddings, target_embeddings, num_rows, num_cols = self._get_embeddings(input_table)
+        
+        # Extract column hyperedge embeddings for headers
+        # Target structure: [table, col1, col2, ..., colN, row1, row2, ..., rowM]
+        column_embeddings = target_embeddings[1:num_cols + 1]
+        
+        # Source embeddings contain data cells (num_rows * num_cols)
+        # Reshape data cells into [num_rows, num_cols, embedding_dim]
+        expected_data_cells = num_cols * num_rows
+        data_cell_embeddings = source_embeddings[:expected_data_cells].reshape((num_rows, num_cols, -1))
+        
+        # Combine: header row (column embeddings) + data rows (source embeddings)
+        # Result shape: [num_rows+1, num_cols, embedding_dim]
+        cell_embeddings = torch.vstack([
+            column_embeddings.unsqueeze(0),  # Add batch dimension for header row
+            data_cell_embeddings
+        ])
+        
+        # Convert to numpy
+        cell_embeddings = cell_embeddings.cpu().numpy()
+        logger.info(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
+        return cell_embeddings
+
+    def _get_embeddings(self, input_table: pd.DataFrame) -> tuple:
+        """Get both source and target embeddings from HyTrel model for the given table.
         
         Args:
             input_table (pd.DataFrame): Input table
             
         Returns:
-            tuple: (target_embeddings, num_rows, num_cols) where target_embeddings is a torch.Tensor
+            tuple: (source_embeddings, target_embeddings, num_rows, num_cols) where embeddings are torch.Tensors
         """
         # Preprocess the input table
         input_table_clean = self.preprocessing(input_table)
@@ -445,18 +467,13 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         num_rows = len(input_table_clean)
         num_cols = len(input_table_clean.columns)
         
-        # Generate target embeddings using the model
+        # Generate embeddings using the model
         with torch.no_grad():
             bigraph = bigraph.to(self.device)
-            outputs = self.model(bigraph)
-            
-            # Extract target embeddings (Encoder returns (embedding_s, embedding_t))
-            if isinstance(outputs, tuple):
-                _, target_embeddings = outputs
-            else:
-                target_embeddings = outputs      #
+            # Encoder always returns (embedding_s, embedding_t)
+            source_embeddings, target_embeddings = self.model(bigraph)
         
-        return target_embeddings, num_rows, num_cols
+        return source_embeddings, target_embeddings, num_rows, num_cols
 
 
     def _convert_table_to_hytrel_format(self, table: pd.DataFrame) -> BipartiteData:

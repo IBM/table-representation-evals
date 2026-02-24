@@ -268,7 +268,7 @@ class TabICL(nn.Module):
             mgr_config=inference_config.ICL_CONFIG,
         )
 
-        col_embeddings = col_embeddings[:,:-4,:] #exclude CLS tokens
+        col_embeddings = col_embeddings[:,:,:-self.row_num_cls,:] #exclude CLS tokens
         col_embeddings = col_embeddings.mean(axis=1) #average across row cells
 
         return out, row_representations, col_embeddings

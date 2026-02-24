@@ -6,7 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 from omegaconf import OmegaConf
 from pathlib import Path
 
-from benchmark_src.dataset_creation.wikidata_books.create_books_dataset import create_statistics
+from benchmark_src.dataset_creation.wikidata_hierarchies.create_books_dataset import create_statistics
 
 def is_numeric_like(series: pd.Series) -> bool:
     """

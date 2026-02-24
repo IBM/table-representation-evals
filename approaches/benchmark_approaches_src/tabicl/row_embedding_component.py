@@ -14,6 +14,6 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
         # Load the model if not already loaded
         self.approach_instance.load_trained_model()
 
-    def create_row_embeddings_for_table(self, input_table: pd.DataFrame):
+    def create_row_embeddings_for_table(self, input_table: pd.DataFrame, train_size: int = None, train_labels: np.ndarray = None):
         # Get single row embeddings using the approach instance
-        return self.approach_instance.get_row_embeddings(input_table) 
+        return self.approach_instance.get_row_embeddings(input_table, train_size=train_size, train_labels=train_labels)
