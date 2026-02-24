@@ -118,24 +118,27 @@ class SAP_RPT_OSS_Embedder(BaseTabularEmbeddingApproach):
         
         return input_table_clean
 
-    def get_row_embeddings(self, input_table: pd.DataFrame) -> np.ndarray:
+    def get_row_embeddings(self, input_table: pd.DataFrame, train_size: int = None, train_labels: pd.Series = None) -> np.ndarray:
         """Generate row embeddings using SAP RPT-1-OSS model.
         
         Args:
             input_table (pd.DataFrame): Input table with rows to embed
+            train_size (int, optional): Number of rows to use for training context
+            train_labels (pd.Series, optional): Labels for training rows
             
         Returns:
-            np.ndarray: Row embeddings of shape (num_rows, embedding_dim)
+            np.ndarray: Row embeddings of shape (num_rows, embedding_dim) or (test_rows, embedding_dim)
         """
         self.load_trained_model()
         input_table_clean = self.preprocessing(input_table)
         
         logger.info(f"Processing {len(input_table_clean)} rows for embedding generation")
-        embeddings = self._extract_embeddings_from_model(input_table_clean)
+        embeddings = self._extract_embeddings_from_model(input_table_clean, train_size=train_size, train_labels=train_labels)
         logger.info(f"Generated embeddings with shape: {embeddings.shape}")
         return embeddings
     
-    def _extract_embeddings_from_model(self, input_table: pd.DataFrame) -> np.ndarray:
+    def _extract_embeddings_from_model(self, input_table: pd.DataFrame, aggregate_tokens: bool = True,
+                                      train_size: int = None, train_labels: pd.Series = None) -> np.ndarray:
         """Extract embeddings directly from SAP RPT-1-OSS's internal representations.
         
         For row embeddings, we use all columns as both context and query.
@@ -143,16 +146,49 @@ class SAP_RPT_OSS_Embedder(BaseTabularEmbeddingApproach):
         
         Args:
             input_table (pd.DataFrame): Input table with rows to embed
+            aggregate_tokens (bool): If True, average across tokens for row embeddings.
+                                    If False, return token-level embeddings for cells.
+            train_size (int, optional): Number of rows to use for training context
+            train_labels (pd.Series, optional): Labels for training rows
             
         Returns:
             np.ndarray: Row embeddings from the model's encoder outputs
+                       Shape: [num_rows, embedding_dim] if aggregate_tokens=True
+                              [num_rows, num_cols, embedding_dim] if aggregate_tokens=False
         """
-        dummy_labels = pd.Series([0] * len(input_table), name='target')
-        X_context = input_table.copy()
-        X_query = input_table.copy()
+        # Determine if we should use real labels or dummy labels
+        if train_labels is not None:
+            # Convert labels to strings to ensure consistent typing for numpy operations
+            train_labels_str = train_labels.astype(str)
+            
+            # Fit the model with training data and labels
+            train_df = input_table[:len(train_labels_str)].copy() if train_size is None else input_table[:train_size].copy()
+            self.model['classifier'].fit(train_df, train_labels_str)
+            
+            # Use real labels for training portion
+            if train_size is not None:
+                # Inference phase: train on training portion, extract embeddings for test portion
+                X_context = input_table[:train_size].copy()
+                y_context = train_labels_str.to_frame()
+                X_query = input_table[train_size:].copy()
+                y_query = pd.Series(['0'] * len(X_query), name='target').to_frame()
+            else:
+                # Training phase: use all data with real labels
+                X_context = input_table.copy()
+                y_context = train_labels_str.to_frame()
+                X_query = input_table.copy()
+                y_query = train_labels_str.to_frame()
+        else:
+            # Use dummy labels when train_labels not provided (e.g., for cell embeddings)
+            dummy_labels = pd.Series([0] * len(input_table), name='target')
+            X_context = input_table.copy()
+            X_query = input_table.copy()
+            y_context = dummy_labels.to_frame()
+            y_query = dummy_labels.to_frame()
+        
         try:
             data, labels, label_classes = self.model['classifier'].tokenizer(
-                X_context, dummy_labels.to_frame(), X_query, dummy_labels.to_frame(),
+                X_context, y_context, X_query, y_query,
                 self.model['classifier'].classification_or_regression
             )
         except AttributeError as e:
@@ -173,11 +209,23 @@ class SAP_RPT_OSS_Embedder(BaseTabularEmbeddingApproach):
             for layer in self.model['classifier'].model.in_context_encoder:
                 encoder_outputs = layer(encoder_outputs, extended_attention_mask)
             
-            num_rows = len(input_table)
-            query_embeddings = encoder_outputs[num_rows:, :, :]
-            row_embeddings = query_embeddings.mean(dim=1)
+            # Extract query embeddings
+            num_context_rows = len(X_context)
+            num_cols = len(input_table.columns)
+            query_embeddings = encoder_outputs[num_context_rows:, :, :]
             
-            return row_embeddings.cpu().to(torch.float32).numpy()
+            # Exclude the target column token (last token) - only keep feature column tokens
+            # query_embeddings shape: [num_query_rows, num_cols + 1, embedding_dim]
+            # We want: [num_query_rows, num_cols, embedding_dim]
+            query_embeddings = query_embeddings[:, :num_cols, :]
+            
+            if aggregate_tokens:
+                # For row embeddings: average across tokens (feature columns only)
+                row_embeddings = query_embeddings.mean(dim=1)
+                return row_embeddings.cpu().to(torch.float32).numpy()
+            else:
+                # For cell embeddings: return token-level embeddings (feature columns only)
+                return query_embeddings.cpu().to(torch.float32).numpy()
 
     def load_predictive_ml_model(self, train_df: pd.DataFrame, train_labels: pd.Series, 
                                 task_type: str, dataset_information: dict):

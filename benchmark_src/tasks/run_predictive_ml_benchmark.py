@@ -94,12 +94,12 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
     row_embedding_component.setup_model_for_task(input_table=whole_table, dataset_information=dataset_information)
 
     # get row embeddings and assert they have the correct format and shape
-    # For TabICL/TabPFN: pass train_labels but NO train_size during training
+    # For TabICL/TabPFN/SAP_RPT_OSS: pass train_labels but NO train_size during training
     # For other methods: pass train_table without extra parameters
     approach_name = row_embedding_component.approach_instance.cfg.approach.get("name", "").lower()
     logger.info(f"Detected approach name: '{approach_name}'")
-    if "tabicl" in approach_name or "tabpfn" in approach_name:
-        logger.info(f"TabICL/TabPFN training: calling create_row_embeddings with train_table shape={train_table.shape}, train_labels provided, train_size=None")
+    if "tabicl" in approach_name or "tabpfn" in approach_name or "sap_rpt_oss" in approach_name:
+        logger.info(f"TabICL/TabPFN/SAP-RPT-OSS training: calling create_row_embeddings with train_table shape={train_table.shape}, train_labels provided, train_size=None")
         train_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=train_table, train_size=None, train_labels=train_labels)
     else:
         logger.info(f"Standard training: calling create_row_embeddings with train_table shape={train_table.shape}")
@@ -269,16 +269,16 @@ def main(cfg: DictConfig):
         models, idx_positive_label = training_output
 
         # run inference with model
-        # For TabICL/TabPFN: pass whole_table with train_size to get test embeddings with full context
+        # For TabICL/TabPFN/SAP_RPT_OSS: pass whole_table with train_size to get test embeddings with full context
         # For other methods: pass test_table without train_size (backward compatible)
         approach_name = embedder.cfg.approach.get("name", "").lower()
-        if "tabicl" in approach_name or "tabpfn" in approach_name:
-            logger.info(f"TabICL/TabPFN mode: whole_table shape={whole_table.shape}, train_table shape={train_table.shape}, test_table shape={test_table.shape}")
+        if "tabicl" in approach_name or "tabpfn" in approach_name or "sap_rpt_oss" in approach_name:
+            logger.info(f"TabICL/TabPFN/SAP-RPT-OSS mode: whole_table shape={whole_table.shape}, train_table shape={train_table.shape}, test_table shape={test_table.shape}")
             # Pass whole table but also pass actual test_table for proper validation
             y_pred_values, resource_metrics_task = run_inference_based_on_row_embeddings(
                 models=models,
                 row_embedding_component=row_embedding_component,
-                test_table=whole_table,  # Pass whole table for TabICL/TabPFN
+                test_table=whole_table,  # Pass whole table for TabICL/TabPFN/SAP-RPT-OSS
                 task_type=task_type,
                 num_classes=dataset_information["num_classes"],
                 idx_positive_label=idx_positive_label,
