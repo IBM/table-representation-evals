@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from plots import plot_info
+from benchmark_src.results_processing.plots import plot_info
 
 def create_datatype_comparison_plot(task_df, plots_folder):
     """
