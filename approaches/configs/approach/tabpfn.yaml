@@ -5,6 +5,6 @@ module_path: approaches/benchmark_approaches_src/tabpfn
 class_name: TabPFNEmbedder
 
 # --------- approach specific parameters --------
-device: cpu  # or "cuda" if GPU available
+device: cuda  # or "cuda" if GPU available
 
-#predML_based_on: ~
+predML_based_on: ~

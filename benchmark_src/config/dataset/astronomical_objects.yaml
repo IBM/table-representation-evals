@@ -1,5 +1,5 @@
 # @package _global_
-dataset_name: wikidata_books
+dataset_name: astronomical_objects
 
 columns_to_always_keep: [QID, label] # TODO: add genre here?
 
@@ -9,9 +9,9 @@ columns_to_always_keep: [QID, label] # TODO: add genre here?
 #   #variation_1:
 #   #  number_of_cols: [4, 9, 29, 123, 281]
 #   #  column_naming: [original, numbered]
-#   variation_2:
-#     number_of_cols: [12]
-#     percentage_numerical: [0, 0.25, 0.5, 0.75, 1]
+#   # variation_2:
+#   #   number_of_cols: [12]
+#   #   percentage_numerical: [0, 0.25, 0.5, 0.75, 1]
 #   # TODO: 
 #   #variation_x: 
 #      #without_cols: [["genre"]]
