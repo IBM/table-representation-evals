@@ -47,30 +47,56 @@ class TabPFNEmbedder(BaseTabularEmbeddingApproach):
         
         return processed_table
 
-    def get_row_embeddings(self, input_table: pd.DataFrame):
+    def get_row_embeddings(self, input_table: pd.DataFrame, train_size: int = None, train_labels: np.ndarray = None):
         """
         Get row embeddings using TabPFN's embedding extractor.
+        
+        Args:
+            input_table (pd.DataFrame): Input table to extract embeddings from
+            train_size (int, optional): Number of rows to use for training
+            train_labels (np.ndarray, optional): Labels for training rows
+            
+        Returns:
+            np.ndarray: Row embeddings for test portion (or all rows if no train_size)
         """
         self.load_trained_model()
         
         # Preprocess the input table
         processed_table = self.preprocessing(input_table)
         
-        # Create dummy labels for fitting (required for TabPFN)
-        y_dummy = np.zeros(len(processed_table))
-        
-        # Fit the model to enable embedding extraction
-        self.model.fit(processed_table, y_dummy)
-        
-        # Extract embeddings using TabPFN's get_embeddings method
-        embeddings = self.model.get_embeddings(processed_table, data_source='test')
+        # If train_labels are provided, use them for fitting
+        if train_labels is not None:
+            if train_size is not None:
+                # Inference phase: Fit on training portion, extract embeddings for test portion
+                self.model.fit(processed_table[:train_size], train_labels)
+                # Extract embeddings for all rows
+                all_embeddings = self.model.get_embeddings(processed_table, data_source='test')
+                # Extract embeddings for rows after train_size
+                # Handle ensemble output: slice on the correct axis (axis 1 for samples)
+                if len(all_embeddings.shape) == 3:  # (n_estimators, n_samples, embedding_dim)
+                    test_embeddings = all_embeddings[:, train_size:, :]
+                else:  # (n_samples, embedding_dim)
+                    test_embeddings = all_embeddings[train_size:]
+            else:
+                # Training phase: Fit on all data with provided labels, return embeddings for same data
+                self.model.fit(processed_table, train_labels)
+                # Extract embeddings for the training data itself
+                test_embeddings = self.model.get_embeddings(processed_table, data_source='train')
+        else:
+            # Use dummy labels when train_labels not provided
+            # Old behavior: use all data as training with dummy labels
+            y_dummy = np.zeros(len(processed_table))
+            self.model.fit(processed_table, y_dummy)
+            # Extract embeddings for all rows
+            test_embeddings = self.model.get_embeddings(processed_table, data_source='test')
         
         # Handle ensemble output: average across ensemble members
-        if len(embeddings.shape) == 3:  # (n_estimators, n_samples, embedding_dim)
-            embeddings = embeddings.mean(axis=0)  # Average across ensemble dimension
+        if len(test_embeddings.shape) == 3:  # (n_estimators, n_samples, embedding_dim)
+            test_embeddings = test_embeddings.mean(axis=0)  # Average across ensemble dimension
         
-        logger.info(f"Extracted TabPFN embeddings with shape: {embeddings.shape}")
-        return embeddings
+        logger.info(f"Extracted TabPFN embeddings with shape: {test_embeddings.shape}")
+        
+        return np.array(test_embeddings, dtype=np.float32)
 
     def setup_model_for_task(self, train_df: pd.DataFrame, train_labels: pd.Series, task_type: str, dataset_information: dict):
         """
