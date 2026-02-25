@@ -3,14 +3,7 @@ import logging
 from omegaconf import DictConfig
 import pandas as pd
 import numpy as np
-import sys
-import os
 import torch
-
-# Add TabICL source to Python path
-tabicl_src_path = os.path.join(os.path.dirname(__file__), 'tabicl', 'src')
-if tabicl_src_path not in sys.path:
-    sys.path.insert(0, tabicl_src_path)
 
 from tabicl import TabICLClassifier
 
@@ -35,6 +28,7 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             n_estimators = getattr(self.cfg.approach, "n_estimators", 32)
             use_memory_efficient = getattr(self.cfg.approach, "use_memory_efficient_model", True)
             device = getattr(self.cfg.approach, "device", "cpu")
+            checkpoint_version = getattr(self.cfg.approach, "checkpoint_version", "tabicl-classifier-v2-20260212.ckpt")
 
             if device == "auto":
                 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -42,15 +36,16 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             model_kwargs = {
                 "n_estimators": n_estimators,
                 "device": device,
+                "checkpoint_version": checkpoint_version,
             }
             
             if use_memory_efficient:
                 model_kwargs.update({
                     "batch_size": 4,
                 })
-                logger.info(f"TabICL model loaded with n_estimators={n_estimators}, batch_size=4 on CPU with memory optimizations.")
+                logger.info(f"TabICL model loaded with checkpoint_version={checkpoint_version}, n_estimators={n_estimators}, batch_size=4 on CPU with memory optimizations.")
             else:
-                logger.info(f"TabICL model loaded with n_estimators={n_estimators} on CPU.")
+                logger.info(f"TabICL model loaded with checkpoint_version={checkpoint_version}, n_estimators={n_estimators} on CPU.")
             
             self.model = TabICLClassifier(**model_kwargs)
 
@@ -72,23 +67,86 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             if effective_train_size is not None:
                 # Fit on training portion with actual labels
                 self.model.fit(input_table_clean[:effective_train_size], train_labels)
-                _, row_embeddings, _ = self.model.predict_proba(input_table_clean)
+                
+                # Convert to torch tensors and get row embeddings directly
+                X_tensor = torch.from_numpy(input_table_clean.values).float().unsqueeze(0).to(self.model.device_)
+                y_tensor = torch.from_numpy(train_labels).float().unsqueeze(0).to(self.model.device_)
+                
+                with torch.no_grad():
+                    # Get column embeddings first
+                    col_embeddings = self.model.model_.col_embedder(
+                        X_tensor,
+                        y_train=y_tensor,
+                        embed_with_test=False,
+                        feature_shuffles=None,
+                        mgr_config=self.model.inference_config_.COL_CONFIG,
+                    )
+                    # Then get row embeddings
+                    row_embeddings = self.model.model_.row_interactor(
+                        col_embeddings,
+                        mgr_config=self.model.inference_config_.ROW_CONFIG,
+                    )
+                
+                # Convert back to numpy and extract test embeddings
+                row_embeddings = row_embeddings.cpu().numpy().squeeze(0)
                 # Extract embeddings for rows after train_size
                 test_embeddings = row_embeddings[effective_train_size:]
             else:
                 # Fit on all data with provided labels
                 self.model.fit(input_table_clean, train_labels)
-                _, row_embeddings, _ = self.model.predict_proba(input_table_clean)
-                n_samples = len(input_table_clean)
-                test_embeddings = row_embeddings[n_samples:]
+                
+                # Convert to torch tensors and get row embeddings directly
+                X_tensor = torch.from_numpy(input_table_clean.values).float().unsqueeze(0).to(self.model.device_)
+                y_tensor = torch.from_numpy(train_labels).float().unsqueeze(0).to(self.model.device_)
+                
+                with torch.no_grad():
+                    # Get column embeddings first
+                    col_embeddings = self.model.model_.col_embedder(
+                        X_tensor,
+                        y_train=y_tensor,
+                        embed_with_test=False,
+                        feature_shuffles=None,
+                        mgr_config=self.model.inference_config_.COL_CONFIG,
+                    )
+                    # Then get row embeddings
+                    row_embeddings = self.model.model_.row_interactor(
+                        col_embeddings,
+                        mgr_config=self.model.inference_config_.ROW_CONFIG,
+                    )
+                
+                # Convert back to numpy
+                row_embeddings = row_embeddings.cpu().numpy().squeeze(0)
+                # When no effective_train_size, return all embeddings
+                test_embeddings = row_embeddings
         else:
             # Use dummy labels when train_labels not provided
             # Old behavior: use all data as training with dummy labels
             y = np.zeros(len(input_table_clean))
             self.model.fit(input_table_clean, y)
-            _, row_embeddings, _ = self.model.predict_proba(input_table_clean)
-            n_samples = len(input_table_clean)
-            test_embeddings = row_embeddings[n_samples:]
+            
+            # Convert to torch tensors and get row embeddings directly
+            X_tensor = torch.from_numpy(input_table_clean.values).float().unsqueeze(0).to(self.model.device_)
+            y_tensor = torch.from_numpy(y).float().unsqueeze(0).to(self.model.device_)
+            
+            with torch.no_grad():
+                # Get column embeddings first
+                col_embeddings = self.model.model_.col_embedder(
+                    X_tensor,
+                    y_train=y_tensor,
+                    embed_with_test=False,
+                    feature_shuffles=None,
+                    mgr_config=self.model.inference_config_.COL_CONFIG,
+                )
+                # Then get row embeddings
+                row_embeddings = self.model.model_.row_interactor(
+                    col_embeddings,
+                    mgr_config=self.model.inference_config_.ROW_CONFIG,
+                )
+            
+            # Convert back to numpy
+            row_embeddings = row_embeddings.cpu().numpy().squeeze(0)
+            # When no train_labels provided, return all embeddings
+            test_embeddings = row_embeddings
         
         print("single_row_embeddings shape:", test_embeddings.shape)
         single_row_embeddings = np.array(test_embeddings, dtype=np.float32)
@@ -191,7 +249,7 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         
         input_table_clean = self._preprocess_for_tabicl(input_table)
         
-        print(f"input_table_clean shape after preprocessing: {input_table_clean.shape}")
+        print(f"input_table_clean shape after base preprocessing: {input_table_clean.shape}")
         print(f"Original columns: {len(input_table.columns)}, Clean table columns: {len(input_table_clean.columns)}")
         
         # Always use all data as training for column embeddings
@@ -199,10 +257,43 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         logger.info("Fitting model for column embeddings")
         self.model.fit(input_table_clean, y)
         
-        _, _, column_embeddings = self.model.predict_proba(input_table_clean)
+        # Convert to torch tensors and get column embeddings directly
+        X_tensor = torch.from_numpy(input_table_clean.values).float().unsqueeze(0).to(self.model.device_)
+        y_tensor = torch.from_numpy(y).float().unsqueeze(0).to(self.model.device_)
+        
+        with torch.no_grad():
+            # Get column embeddings directly from col_embedder
+            col_embeddings = self.model.model_.col_embedder(
+                X_tensor,
+                y_train=y_tensor,
+                embed_with_test=False,
+                feature_shuffles=None,
+                mgr_config=self.model.inference_config_.COL_CONFIG,
+            )
+        
+        # Extract column embeddings: col_embeddings has shape (B, T, H, D)
+        # where H includes CLS tokens (first row_num_cls) + actual features
+        # Exclude the CLS tokens (first row_num_cls tokens) from the column dimension
+        row_num_cls = self.model.model_.row_num_cls
+        col_embeddings_without_cls = col_embeddings[:, :, row_num_cls:, :]
+        
+        # Aggregate across rows (T dimension) to get per-column embeddings
+        # Take mean across the row dimension to get (B, H-cls, D), then squeeze batch dimension
+        column_embeddings = col_embeddings_without_cls.mean(dim=1).squeeze(0).cpu().numpy()
         
         print(f"column_embeddings shape: {column_embeddings.shape}")
-        print(f"Number of column names: {len(input_table_clean.columns)}")
         
-        return column_embeddings, input_table_clean.columns
+        # Get the feature names that TabICL actually used after its internal preprocessing
+        # The model stores feature_names_in_ after fitting
+        if hasattr(self.model, 'feature_names_in_') and self.model.feature_names_in_ is not None:
+            column_names = self.model.feature_names_in_
+            print(f"Columns kept after TabICL's internal preprocessing: {list(column_names)}")
+        else:
+            # Fallback to input_table_clean columns if feature_names_in_ is not available
+            column_names = input_table_clean.columns
+            print(f"Using input_table_clean columns (feature_names_in_ not available): {list(column_names)}")
+        
+        print(f"Number of column names: {len(column_names)}")
+        
+        return column_embeddings, column_names
 

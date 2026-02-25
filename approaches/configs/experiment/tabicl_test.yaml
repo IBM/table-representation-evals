@@ -94,3 +94,19 @@ benchmark_tasks:
       #- SDSS17  # 78053 rows, 11 columns, num_classes=3 [2/11] categorical
     task_parameters:
       run_task_based_on: "row_embeddings"  # Use TabICL for prediction
+
+  
+ column_similarity_search: # comment out the tasks you do not want to evaluate on
+    datasets:   # comment out the datasets that you do not want to evaluate on
+      #- Amazon-Google
+      # - wikijoin
+      - valentine
+      # - DBLP-ACM
+      # - DBLP-GoogleScholar
+      # - Fodors-Zagats
+      # - geological-settlements
+      # - iTunes-Amazon
+      # - MusicBrainz
+      # - Walmart-Amazon
+    task_parameters:
+      run_similarity_search_based_on: "column_embeddings"

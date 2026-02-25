@@ -16,3 +16,4 @@ n_estimators: 32
 use_memory_efficient_model: false
 # Device to run the model on (cuda/cpu)
 device: "auto"
+checkpoint_version: "tabicl-classifier-v2-20260212.ckpt"
