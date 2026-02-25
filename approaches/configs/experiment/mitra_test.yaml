@@ -1,0 +1,41 @@
+# @package _global_
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: mitra
+  
+benchmark_output_dir: "paper"
+benchmark_datasets_dir: "/dccstor/fmfortabulardata/graphRAG/table-representation-evals/dataset_creation/created_datasets/row_similarity_data_full/"
+cache_dir: "cache"
+
+hydra:
+  verbose: False
+  launcher:
+    n_jobs: 10
+    prefer: processes
+    backend: loky
+
+benchmark_tasks:
+  #################################### 
+  ###### Predictive ML
+  #################################### 
+  predictive_ml:
+    datasets:
+      #################################### 
+      ## Binary-classification (with string columns)
+      #################################### 
+      - credit-g  # 1000 rows, 20 columns, [13/20] categorical
+      
+      #################################### 
+      ## Multi-class Classification (without string columns)
+      #################################### 
+      - maternal_health_risk  # 1014 rows, 6 columns, num_classes=3 [0/6] categorical
+
+      ################################### 
+      # Regression (contain string columns)
+      ################################### 
+      - healthcare_insurance_expenses  # 1338 rows, 6 columns, [3/6] categorical
+      
+    task_parameters:
+      run_task_based_on: "custom_predictiveML_model"  # Use MITRA for prediction
+
+# Made with Bob
