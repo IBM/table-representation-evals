@@ -269,16 +269,16 @@ def main(cfg: DictConfig):
         models, idx_positive_label = training_output
 
         # run inference with model
-        # For TabICL/TabPFN/SAP_RPT_OSS: pass whole_table with train_size to get test embeddings with full context
+        # For TabICL/TabPFN/SAP_RPT_OSS/HyTrel: pass whole_table with train_size to get test embeddings with full context
         # For other methods: pass test_table without train_size (backward compatible)
         approach_name = embedder.cfg.approach.get("name", "").lower()
-        if "tabicl" in approach_name or "tabpfn" in approach_name or "sap_rpt_oss" in approach_name:
-            logger.info(f"TabICL/TabPFN/SAP-RPT-OSS mode: whole_table shape={whole_table.shape}, train_table shape={train_table.shape}, test_table shape={test_table.shape}")
+        if "tabicl" in approach_name or "tabpfn" in approach_name or "sap_rpt_oss" in approach_name or "hytrel" in approach_name:
+            logger.info(f"TabICL/TabPFN/SAP-RPT-OSS/HyTrel mode: whole_table shape={whole_table.shape}, train_table shape={train_table.shape}, test_table shape={test_table.shape}")
             # Pass whole table but also pass actual test_table for proper validation
             y_pred_values, resource_metrics_task = run_inference_based_on_row_embeddings(
                 models=models,
                 row_embedding_component=row_embedding_component,
-                test_table=whole_table,  # Pass whole table for TabICL/TabPFN/SAP-RPT-OSS
+                test_table=whole_table,  # Pass whole table for TabICL/TabPFN/SAP-RPT-OSS/HyTrel
                 task_type=task_type,
                 num_classes=dataset_information["num_classes"],
                 idx_positive_label=idx_positive_label,

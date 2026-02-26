@@ -322,18 +322,21 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         return input_table_clean
 
-    def get_row_embeddings(self, input_table: pd.DataFrame) -> np.ndarray:
+    def get_row_embeddings(self, input_table: pd.DataFrame, train_size: Optional[int] = None) -> np.ndarray:
         """Generate row embeddings using HyTrel model.
         
         Args:
             input_table (pd.DataFrame): Input table with rows to embed
+            train_size (int, optional): If provided, input_table contains train+test rows,
+                                       and only embeddings for test rows (after train_size) are returned
             
         Returns:
             np.ndarray: Row embeddings of shape (num_rows, embedding_dim)
+                       If train_size is provided, returns embeddings for test rows only
         """
         self.load_trained_model()
         
-        # Get embeddings
+        # Get embeddings for the entire table
         _, target_embeddings, num_rows, num_cols = self._get_embeddings(input_table)
         
         # Extract row embeddings (indices num_cols+1 to num_cols+num_rows)
@@ -346,6 +349,12 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
                 f"Row embeddings size mismatch: expected {num_rows} rows, "
                 f"but got {len(row_embeddings)} embeddings."
             )
+        
+        # If train_size is provided, return only test portion
+        if train_size is not None:
+            logger.info(f"Extracting test embeddings: train_size={train_size}, total_rows={num_rows}")
+            row_embeddings = row_embeddings[train_size:]
+            logger.info(f"Returning test row embeddings with shape: {row_embeddings.shape}")
         
         # Convert to numpy
         row_embeddings = row_embeddings.cpu().numpy()

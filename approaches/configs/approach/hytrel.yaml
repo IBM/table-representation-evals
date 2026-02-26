@@ -1,5 +1,7 @@
 # HyTrel approach configuration
 approach_name: "hytrel"
+name: "hytrel"
+
 module_path: "approaches/benchmark_approaches_src/hytrel"
 class_name: HyTrelEmbedder
 checkpoint_path: "approaches/benchmark_approaches_src/hytrel/hytrel_src/checkpoints/ckpt_data/checkpoints/contrast/epoch=4-step=32690.ckpt/checkpoint/mp_rank_00_model_states.pt"  # Path to pre-trained HyTrel contrast checkpoint
