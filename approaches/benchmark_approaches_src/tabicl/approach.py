@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import torch
 
-from tabicl import TabICLClassifier
+from tabicl import TabICLClassifier, TabICLRegressor
 
 logger = logging.getLogger(__name__)
 
@@ -162,19 +162,47 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             task_type (str): Either "classification" or "regression".
             dataset_information (dict): Additional dataset info.
         """
+        n_estimators = getattr(self.cfg.approach, "n_estimators", 32)
+        checkpoint_version = getattr(self.cfg.approach, "checkpoint_version", "tabicl-classifier-v2-20260212.ckpt")
+        device = getattr(self.cfg.approach, "device", "cpu")
+        
+        # Resolve "auto" device to actual device
+        if device == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # Check if checkpoint is v2
+        is_v2 = "v2" in checkpoint_version.lower()
+        
         if task_type == "classification":
-            n_estimators = getattr(self.cfg.approach, "n_estimators", 32)
             self.model = TabICLClassifier(
-                n_estimators=n_estimators, 
-                device="cpu",
+                n_estimators=n_estimators,
+                device=device,
+                checkpoint_version=checkpoint_version,
             )
             
             train_df_processed = self._preprocess_for_tabicl(train_df)
             print(f"Done preprocessing the table, now starting to fit the model")
             self.model.fit(train_df_processed, train_labels)
             print(f"Finished fitting the TabICL model for classification.")
+            
         elif task_type == "regression":
-            raise NotImplementedError("TabICLClassifier currently does not support regression tasks.")
+            if not is_v2:
+                raise NotImplementedError("TabICL regression is only supported with v2 checkpoints. Please use a v2 checkpoint.")
+            
+            # Use regressor-specific checkpoint for v2
+            regressor_checkpoint = "tabicl-regressor-v2-20260212.ckpt"
+            
+            self.model = TabICLRegressor(
+                n_estimators=n_estimators,
+                device=device,
+                checkpoint_version=regressor_checkpoint,
+            )
+            
+            train_df_processed = self._preprocess_for_tabicl(train_df)
+            print(f"Done preprocessing the table, now starting to fit the model")
+            self.model.fit(train_df_processed, train_labels)
+            print(f"Finished fitting the TabICL model for regression.")
+            
         else:
             raise ValueError(f"Unknown task_type: {task_type}")
 
@@ -201,7 +229,20 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
                 return proba_tuple
         
         elif task_type == "regression":
-            raise NotImplementedError("TabICLClassifier currently does not support regression tasks.")
+            # Check if model is loaded and is the correct type
+            if self.model is None:
+                raise RuntimeError("Model not loaded. Call load_predictive_ml_model first.")
+            
+            # Verify it's a TabICLRegressor (which requires v2)
+            if not isinstance(self.model, TabICLRegressor):
+                raise NotImplementedError("TabICL regression is only supported with v2 checkpoints. Please use a v2 checkpoint.")
+            
+            test_df_processed = self._preprocess_for_tabicl(test_df)
+            print(f"Done preprocessing the table, now starting to predict the {len(test_df_processed)} test cases")
+            predictions = self.model.predict(test_df_processed)
+            print(f"Finished predicting with the TabICL model for regression.")
+            return predictions
+            
         else:
             raise ValueError(f"Unknown task_type: {task_type}")
 
