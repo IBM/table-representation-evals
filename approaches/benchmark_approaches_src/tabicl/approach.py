@@ -268,22 +268,19 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         
         return input_table_clean 
 
-    def get_column_embeddings(self, input_table: pd.DataFrame) -> tuple:
+    def _get_col_embeddings_without_cls(self, input_table: pd.DataFrame):
         """
-        Generate column embeddings using TabICL's ColEmbedding stage.
+        Helper function to extract raw column embeddings without CLS tokens.
         
         Args:
-            input_table (pd.DataFrame): Input table with columns to embed
+            input_table (pd.DataFrame): Input table
             
         Returns:
-            tuple: (column_embeddings, column_names) where column_embeddings has shape (num_columns, embedding_dim)
+            tuple: (col_embeddings_without_cls, column_names, input_table_clean)
+                - col_embeddings_without_cls: shape (B, T, H-cls, D) where B=batch, T=rows, H=columns, D=embedding_dim
+                - column_names: list of column names
+                - input_table_clean: preprocessed input table
         """
-        # Ensure model is loaded
-        # NOTE: this is not needed for TabICL, uncomment if running into threading issue
-
-        #import torch
-        #torch.set_num_threads(1)
-        
         self.load_trained_model()
         
         print("input_table shape:", input_table.shape)
@@ -293,9 +290,9 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         print(f"input_table_clean shape after base preprocessing: {input_table_clean.shape}")
         print(f"Original columns: {len(input_table.columns)}, Clean table columns: {len(input_table_clean.columns)}")
         
-        # Always use all data as training for column embeddings
+        # Always use all data as training for embeddings
         y = np.zeros(len(input_table_clean))
-        logger.info("Fitting model for column embeddings")
+        logger.info("Fitting model for embeddings")
         self.model.fit(input_table_clean, y)
         
         # Convert to torch tensors and get column embeddings directly
@@ -318,14 +315,7 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         row_num_cls = self.model.model_.row_num_cls
         col_embeddings_without_cls = col_embeddings[:, :, row_num_cls:, :]
         
-        # Aggregate across rows (T dimension) to get per-column embeddings
-        # Take mean across the row dimension to get (B, H-cls, D), then squeeze batch dimension
-        column_embeddings = col_embeddings_without_cls.mean(dim=1).squeeze(0).cpu().numpy()
-        
-        print(f"column_embeddings shape: {column_embeddings.shape}")
-        
         # Get the feature names that TabICL actually used after its internal preprocessing
-        # The model stores feature_names_in_ after fitting
         if hasattr(self.model, 'feature_names_in_') and self.model.feature_names_in_ is not None:
             column_names = self.model.feature_names_in_
             print(f"Columns kept after TabICL's internal preprocessing: {list(column_names)}")
@@ -334,7 +324,98 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             column_names = input_table_clean.columns
             print(f"Using input_table_clean columns (feature_names_in_ not available): {list(column_names)}")
         
+        return col_embeddings_without_cls, column_names, input_table_clean
+
+    def get_column_embeddings(self, input_table: pd.DataFrame) -> tuple:
+        """
+        Generate column embeddings using TabICL's ColEmbedding stage.
+        
+        Args:
+            input_table (pd.DataFrame): Input table with columns to embed
+            
+        Returns:
+            tuple: (column_embeddings, column_names) where column_embeddings has shape (num_columns, embedding_dim)
+        """
+        # Get raw column embeddings without CLS tokens
+        col_embeddings_without_cls, column_names, _ = self._get_col_embeddings_without_cls(input_table)
+        
+        # Aggregate across rows (T dimension) to get per-column embeddings
+        # Take mean across the row dimension to get (B, H-cls, D), then squeeze batch dimension
+        column_embeddings = col_embeddings_without_cls.mean(dim=1).squeeze(0).cpu().numpy()
+        
+        print(f"column_embeddings shape: {column_embeddings.shape}")
         print(f"Number of column names: {len(column_names)}")
         
         return column_embeddings, column_names
+
+    def get_cell_embeddings(self, input_table: pd.DataFrame) -> tuple:
+        """
+        Generate cell embeddings using TabICL's ColEmbedding stage.
+        
+        Args:
+            input_table (pd.DataFrame): Input table with cells to embed
+            
+        Returns:
+            tuple: (cell_embeddings, column_names) where cell_embeddings has shape (num_rows, num_columns, embedding_dim)
+        """
+        # Get raw column embeddings without CLS tokens
+        col_embeddings_without_cls, tabicl_column_names, input_table_clean = self._get_col_embeddings_without_cls(input_table)
+        
+        # col_embeddings_without_cls has shape (B, T, H-cls, D)
+        # Squeeze batch dimension to get (T, H-cls, D) = (num_rows, num_columns, embedding_dim)
+        cell_embeddings_raw = col_embeddings_without_cls.squeeze(0).cpu().numpy()
+        
+        # Check if column names match
+        input_table_clean_columns = list(input_table_clean.columns)
+        tabicl_column_names_list = list(tabicl_column_names)
+        
+        if input_table_clean_columns == tabicl_column_names_list:
+            # Column names match, return as is
+            cell_embeddings = cell_embeddings_raw
+            column_names = tabicl_column_names
+        else:
+            # Column names don't match - need to reorder/fill missing columns
+            logger.warning(f"Column mismatch: input_table_clean has {len(input_table_clean_columns)} columns, "
+                         f"TabICL returned {len(tabicl_column_names_list)} columns")
+            
+            num_rows = cell_embeddings_raw.shape[0]
+            embedding_dim = cell_embeddings_raw.shape[2]
+            num_cols_needed = len(input_table_clean_columns)
+            
+            # Create mapping from tabicl column names to indices
+            tabicl_col_to_idx = {col: idx for idx, col in enumerate(tabicl_column_names_list)}
+            
+            # Initialize output array
+            cell_embeddings = np.zeros((num_rows, num_cols_needed, embedding_dim), dtype=np.float32)
+            
+            # Fill in embeddings for each column in input_table_clean
+            for col_idx, col_name in enumerate(input_table_clean_columns):
+                if col_name in tabicl_col_to_idx:
+                    # Column exists in TabICL output, use its embeddings
+                    tabicl_idx = tabicl_col_to_idx[col_name]
+                    cell_embeddings[:, col_idx, :] = cell_embeddings_raw[:, tabicl_idx, :]
+                else:
+                    # Column missing from TabICL output, use mean of row embeddings as fallback
+                    logger.warning(f"Column '{col_name}' not found in TabICL output, using row mean as fallback")
+                    for row_idx in range(num_rows):
+                        # Mean across all columns for this row
+                        row_mean = cell_embeddings_raw[row_idx, :, :].mean(axis=0)
+                        cell_embeddings[row_idx, col_idx, :] = row_mean
+            
+            column_names = input_table_clean_columns
+        
+        # Add header row embedding (mean across all rows for each column)
+        # cell_embeddings currently has shape (num_rows, num_columns, embedding_dim)
+        # We need to add a header row at index 0
+        header_embeddings = cell_embeddings.mean(axis=0, keepdims=True)  # Shape: (1, num_columns, embedding_dim)
+        
+        # Concatenate header row with data rows
+        cell_embeddings_with_header = np.concatenate([header_embeddings, cell_embeddings], axis=0)
+        # Final shape: (num_rows + 1, num_columns, embedding_dim)
+        
+        print(f"cell_embeddings_with_header shape: {cell_embeddings_with_header.shape}")
+        print(f"Number of rows (including header): {cell_embeddings_with_header.shape[0]}, Number of columns: {cell_embeddings_with_header.shape[1]}")
+        print(f"Number of column names: {len(column_names)}")
+        
+        return cell_embeddings_with_header, column_names
 
