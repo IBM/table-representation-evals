@@ -1,4 +1,5 @@
 approach_name: sap_rpt_oss
+name: sap_rpt_oss
 
 module_path: "approaches/benchmark_approaches_src/sap_rpt_oss"
 class_name: SAP_RPT_OSS_Embedder
@@ -12,7 +13,7 @@ bagging: 1
 max_context_size: 2048
 device: "auto"
 
-predML_based_on: ~
+#predML_based_on: ~
 
 # # Benchmark tasks configuration
 # benchmark_tasks:

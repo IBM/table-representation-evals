@@ -1,0 +1,14 @@
+approach_name: mitra
+
+module_path: "approaches/benchmark_approaches_src/mitra"
+class_name: MITRAApproach
+
+# --------- MITRA specific parameters --------
+# MITRA is a pre-trained model from AutoGluon
+# It will be used without fine-tuning for fast inference
+
+# Predictive ML configuration
+# MITRA is designed for predictive ML tasks only
+#predML_based_on: ~
+
+# Made with Bob
