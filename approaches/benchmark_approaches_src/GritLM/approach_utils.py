@@ -79,3 +79,33 @@ def convert_array_to_markdown(table_array: List[List[Any]], max_rows: int) -> st
 
     # Join all lines with a newline and add a final newline
     return "\n".join(lines) + "\n"
+
+
+def convert_df_to_markdown(df: pd.DataFrame, max_rows: int) -> str:
+    """
+    Converts a pandas DataFrame into a Markdown table string.
+
+    Args:
+        df: A pandas DataFrame.
+        max_rows: The maximum number of rows to include.
+                  If -1, there is no limit.
+    """
+    if df is None or df.empty:
+        print("ERROR: Empty DataFrame provided.")  # TODO: replace with logging
+        return ""
+
+    # Apply row limit if needed
+    if max_rows != -1 and len(df) > max_rows:
+        df = df.head(max_rows)
+
+    headers = [str(col) for col in df.columns]
+
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join(["---"] * len(headers)) + " |",
+    ]
+
+    for _, row in df.iterrows():
+        lines.append("| " + " | ".join(str(item) for item in row.tolist()) + " |")
+
+    return "\n".join(lines) + "\n"

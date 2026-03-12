@@ -1,4 +1,5 @@
 import logging
+import pandas as pd
 from typing import Any, List
 
 import torch
@@ -24,11 +25,11 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
     def setup_model_for_task(self):
         self.approach_instance.load_trained_model()
 
-    def create_table_embedding(self, input_table: List[List[Any]]):
+    def create_table_embedding(self, input_table: pd.DataFrame):
         """
         Serialize the table to Markdown (headers + rows) and embed with GritLM.
         """
-        markdown_str = approach_utils.convert_array_to_markdown(
+        markdown_str = approach_utils.convert_df_to_markdown(
             input_table, max_rows=self.table_row_limit
         )
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):

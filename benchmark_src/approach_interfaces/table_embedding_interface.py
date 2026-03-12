@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Any
+import pandas as pd
 
 
 class TableEmbeddingInterface(ABC):
@@ -12,7 +13,7 @@ class TableEmbeddingInterface(ABC):
         pass
 
     @abstractmethod
-    def create_table_embedding(self, input_table: List[List[Any]]):
+    def create_table_embedding(self, input_table: pd.DataFrame):
         pass
 
     @abstractmethod

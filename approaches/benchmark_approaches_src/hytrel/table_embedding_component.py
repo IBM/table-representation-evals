@@ -23,7 +23,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         """Load the model if not already loaded."""
         self.approach_instance.load_trained_model()
 
-    def create_table_embedding(self, input_table: List[List[Any]]):
+    def create_table_embedding(self, input_table: pd.DataFrame):
         """
         Create an embedding for the entire table using HyTrel's table hyperedge.
         
@@ -34,26 +34,23 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
             np.ndarray: Table embedding of shape (embedding_dim,)
         """
         # Convert List[List] to DataFrame
-
-        if isinstance(input_table, str):
-            input_table = ast.literal_eval(input_table)
-        assert type(input_table) == list, f"Input table must be a list of lists, got {type(input_table)}"
         if len(input_table) == 0:
             raise ValueError("Input table is empty")
         
-        # First row is headers, rest are data rows
-        headers = [str(cell) for cell in input_table[0]]
-        data_rows = input_table[1:] if len(input_table) > 1 else []
+        # no longer necessary
+        # # First row is headers, rest are data rows
+        # headers = [str(cell) for cell in input_table[0]]
+        # data_rows = input_table[1:] if len(input_table) > 1 else []
         
-        # Create DataFrame
-        try:
-            df = pd.DataFrame(data_rows, columns=headers)
-        except: 
-            print(f"Error creating DataFrame with headers: {headers} and data_rows: {data_rows}")
-            print(f"Input table: {input_table}")
+        # # Create DataFrame
+        # try:
+        #     df = pd.DataFrame(data_rows, columns=headers)
+        # except: 
+        #     print(f"Error creating DataFrame with headers: {headers} and data_rows: {data_rows}")
+        #     print(f"Input table: {input_table}")
         
         # Get table embedding using the approach instance
-        table_embedding = self.approach_instance.get_table_embedding(df)
+        table_embedding = self.approach_instance.get_table_embedding(input_table)
         
         # Ensure it's 1D
         if table_embedding.ndim > 1:

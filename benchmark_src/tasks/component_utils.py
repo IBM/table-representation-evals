@@ -14,7 +14,28 @@ def assert_row_embedding_format(row_embeddings: np.ndarray, input_table: pd.Data
     assert isinstance(row_embeddings, np.ndarray), "row_embeddings must be a NumPy array"
     assert row_embeddings.ndim == 2, "row_embeddings must be a 2-dimensional array (matrix)"
     expected_num_rows = len(input_table)
-    assert row_embeddings.shape[0] == expected_num_rows, \
-        f"row_embeddings must have {expected_num_rows} rows, but has {row_embeddings.shape[0]}"
+    assert row_embeddings.shape[0] == expected_num_rows, f"row_embeddings must have {expected_num_rows} rows, but has {row_embeddings.shape[0]}"
     logger.debug(f"row_embeddings format is correct (number of rows checked, embedding dimension is flexible, in this case it's {row_embeddings.shape[1]}).")
 
+
+def assert_table_embedding_format(table_embedding: np.ndarray):
+    """
+    Validates that a table embedding is a proper NumPy vector.
+
+    Args:
+        table_embedding: A NumPy array representing the table embedding.
+                         Expected shape: (embedding_dim,)
+                         or optionally (1, embedding_dim)
+    """
+    assert isinstance(table_embedding, np.ndarray), "table_embedding must be a NumPy array"
+
+    assert table_embedding.ndim in (1, 2), "table_embedding must be 1D (embedding_dim,) or 2D (1, embedding_dim)"
+
+    if table_embedding.ndim == 2:
+        assert table_embedding.shape[0] == 1, f"If 2D, table_embedding must have shape (1, embedding_dim), but has shape {table_embedding.shape}"
+
+    embedding_dim = table_embedding.shape[-1]
+
+    assert embedding_dim > 0, "Embedding dimension must be greater than 0"
+
+    #logger.debug(f"table_embedding format is correct (embedding dimension: {embedding_dim})")
