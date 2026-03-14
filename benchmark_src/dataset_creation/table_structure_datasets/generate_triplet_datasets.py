@@ -4,12 +4,12 @@ import random
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
-import pandas as pd
 import Levenshtein
 from hydra.utils import get_original_cwd
 from omegaconf import OmegaConf, DictConfig
 from tqdm import tqdm
 
+from benchmark_src.dataset_creation.utils import table_2d_to_df
 from benchmark_src.dataset_creation.target.collect_all_target_datasets import get_target_dataset_by_name
 
 logger = logging.getLogger(__name__)
@@ -248,23 +248,6 @@ def generate_triplets_from_dataset(
 
     return triplets, avg_delta_pos, avg_delta_neg
 
-
-def table_2d_to_df(table_2d):
-    """
-    table_2d: list[list] where table_2d[0] is the header row.
-    Returns a pandas DataFrame.
-    """
-    if table_2d is None or len(table_2d) == 0:
-        return pd.DataFrame()
-
-    header = list(table_2d[0])
-    rows = table_2d[1:]
-
-    df = pd.DataFrame(rows, columns=header)
-
-    df = df.dropna(how="all")
-
-    return df
 
 def summarize_triplets(
     triplets,

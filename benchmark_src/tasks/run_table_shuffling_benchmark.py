@@ -31,9 +31,9 @@ logger.setLevel(logging.DEBUG)
 @dataclass
 class TripletCase:
     triplet_id: int
-    anchor_table: List[List[Any]]
-    pos_table: List[List[Any]]
-    neg_table: List[List[Any]]
+    anchor_table: pd.DataFrame
+    pos_table: pd.DataFrame
+    neg_table: pd.DataFrame
     delta_pos: float
     delta_neg: float
 
@@ -160,16 +160,12 @@ def load_triplets_for_dataset_variation(dataset_id: str, variation_id: str) -> L
         pos_df = pd.read_csv(pos_csv)
         neg_df = pd.read_csv(neg_csv)
 
-        anchor_table = _df_to_table(anchor_df)
-        pos_table = _df_to_table(pos_df)
-        neg_table = _df_to_table(neg_df)
-
         triplets.append(
             TripletCase(
                 triplet_id=int(triplet_id),
-                anchor_table=anchor_table,
-                pos_table=pos_table,
-                neg_table=neg_table,
+                anchor_table=anchor_df,
+                pos_table=pos_df,
+                neg_table=neg_df,
                 delta_pos=float(t["delta_pos"]),
                 delta_neg=float(t["delta_neg"]),
             )
