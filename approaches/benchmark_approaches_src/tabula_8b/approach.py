@@ -3,7 +3,7 @@ import logging
 from omegaconf import DictConfig
 import pandas as pd
 import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -28,17 +28,31 @@ class TabuLA8BEmbedder(BaseTabularEmbeddingApproach):
         # Initialize model and tokenizer as None, will be loaded when needed
         self.model = None
         self.tokenizer = None
+        self.use_causal_lm = False  # Track which model type is loaded
         
         logger.info(f"TabuLA8BEmbedder: Initialized with model {self.model_name} on device {self.device}")
     
-    def load_trained_model(self):
+    def load_trained_model(self, for_generation=False):
         """
         Load the TabuLA-8B model and tokenizer.
+        Args:
+            for_generation: If True, load AutoModelForCausalLM for text generation.
+                          If False, load base model for embeddings only.
         """
         try:
             logger.info(f"Loading TabuLA-8B model: {self.model_name}")
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self.model = AutoModel.from_pretrained(self.model_name)
+            
+            # Load appropriate model type based on use case
+            if for_generation:
+                self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+                self.use_causal_lm = True
+                logger.info("Loaded AutoModelForCausalLM for text generation")
+            else:
+                # For embeddings, we can use CausalLM too - it has the base model inside
+                self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+                self.use_causal_lm = True
+                logger.info("Loaded AutoModelForCausalLM (works for both generation and embeddings)")
             
             # Move model to device
             self.model = self.model.to(self.device)
@@ -102,7 +116,7 @@ class TabuLA8BEmbedder(BaseTabularEmbeddingApproach):
             np.ndarray: Array of embeddings with shape [num_texts, embedding_dim]
         """
         if self.model is None or self.tokenizer is None:
-            self.load_trained_model()
+            self.load_trained_model(for_generation=False)
         
         embeddings = []
         
@@ -124,7 +138,11 @@ class TabuLA8BEmbedder(BaseTabularEmbeddingApproach):
             
             # Generate embeddings
             with torch.no_grad():
-                outputs = self.model(**inputs)
+                # For CausalLM, access the base model's output
+                if self.use_causal_lm:
+                    outputs = self.model.model(**inputs)  # Access base transformer model
+                else:
+                    outputs = self.model(**inputs)
                 # Use the last hidden state as embeddings
                 batch_embeddings = outputs.last_hidden_state.mean(dim=1)  # Average pooling
                 embeddings.append(batch_embeddings.cpu().numpy())
@@ -142,8 +160,8 @@ class TabuLA8BEmbedder(BaseTabularEmbeddingApproach):
             task_type (str): Either "classification" or "regression".
             dataset_information (dict): Additional dataset info.
         """
-        # Load the Tabula-8B model
-        self.load_trained_model()
+        # Load the Tabula-8B model for generation
+        self.load_trained_model(for_generation=True)
         self.task_type = task_type
         self.unique_labels = train_labels.unique() if task_type == "classification" else None
         
@@ -195,7 +213,7 @@ class TabuLA8BEmbedder(BaseTabularEmbeddingApproach):
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             with torch.no_grad():
-                outputs = self.model(
+                outputs = self.model.generate(
                     **inputs,
                     max_new_tokens=50,
                     do_sample=True,
@@ -205,7 +223,7 @@ class TabuLA8BEmbedder(BaseTabularEmbeddingApproach):
 
             print(f"Generated output tokens: {outputs}")
             
-            # Decode response
+            # Decode response (skip the input tokens, only decode generated tokens)
             response = self.tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
             
             print(f"Model response: {response}")

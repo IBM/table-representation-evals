@@ -96,7 +96,8 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
     # get row embeddings and assert they have the correct format and shape
     # For TabICL/TabPFN/SAP_RPT_OSS: pass train_labels but NO train_size during training
     # For other methods: pass train_table without extra parameters
-    approach_name = row_embedding_component.approach_instance.cfg.approach.get("name", "").lower()
+    approach_name = row_embedding_component.approach_instance.cfg.approach.get("name",
+                    row_embedding_component.approach_instance.cfg.approach.get("approach_name", "")).lower()
     logger.info(f"Detected approach name: '{approach_name}'")
     if "tabicl" in approach_name or "tabpfn" in approach_name or "sap_rpt_oss" in approach_name:
         logger.info(f"TabICL/TabPFN/SAP-RPT-OSS training: calling create_row_embeddings with train_table shape={train_table.shape}, train_labels provided, train_size=None")
@@ -199,8 +200,13 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
 @monitor_resources()
 def run_inference_based_on_row_embeddings(models, row_embedding_component, test_table, task_type, num_classes=None, idx_positive_label=None, train_size=None, actual_test_table=None, train_labels=None):
     # get row embeddings and assert they have the correct format and shape
-    # Pass train_size and train_labels to allow the approach to use them for embedding generation
-    test_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=test_table, train_size=train_size, train_labels=train_labels)
+    # Pass train_size and train_labels only for approaches that support them
+    if train_size is not None:
+        # For TabICL/TabPFN/SAP-RPT-OSS/HyTrel that need train_size
+        test_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=test_table, train_size=train_size, train_labels=train_labels)
+    else:
+        # For standard approaches that don't need train_size
+        test_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=test_table)
     # Use actual_test_table for validation if provided (for TabICL), otherwise use test_table
     validation_table = actual_test_table if actual_test_table is not None else test_table
     component_utils.assert_row_embedding_format(row_embeddings=test_row_embeddings, input_table=validation_table)
@@ -271,7 +277,8 @@ def main(cfg: DictConfig):
         # run inference with model
         # For TabICL/TabPFN/SAP_RPT_OSS/HyTrel: pass whole_table with train_size to get test embeddings with full context
         # For other methods: pass test_table without train_size (backward compatible)
-        approach_name = embedder.cfg.approach.get("name", "").lower()
+        approach_name = embedder.cfg.approach.get("name",
+                        embedder.cfg.approach.get("approach_name", "")).lower()
         if "tabicl" in approach_name or "tabpfn" in approach_name or "sap_rpt_oss" in approach_name or "hytrel" in approach_name:
             logger.info(f"TabICL/TabPFN/SAP-RPT-OSS/HyTrel mode: whole_table shape={whole_table.shape}, train_table shape={train_table.shape}, test_table shape={test_table.shape}")
             # Pass whole table but also pass actual test_table for proper validation
