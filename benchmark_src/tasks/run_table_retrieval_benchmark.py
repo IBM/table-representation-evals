@@ -6,6 +6,7 @@ from typing import Set, Dict, Any, Tuple, List
 
 import datasets
 import numpy as np
+import pandas as pd
 from datasets import Dataset
 from hydra.utils import get_original_cwd
 from omegaconf import DictConfig
@@ -15,10 +16,11 @@ from tqdm import tqdm
 
 from benchmark_src.approach_interfaces.table_embedding_interface import TableEmbeddingInterface
 from benchmark_src.dataset_creation.target.collect_all_target_datasets import get_target_dataset_by_name
+from benchmark_src.dataset_creation.utils import table_2d_to_df
+from benchmark_src.tasks import component_utils
 from benchmark_src.utils import result_utils
 from benchmark_src.utils.framework import get_approach_class
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
-from benchmark_src.tasks import component_utils
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -42,6 +44,16 @@ def get_qdrant_client(cfg: DictConfig) -> QdrantClient:
     return client
 
 
+def _table_to_df(table: Any) -> pd.DataFrame:
+    if isinstance(table, pd.DataFrame):
+        return table
+    if isinstance(table, str):
+        table = ast.literal_eval(table)
+    if isinstance(table, list):
+        return table_2d_to_df(table)
+    return pd.DataFrame()
+
+
 def infer_embedder_output_dim(
         table_component: TableEmbeddingInterface,
         corpus: datasets.arrow_dataset.Dataset
@@ -50,10 +62,9 @@ def infer_embedder_output_dim(
     if len(corpus) == 0:
         raise ValueError("Corpus is empty; cannot infer embedding dimension.")
 
-    sample_table = corpus[1]["table"]
-    # has to be a list of lists
-    if isinstance(sample_table, str):
-        sample_table = ast.literal_eval(sample_table)
+    sample_table = _table_to_df(corpus[1]["table"])
+    if sample_table.empty:
+        raise ValueError("Sample table is empty after conversion; cannot infer embedding dimension.")
     sample_embedding = table_component.create_table_embedding(sample_table)
     return int(np.array(sample_embedding).shape[-1])
 
@@ -76,12 +87,13 @@ def embed_corpus(
             logger.error(f"Row missing required fields: {missing}. Skipping.")
             continue
 
-        # make sure that number of columns is the same in header and table rows
-        if len(row["table"]) > 1 and len(row["table"][0]) != len(row["table"][1]):
-            logger.info(f"Row has inconsistent table structure, skipping. database_id: {row.get('database_id')}, table_id: {row.get('table_id')}")
+        table = _table_to_df(row["table"])
+        if table.empty:
+            logger.warning("Row has empty table, skipping. "
+                f"database_id: {row.get('database_id')}, table_id: {row.get('table_id')}")
             continue  # discard datapoint
 
-        vec = table_component.create_table_embedding(row["table"])
+        vec = table_component.create_table_embedding(table)
         payload = {"database_id": row.get("database_id"), "table_id": row.get("table_id")}
 
         vectors.append(np.array(vec))

@@ -207,7 +207,7 @@ def clean_and_expand():
             superclasses = subclass_info_dict[genre_id]
             for superclass in superclasses:
                 if superclass not in all_genres_used_in_lit_work_ids:
-                    superclass_genres_to_add.add(genre_id)
+                    superclass_genres_to_add.add(superclass)
 
     print(f"Adding {len(superclass_genres_to_add)} additional genres that are used as superclasses")
     all_genres_used_in_lit_work_ids += list(superclass_genres_to_add)

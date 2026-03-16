@@ -13,64 +13,69 @@ from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
 from benchmark_src.utils import load_benchmark, framework, result_utils
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
-from benchmark_src.dataset_creation.wikidata_hierarchies import create_books_dataset
+from benchmark_src.dataset_creation.wikidata_hierarchies import create_books_dataset, create_astronomical_dataset
 from benchmark_src.dataset_creation.create_variations import create_dataset_variations
 
 logger = logging.getLogger(__name__)
 
 def load_benchmark_data(cfg):
-    # TODO: check if data is already in cache, if not, generate it
-    
-    ################### get dataset name and information on variations #####################
-    if "@@" in cfg.dataset_name: 
-        dataset_info = str(cfg.dataset_name).split("@@")
-        dataset_name = dataset_info[0]
-        variation_string = dataset_info[1]
-        logger.info(f"Variation is: {variation_string}")
-        variation_info = variation_string.split("---")
-        logger.info(f"Have {len(variation_info)} variation parameters: {variation_info}")
-        variation_parameters = {s[0]: s[1] for x in variation_info for s in [x.split("::")]}
-    else:
-        dataset_name = cfg.dataset_name
+    base_dataset_folder = Path(get_original_cwd()) / Path(cfg.cache_dir) / "datasets" / "more_similar_than" # need to append base_dataset_name later
 
-    base_dataset_folder = Path(get_original_cwd()) / Path(cfg.cache_dir) / "datasets" / "more_similar_than" / dataset_name
-    if dataset_name == "wikidata_books":
+    if "@" in cfg.dataset_name:
+        dataset_info = str(cfg.dataset_name).split("@")
+        base_dataset_name = dataset_info[0]
+        sub_dataset_name = dataset_info[1]
+        
+        sub_dataset_folder_name = f"@{sub_dataset_name}"
+        logger.info(f"Running with sub-dataset @{sub_dataset_name} of base dataset {base_dataset_name}")
+    else:
+        base_dataset_name = cfg.dataset_name
+        sub_dataset_folder_name = "original"
+    base_dataset_folder = base_dataset_folder / base_dataset_name
+    sub_dataset_folder = base_dataset_folder / sub_dataset_folder_name
+    
+    if base_dataset_name == "wikidata_books":
         ################### check if the base dataset exists #####################
         if not base_dataset_folder.exists():
             create_books_dataset.create_books_dataset(cfg=cfg, dataset_save_dir=base_dataset_folder)
             logger.info('Done creating wikidata books dataset')
         else:
             logger.info('Wikidata books dataset found in cache')
-        ################### check if selected variation exists #####################
-        if variation_info == ['column_naming::original']:
-            logger.info(f"Running with base dataset")
-            variation_dataset_folder = base_dataset_folder / "original"
+
+
+    if not sub_dataset_folder.exists():
+        logger.info(f"Sub-dataset folder {sub_dataset_folder} does not exist, have to create the variation")
+        # need to create the variation
+        if base_dataset_name == "wikidata_books":
+            if sub_dataset_name == "no_genre":
+                logger.info(f"Creating variation {sub_dataset_name} for dataset {base_dataset_name} by removing the genre column, base_dataset_folder: {base_dataset_folder}")
+                create_books_dataset.remove_genre_column(cache_dir=base_dataset_folder)
+            elif sub_dataset_name == "only_five_cols":
+                logger.info(f"Creating variation {sub_dataset_name} for dataset {base_dataset_name} by keeping only five columns, base_dataset_folder: {base_dataset_folder}")
+                create_books_dataset.keep_only_five_columns(cache_dir=base_dataset_folder)
+            elif sub_dataset_name == "no_col_names":
+                logger.info(f"Creating variation {sub_dataset_name} for dataset {base_dataset_name} by removing column names, base_dataset_folder: {base_dataset_folder}")
+                create_books_dataset.remove_col_names(cache_dir=base_dataset_folder)
+            elif sub_dataset_name == "no_pid_in_col_names":
+                logger.info(f"Creating variation {sub_dataset_name} for dataset {base_dataset_name} by removing pid from column names, base_dataset_folder: {base_dataset_folder}")
+                create_books_dataset.remove_pid_from_col_names(cache_dir=base_dataset_folder)
+            else:
+                raise NotImplementedError(f"Sub-dataset {sub_dataset_name} not implemented for dataset {base_dataset_name}")
+        elif base_dataset_name == "astronomical_objects":
+            if sub_dataset_name == "only-text":
+                create_astronomical_dataset.remove_numerical_cols(cache_dir=base_dataset_folder)
+            else:
+                raise NotImplementedError(f"Sub-dataset {sub_dataset_name} not implemented for dataset {base_dataset_name}")
         else:
-            variation_dataset_folder = base_dataset_folder / variation_string
-            if not variation_dataset_folder.exists():
-                logger.info(f"Have to create variation data")
-                # TODO: load base dataset input table and dataset information and hand it over
-                with open(base_dataset_folder /"original" / "dataset_information.json", "r") as file:
-                    base_dataset_information = json.load(file)
-                base_input_table = load_benchmark.get_input_table(base_dataset_folder / "original")    
-                print(variation_info, type(variation_info))
-                # TODO: create variations
-                create_dataset_variations(variation_parameters=variation_parameters,
-                                           dataset_df=base_input_table, 
-                                           dataset_info=base_dataset_information, 
-                                           save_dir=variation_dataset_folder,
-                                           variation_name=variation_string)
-
-
-    assert variation_dataset_folder.exists(), f"Could not find path {variation_dataset_folder}"
+            raise NotImplementedError(f"Dataset {base_dataset_name} not implemented, cannot create variation {sub_dataset_name}")
 
     # get folder of the exact variation
 
-    with open(variation_dataset_folder / "dataset_information.json", "r") as file:
+    with open(sub_dataset_folder / "dataset_information.json", "r") as file:
         dataset_information = json.load(file)
 
     # load the input table of a datset and the testcase paths
-    input_table = load_benchmark.get_input_table(variation_dataset_folder, verbose=True)
+    input_table = load_benchmark.get_input_table(sub_dataset_folder, verbose=True)
     if cfg.test_case_limit:
         cfg.test_case_limit = int(cfg.test_case_limit)
     testcase_paths = load_benchmark.load_testcase_paths(dataset_path=base_dataset_folder, limit=cfg.test_case_limit)

@@ -221,8 +221,93 @@ def create_books_dataset(cfg, dataset_save_dir: Path):
                 )
     
 
+def remove_genre_column(cache_dir):
+    save_folder = cache_dir / "@no_genre"
+    save_folder.mkdir(exist_ok=True)
+    # load input_table.csv from cache dir
+    input_table_path = cache_dir / "original" / "input_table.csv"
+    input_table = pd.read_csv(input_table_path)
+    # remove genre column (genre___P136)
+    input_table = input_table.drop(columns=["genre___P136"])   
+    # save the modified table
+    input_table.to_csv(save_folder / "input_table.csv", index=False)
+    print(f"Removed genre column from input_table, saved new table to {save_folder / 'input_table.csv'}")
+
+    create_statistics(dataset_name='no_genre', 
+            input_table_df=input_table, 
+            testcases=None,
+            save_path=save_folder,
+            primary_key_column="QID"
+            )
+    
+    print(f"Saved variation with removed genre column to {save_folder}")
 
 
+def keep_only_five_columns(cache_dir):
+    save_folder = cache_dir / "@only_five_cols"
+    save_folder.mkdir(exist_ok=True)
+    # load input_table.csv from cache dir
+    input_table_path = cache_dir / "original" / "input_table.csv"
+    input_table = pd.read_csv(input_table_path)
+    # keep only the first five columns (    "QID", "label", "author___P50", "description___None": , "genre___P136")
+    input_table = input_table[["QID", "label", "author___P50", "description___None", "genre___P136"]]
+    # save the modified table
+    input_table.to_csv(save_folder / "input_table.csv", index=False)
+    print(f"Kept only the first five columns of the input_table, saved new table to {save_folder / 'input_table.csv'}")
+
+    create_statistics(dataset_name='only_five_cols', 
+            input_table_df=input_table, 
+            testcases=None,
+            save_path=save_folder,
+            primary_key_column="QID"
+            )
+    
+    print(f"Saved variation with only five columns to {save_folder}")
+
+
+def remove_col_names(cache_dir):
+    save_folder = cache_dir / "@no_col_names"
+    save_folder.mkdir(exist_ok=True)
+    # load input_table.csv from cache dir
+    input_table_path = cache_dir / "original" / "input_table.csv"
+    input_table = pd.read_csv(input_table_path)
+    # remove column names,
+    input_table.columns = [f'col{i}' for i in range(len(input_table.columns))]
+    # save the modified table
+    input_table.to_csv(save_folder / "input_table.csv", index=False)
+    print(f"Removed column names from input_table, saved new table to {save_folder / 'input_table.csv'}")
+
+    create_statistics(dataset_name='no_col_names', 
+            input_table_df=input_table, 
+            testcases=None,
+            save_path=save_folder,
+            primary_key_column="col0"
+            )
+    
+    print(f"Saved variation with removed column names to {save_folder}")
+
+
+def remove_pid_from_col_names(cache_dir):
+    save_folder = cache_dir / "@no_pid_in_col_names"
+    save_folder.mkdir(exist_ok=True)
+    # load input_table.csv from cache dir
+    input_table_path = cache_dir / "original" / "input_table.csv"
+    input_table = pd.read_csv(input_table_path)
+    # remove pids from column names, e.g. author___P50 -> author
+    new_col_names = [col.split("___")[0] for col in input_table.columns]
+    input_table.columns = new_col_names
+    # save the modified table
+    input_table.to_csv(save_folder / "input_table.csv", index=False)
+    print(f"Removed pids from column names of input_table, saved new table to {save_folder / 'input_table.csv'}")
+
+    create_statistics(dataset_name='no_pid_in_col_names', 
+            input_table_df=input_table, 
+            testcases=None,
+            save_path=save_folder,
+            primary_key_column="QID"
+            )
+    
+    print(f"Saved variation with removed pids from column names to {save_folder}")
 
 if __name__ == "__main__":
     create_books_dataset()

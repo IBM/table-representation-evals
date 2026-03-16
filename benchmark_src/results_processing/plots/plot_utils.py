@@ -5,7 +5,7 @@ from pathlib import Path
 
 ### TODO: should be configured by user, not hardcoded here!
 def approach_name_for_plot(approach_name: str, config_string: str):
-    if approach_name in ["tabicl", "tabpfn"]:
+    if approach_name in ["tabicl", "tabpfn", "sap_rpt_oss"]:
         if "predML_based_on=row_embeddings" in config_string:
             return f"{approach_name}-row_emb"
 

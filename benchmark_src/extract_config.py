@@ -30,7 +30,7 @@ if __name__ == "__main__":
                     if dataset_name not in datasets_to_exclude:
                         print(f"DATASET:{dataset_name}")
                         # Special handling for datasets with variations
-                        if dataset_name == "wikidata_books":
+                        if dataset_name == "wikidata_books_variations":
                             dataset_config_path = Path("./benchmark_src/config/dataset") / f"{dataset_name}.yaml"
                             if not dataset_config_path.exists():
                                 print(f"Could not find dataset config path: {dataset_config_path}")

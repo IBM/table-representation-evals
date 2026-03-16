@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from aggregate import aggregate_results
+from benchmark_src.results_processing import aggregate
 
 
 def quadrant_plot_aggregated_over_datasets(filename, task_df, task_type, results_folder: Path, results_column: str, title: str, marker_labels: bool, inference_only: bool=False):
@@ -11,7 +11,7 @@ def quadrant_plot_aggregated_over_datasets(filename, task_df, task_type, results
     # aggregate over all datasets to get one performance value
     ############################################################
     group_cols = ["Approach", "Configuration", "task"]
-    aggregated_over_datasets = aggregate_results(df=task_df, grouping_columns=group_cols)
+    aggregated_over_datasets = aggregate.aggregate_results(df=task_df, grouping_columns=group_cols)
 
     ############################################################
     # collect the needed data

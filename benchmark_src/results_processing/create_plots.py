@@ -5,8 +5,7 @@ from pathlib import Path
 import ast
 
 from benchmark_src.results_processing.results_helper import get_setup_infos
-from benchmark_src.results_processing.aggregate import aggregate_results
-from benchmark_src.results_processing.plots import row_similarity_plots, plot_info, datatype_comparison, more_similar_than_plots, quadrant_charts, predML_plots
+from benchmark_src.results_processing.plots import plot_info, datatype_comparison, more_similar_than_plots, quadrant_charts, predML_plots
 
 
 def gather_results_and_metrics(results_folder):

@@ -66,29 +66,28 @@ def found_at(k, position_list):
     print(f"{percent_found:.2f}% in top-{k} ({num_found}/{len(position_list)})")
     return percent_found
 
-def compute_mrr(position_list, max: int):
+def compute_mrr(position_list):
     """
     Computes the mean reciprocal rank, given a list of positions
     """
     if len(position_list) == 0:
         return 0
-    position_list = [x if x is not None else 2*max for x in position_list]
-    reciprocal_ranks = [1/rank for rank in position_list]
-    assert len(reciprocal_ranks) == len(position_list)
-    mrr = sum(reciprocal_ranks) / len(reciprocal_ranks)
+    reciprocal_ranks = [1/pos if pos is not None else 0.0 for pos in position_list]
+    mrr = sum(reciprocal_ranks) / len(position_list)
     return mrr
 
 def compute_all_metrics(all_positions):
     all_positions_without_none = [x for x in all_positions if x is not None]
-    print(f"Out of {len(all_positions)} working test cases, {len(all_positions_without_none)} were found in the top-10")
+    print(f"Out of {len(all_positions)} working test cases, {len(all_positions_without_none)} were found in the top-50")
     #print(f"Mean {np.mean(all_positions_without_none)} - Median {np.median(all_positions_without_none)}")
-    mrr = compute_mrr(all_positions,  10) # TODO: parameterize
+    mrr = compute_mrr(all_positions)
     print(f"MRR: {mrr}")
     results = {
         "In top-1 [%]": found_at(1, all_positions),
         "In top-3 [%]": found_at(3, all_positions),
         "In top-5 [%]": found_at(5, all_positions),
         "In top-10 [%]": found_at(10, all_positions),
+        "In top-50 [%]": found_at(50, all_positions),
         "MRR": mrr,
     }
 

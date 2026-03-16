@@ -1,4 +1,5 @@
 from typing import Any, List
+import pandas as pd
 
 from benchmark_src.approach_interfaces.table_embedding_interface import TableEmbeddingInterface
 from benchmark_approaches_src.sentence_transformer import approach_utils
@@ -14,12 +15,12 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
     def setup_model_for_task(self):
         self.approach_instance.load_trained_model()
 
-    def create_table_embedding(self, input_table: List[List[Any]]):
+    def create_table_embedding(self, input_table: pd.DataFrame):
         """
         Serialize the full DataFrame to Markdown (header + rows) and embed it
         using the SentenceTransformer model provided by the approach.
         """
-        markdown_str = approach_utils.convert_array_to_markdown(input_table, max_rows=self.table_row_limit)
+        markdown_str = approach_utils.convert_df_to_markdown(input_table, max_rows=self.table_row_limit)
         embedding = self.approach_instance.model.encode(
             markdown_str,
             show_progress_bar=False,

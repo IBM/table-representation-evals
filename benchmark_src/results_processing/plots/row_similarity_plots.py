@@ -4,7 +4,7 @@ import numpy as np
 import seaborn as sns
 from pathlib import Path
 
-from aggregate import aggregate_results
+from benchmark_src.results_processing.aggregate import aggregate_results
 import benchmark_src.results_processing.plots.plot_utils as plot_utils
 
 def quadrant_plot_aggregated_time(task_df, results_folder: Path):

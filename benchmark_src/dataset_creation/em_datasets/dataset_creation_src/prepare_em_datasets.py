@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @hydra.main(version_base=None, config_path="../config", config_name="config.yaml")
 def main(cfg:DictConfig):
     utils.logger_init()
-    logger.info(f"Got config: {cfg}")
+    logger.debug(f"Got config: {cfg}")
     cfg.output_dir = Path(cfg.output_dir)
 
     assert Path(cfg['raw_datasets_dir']).exists(), f"Couldn't find raw_datasets_dir {cfg['raw_datasets_dir']}, please make sure that the folder exists"
@@ -20,7 +20,7 @@ def main(cfg:DictConfig):
     
     dataset_name = cfg["dataset"]["dataset_name"]
 
-    print(f"#"*200)
+    logger.info(f"#"*200)
     logger.info(f"Dataset: {dataset_name}")
 
     if dataset_name == "musicbrainz":

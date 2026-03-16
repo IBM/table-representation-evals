@@ -6,8 +6,28 @@ import os
 import zipfile
 import tarfile
 import json
+import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+
+def table_2d_to_df(table_2d):
+    """
+    table_2d: list[list] where table_2d[0] is the header row.
+    Returns a pandas DataFrame.
+    """
+    if table_2d is None or len(table_2d) == 0:
+        return pd.DataFrame()
+
+    header = list(table_2d[0])
+    rows = table_2d[1:]
+
+    df = pd.DataFrame(rows, columns=header)
+
+    df = df.dropna(how="all")
+
+    return df
+
 
 def logger_init():
     logging.basicConfig(format='{levelname} - {name} - {asctime} {message}', 
