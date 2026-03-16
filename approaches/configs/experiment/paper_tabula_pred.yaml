@@ -11,8 +11,8 @@ hydra:
       approach.model_name: "mlfoundations/tabula-8b"
       approach.device: "cuda"  # does not run on cpu..
       approach.max_length: 512  # 512 is default
-      approach.batch_size: 1  # Process one row at a time for few-shot
-      approach.n_few_shot_examples: 10  # Number of training examples to use
+      approach.batch_size: 8  # Process one row at a time for few-shot
+      approach.n_few_shot_examples: 32  # Number of training examples to use
       approach.predML_based_on: custom_predictiveML_model
 
 benchmark_output_dir: run_01 # how to call the folder inside /results (benchmark is not re-run if results exist for this configuration in the given folder)
