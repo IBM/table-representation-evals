@@ -20,11 +20,36 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         self.model = None
         self.train_size = getattr(self.cfg.approach, "train_size", None)
         self._use_train_size_for_embeddings = getattr(self.cfg.approach, "use_train_size_for_embeddings", False)
+        self.task_type = None  # Will be set by setup_model_for_task
         logger.info("TabICLEmbedder: Initialized.")
 
-    def load_trained_model(self):
-        if self.model is None:
-            logger.info("Loading TabICL model...")
+    def _is_regression_task(self):
+        """
+        Determine if the task is regression based on stored task_type.
+        Returns True for regression, False for classification.
+        For non-predictive tasks (e.g., row similarity), defaults to classification.
+        """
+        if self.task_type is None:
+            # For non-predictive tasks (row similarity, column similarity, etc.),
+            # default to classification mode (use classifier for embeddings)
+            logger.debug("task_type not set (non-predictive task), defaulting to classification mode")
+            return False
+        return self.task_type == "regression"
+    
+    def _load_model_for_embeddings(self, is_regression):
+        """
+        Load the appropriate TabICL model (classifier or regressor) for generating embeddings.
+        """
+        # Check if we need to reload the model (e.g., switching between classifier and regressor)
+        needs_reload = False
+        if self.model is not None:
+            current_is_regressor = isinstance(self.model, TabICLRegressor)
+            if is_regression != current_is_regressor:
+                logger.info(f"Switching from {'regressor' if current_is_regressor else 'classifier'} to {'regressor' if is_regression else 'classifier'}")
+                needs_reload = True
+        
+        if self.model is None or needs_reload:
+            logger.info("Loading TabICL model for embeddings...")
             n_estimators = getattr(self.cfg.approach, "n_estimators", 32)
             use_memory_efficient = getattr(self.cfg.approach, "use_memory_efficient_model", True)
             device = getattr(self.cfg.approach, "device", "cpu")
@@ -36,25 +61,36 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             model_kwargs = {
                 "n_estimators": n_estimators,
                 "device": device,
-                "checkpoint_version": checkpoint_version,
             }
             
-            if use_memory_efficient:
-                model_kwargs.update({
-                    "batch_size": 4,
-                })
-                logger.info(f"TabICL model loaded with checkpoint_version={checkpoint_version}, n_estimators={n_estimators}, batch_size=4 on CPU with memory optimizations.")
+            # Choose appropriate checkpoint and model class based on task type
+            if is_regression:
+                # Check if checkpoint is v2
+                is_v2 = "v2" in checkpoint_version.lower()
+                if not is_v2:
+                    raise NotImplementedError("TabICL regression is only supported with v2 checkpoints. Please use a v2 checkpoint.")
+                
+                model_kwargs["checkpoint_version"] = "tabicl-regressor-v2-20260212.ckpt"
+                self.model = TabICLRegressor(**model_kwargs)
+                logger.info(f"TabICL Regressor loaded with checkpoint_version={model_kwargs['checkpoint_version']}, n_estimators={n_estimators} on {device}.")
             else:
-                logger.info(f"TabICL model loaded with checkpoint_version={checkpoint_version}, n_estimators={n_estimators} on CPU.")
+                model_kwargs["checkpoint_version"] = checkpoint_version
+                self.model = TabICLClassifier(**model_kwargs)
+                logger.info(f"TabICL Classifier loaded with checkpoint_version={checkpoint_version}, n_estimators={n_estimators} on {device}.")
             
-            self.model = TabICLClassifier(**model_kwargs)
+            if use_memory_efficient:
+                logger.info("Using memory efficient mode with batch_size=4")
+
+    def load_trained_model(self):
+        """Legacy method for backward compatibility - loads classifier by default."""
+        if self.model is None:
+            self._load_model_for_embeddings(is_regression=False)
 
     def preprocessing(self, input_table: pd.DataFrame):
         return input_table
 
     def get_row_embeddings(self, input_table: pd.DataFrame, train_size: int = None, train_labels: np.ndarray = None):
         
-        self.load_trained_model()
         input_table_clean = self._preprocess_for_tabicl(input_table)
         effective_train_size = train_size if train_size is not None else (self.train_size if self._use_train_size_for_embeddings else None)
         
@@ -63,6 +99,12 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             train_labels_array = self._convert_labels_to_numeric(train_labels)
         else:
             train_labels_array = np.zeros(len(input_table_clean))
+        
+        # Detect task type from stored task_type
+        is_regression = self._is_regression_task()
+        
+        # Load appropriate model based on task type
+        self._load_model_for_embeddings(is_regression)
         
         # Fit model and get embeddings
         if train_labels is not None and effective_train_size is not None:

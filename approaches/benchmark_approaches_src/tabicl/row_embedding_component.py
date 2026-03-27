@@ -11,6 +11,9 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
         self.approach_instance = approach_instance
 
     def setup_model_for_task(self, input_table: pd.DataFrame, dataset_information: dict):
+        # Store task_type if provided in dataset_information
+        if 'task_type' in dataset_information:
+            self.approach_instance.task_type = dataset_information['task_type']
         # Load the model if not already loaded
         self.approach_instance.load_trained_model()
 
