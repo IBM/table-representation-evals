@@ -101,7 +101,9 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
     logger.info(f"Detected approach name: '{approach_name}'")
     if "tabicl" in approach_name or "tabpfn" in approach_name or "sap_rpt_oss" in approach_name:
         logger.info(f"TabICL/TabPFN/SAP-RPT-OSS training: calling create_row_embeddings with train_table shape={train_table.shape}, train_labels provided, train_size=None")
-        train_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=train_table, train_size=None, train_labels=train_labels)
+        # use dummy labels, did not work as well with the orig train labels (TODO: parameterize from config)
+        train_labels_dummy = np.zeros(len(train_labels))
+        train_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=train_table, train_size=None, train_labels=train_labels_dummy)
     else:
         logger.info(f"Standard training: calling create_row_embeddings with train_table shape={train_table.shape}")
         train_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=train_table)
