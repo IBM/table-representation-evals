@@ -90,8 +90,9 @@ def run_training_based_on_row_embeddings(row_embedding_component, task_type, who
     """
     logger.debug(f"Called run_task_based_on_row_embeddings")
     logger.info(f"Training phase: whole_table shape={whole_table.shape}, train_table shape={train_table.shape}")
-    # setup approach model
-    row_embedding_component.setup_model_for_task(input_table=whole_table, dataset_information=dataset_information)
+    # setup approach model - add task_type to dataset_information for approaches that need it
+    dataset_information_with_task = {**dataset_information, 'task_type': task_type}
+    row_embedding_component.setup_model_for_task(input_table=whole_table, dataset_information=dataset_information_with_task)
 
     # get row embeddings and assert they have the correct format and shape
     # For TabICL/TabPFN/SAP_RPT_OSS: pass train_labels but NO train_size during training
