@@ -334,7 +334,7 @@ def compute_elo_scores(df: pd.DataFrame, seed: int = 123, k_factor: float = 32.0
     per_task_df = pd.DataFrame(per_task_records)
     per_task_df = per_task_df.sort_values(['task', 'elo_score_task'], ascending=[True, False]).reset_index(drop=True)
 
- # -------------------
+    # -------------------
     # Overall aggregation
     # -------------------
     overall_df = (
