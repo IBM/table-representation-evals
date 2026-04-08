@@ -197,8 +197,8 @@ def create_astronomy_dataset():
     """
 
     cache_dir = Path("./cache/dataset_creation_resources/wikidata_astronomical_objects")
-    input_csv_path = cache_dir / "astronomical_table_cleaned.csv"
-    hierarchy_json_path = cache_dir / "old" / "astronomical_hierarchy_manual.json"
+    input_csv_path = cache_dir / "astronomical_table.csv"
+    hierarchy_json_path = cache_dir / "astronomical_hierarchy.json"
     dataset_save_dir = Path("./cache/datasets/more_similar_than/astronomical_objects")
     dataset_save_dir.mkdir(parents=True, exist_ok=True)
 

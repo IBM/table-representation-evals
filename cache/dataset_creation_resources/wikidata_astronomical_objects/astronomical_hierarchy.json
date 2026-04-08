@@ -1,0 +1,164 @@
+{
+ "astronomical object___Q6999": {
+  "gravitationally bound system___Q15053549": {
+   "star system___Q595871": {
+    "binary star___Q50053": {
+     "spectroscopic binary___Q1993624": {},
+     "contact binary star___Q2716249": {
+      "rotating ellipsoidal variable___Q1332364": {}
+     },
+     "eclipsing binary star___Q1457376": {
+      "W Ursae Majoris variable___Q691269": {},
+      "Beta Lyrae variable___Q830831": {}
+     },
+     "cataclysmic variable star___Q1059564": {
+      "nova___Q6458": {},
+      "dwarf nova___Q244264": {}
+     },
+     "RS Canum Venaticorum variable___Q1392913": {},
+     "X-ray binary___Q5961": {
+      "low-mass X-ray binary___Q1407562": {},
+      "high-mass X-ray binary___Q845169": {}
+     }
+    },
+    "multiple star___Q878367": {
+     "triple star system___Q2088753": {}
+    }
+   },
+   "galaxy group or cluster___Q14515149": {
+    "galaxy group___Q1491746": {
+     "compact group of galaxies___Q65259218": {},
+     "interacting galaxies___Q28738741": {}
+    },
+    "galaxy cluster___Q204107": {}
+   }
+  },
+  "meteorite___Q60186": {
+   "iron meteorite___Q827989": {},
+   "stony meteorite___Q1640168": {},
+   "chondrite___Q48361": {
+    "carbonaceous chondrite___Q1062169": {
+     "CK chondrite___Q104530711": {}
+    },
+    "ordinary chondrite___Q1195475": {}
+   }
+  },
+  "substellar object___Q3132741": {
+   "small Solar System body___Q193275": {
+    "comet___Q3559": {
+     "non-periodic comet___Q1060455": {
+      "hyperbolic comet___Q20717849": {}
+     },
+     "periodic comet___Q11416914": {
+      "Halley-type comet___Q11741560": {}
+     }
+    },
+    "possible dwarf planet___Q29370670": {},
+    "asteroid___Q3863": {
+     "near-Earth asteroid___Q217526": {}
+    }
+   },
+   "minor planet___Q1022867": {
+    "minor planet group___Q2332332": {
+     "trans-Neptunian object___Q6592": {
+      "resonant trans-Neptunian object___Q6635": {
+       "plutino___Q6599": {}
+      }
+     },
+     "asteroid family___Q249083": {}
+    }
+   },
+   "brown dwarf___Q101600": {},
+   "natural satellite___Q2537": {
+    "irregular moon___Q1632885": {},
+    "minor planet moon___Q657829": {}
+   }
+  },
+  "interstellar cloud___Q1054444": {
+   "nebula___Q42372": {
+    "dark nebula___Q204194": {},
+    "reflection nebula___Q203958": {},
+    "emission nebula___Q202265": {
+     "H II region___Q11282": {},
+     "planetary nebula___Q13632": {},
+     "supernova remnant___Q207436": {},
+     "Herbig\u2013Haro object___Q50048": {}
+    },
+    "molecular cloud___Q272447": {}
+   }
+  },
+  "deep-sky object___Q249389": {
+   "galaxy___Q318": {
+    "elliptical galaxy___Q184348": {},
+    "emission-line galaxy___Q72802508": {},
+    "active galactic nucleus___Q46587": {
+     "Seyfert galaxy___Q213930": {
+      "Seyfert 1 galaxy___Q71965429": {},
+      "Seyfert 2 galaxy___Q71965638": {}
+     },
+     "quasar___Q83373": {
+      "blazar___Q221221": {
+       "BL Lacertae object___Q195385": {}
+      }
+     },
+     "radio galaxy___Q217012": {}
+    },
+    "low-ionization nuclear emission-line region___Q2557101": {},
+    "low-surface-brightness galaxy___Q115518": {},
+    "interacting galaxy___Q644507": {},
+    "brightest cluster galaxy___Q1151284": {},
+    "dwarf galaxy___Q190438": {
+     "dwarf spheroidal galaxy___Q654754": {}
+    },
+    "irregular galaxy___Q190397": {}
+   },
+   "star cluster___Q168845": {
+    "open cluster___Q11387": {
+     "moving group___Q12046080": {}
+    },
+    "globular cluster___Q11276": {},
+    "stellar association___Q736194": {
+     "stellar stream___Q935337": {}
+    }
+   }
+  },
+  "star___Q523": {
+   "high proper-motion star___Q2247863": {},
+   "variable star___Q6243": {
+    "long-period variable star___Q1153690": {
+     "Mira variable___Q744691": {}
+    },
+    "pulsating variable star___Q353834": {
+     "Delta Scuti variable___Q836976": {},
+     "RR Lyrae variable___Q726242": {},
+     "Cepheid variable___Q188593": {
+      "classical Cepheid variable___Q10451997": {}
+     }
+    },
+    "eruptive variable star___Q1362543": {
+     "flare star___Q285400": {},
+     "Orion variable___Q1352333": {
+      "T Tauri-type star___Q6232": {}
+     }
+    },
+    "irregular variable___Q1141054": {},
+    "rotating variable star___Q2168098": {
+     "BY Draconis variable___Q797219": {}
+    }
+   },
+   "carbon star___Q130019": {},
+   "young stellar object___Q497654": {},
+   "low-mass star___Q12795622": {},
+   "emission-line star___Q72803622": {
+    "Be-type star___Q812800": {}
+   },
+   "peculiar star___Q1142192": {
+    "OH/IR star___Q2007502": {}
+   },
+   "S-type star___Q1153392": {},
+   "suspected variable___Q66521853": {
+    "cataclysmic binary candidate___Q72704237": {}
+   }
+  }
+ }
+}

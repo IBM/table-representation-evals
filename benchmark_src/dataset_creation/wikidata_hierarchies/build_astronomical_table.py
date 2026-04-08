@@ -94,7 +94,6 @@ def get_properties_for_instances(entity_qids):
         #obj_info = wikidata_utils.construct_id_label_string(id=obj_id, label=obj_label)
         
         instance_information[instance_id][property_info] = obj_label
-        #print(book_id, "--", pid, p_label, "--", obj_id, obj_label)
 
     return instance_information
 
@@ -113,82 +112,80 @@ def get_instance_information(instance_qid_list):
 
     return all_instance_information
 
-def build_initial_table(hierarchy, books_per_genre, book_label_lookup):
+def build_initial_table(hierarchy, items_per_subclass, item_label_lookup):
     # find leaves
     leaf_nodes = hierarchy_utils.get_leaves(hierarchy, hierarchy, [])
-    print(f"Found {len(leaf_nodes)} leaf genres")
+    print(f"Found {len(leaf_nodes)} leaf classes in the hierarchy")
 
-    # collect the books for each of the leaf genres
-    books = {}
-    for genre in leaf_nodes:
-        genre_label, genre_id = wikidata_utils.deconstruct_label_id_string(genre)
+    # collect the items for each of the leaf classes
+    entities = {}
+    for item_class in leaf_nodes:
+        class_label, class_id = wikidata_utils.deconstruct_label_id_string(item_class)
         try:
-            books[genre] = books_per_genre[genre_id]
+            entities[item_class] = items_per_subclass[class_id]
         except:
-            print(f"Could not find books for {genre}")
+            print(f"Could not find concrete entities for {item_class}")
 
-    all_books = []
-    for book_list in books.values():
-        all_books.extend(book_list)
-    num_books_total = sum([len(x) for x in books.values()])
-    print(f"Found {num_books_total} books in total, same as {len(all_books)}")
+    all_entities = []
+    for entity_list in entities.values():
+        all_entities.extend(entity_list)
+    num_entities_total = sum([len(x) for x in entities.values()])
+    print(f"Found {num_entities_total} entities in total, same as {len(all_entities)}")
 
-    # collect all properties for each book
-    book_information = get_instance_information(all_books)
-    book_information_list = []
-    for book_id, book_info in book_information.items():
-        book_info["QID"] = book_id
-        book_title = book_label_lookup[book_id]
-        if not wikidata_utils.is_wikidata_id(book_title):
-            book_info["label"] = book_title
-            book_information_list.append(book_info)
+    # collect all properties for each entity
+    entity_information = get_instance_information(all_entities)
+    entity_information_list = []
+    for entity_id, entity_info in entity_information.items():
+        entity_info["QID"] = entity_id
+        entity_title = item_label_lookup[entity_id]
+        if not wikidata_utils.is_wikidata_id(entity_title):
+            entity_info["label"] = entity_title
+            entity_information_list.append(entity_info)
 
-    book_table = pd.DataFrame(book_information_list, index=["QID"])
-    print(book_table)
+    full_table = pd.DataFrame(entity_information_list, index=["QID"])
+    print(full_table)
 
-    return book_table
+    return full_table
 
 # TODO: refactor code with other build_initial_table function
-def build_table(all_genres, books_per_genre, book_label_lookup):
+def build_table(all_classes, items_per_subclass, item_label_lookup):
     created_table = pd.DataFrame()
 
-    # collect the books for each of the leaf genres
-    books = {}
-    for genre in all_genres:
-        genre_label, genre_id = wikidata_utils.deconstruct_label_id_string(genre)
+    # collect the entities for each of the leaf classes
+    entities = {}
+    for entity_class in all_classes:
+        class_label, class_id = wikidata_utils.deconstruct_label_id_string(entity_class)
         try:
-            book_list = books_per_genre[genre_id]
-            if len(book_list) > 0:
-                books[genre] = book_list
-            #print(f"Found {len(books[genre])} books for genre {genre_label}")
+            entity_list = items_per_subclass[class_id]
+            if len(entity_list) > 0:
+                entities[entity_class] = entity_list
+            #print(f"Found {len(entities[genre])} entities for genre {genre_label}")
         except:
-            print(f"Could not find books for {genre}")
+            print(f"Could not find entities for {entity_class}")
             pass
 
-    print(f"Total found books: {sum([len(x) for x in books.values()])} with {len(books.keys())} genres")
+    print(f"Total found entities: {sum([len(x) for x in entities.values()])} with {len(entities.keys())} classes")
     
-    ############ TODO: this filtering should be done later.... ########################
-    all_books = []
-    for book_list in books.values():
-        # TODO: parameterize how many books 
-        random.Random(creation_random).shuffle(book_list)
-        chosen_books = book_list[:200]
-        all_books.extend(chosen_books)
-        #all_books.extend(book_list)
-    print(f"Chose {len(all_books)} instances in total")
-    ####################################################################################
+    # maybe filter later?
+    all_entities = []
+    for entity_list in entities.values():
+        # TODO: parameterize how many entities? Take 200 for now to have a manageable table size
+        random.Random(creation_random).shuffle(entity_list)
+        chosen_entities = entity_list[:200]
+        all_entities.extend(chosen_entities)
+    print(f"Chose {len(all_entities)} instances in total")
 
-     # collect all properties for each book (#TODO: cache the information)
-    book_information = get_instance_information(all_books)
-    book_information_list = []
-    for book_id, book_info in book_information.items():
-        book_info["QID"] = book_id
-        book_title = book_label_lookup[book_id]
-        if not wikidata_utils.is_wikidata_id(book_title):
-            book_info["label"] = book_title
-            book_information_list.append(book_info)
+     # collect all properties for each entity (#TODO: cache the information)
+    entity_information = get_instance_information(all_entities)
+    entity_information_list = []
+    for entity_id, entity_info in entity_information.items():
+        entity_info["QID"] = entity_id
+        entity_title = item_label_lookup[entity_id]
+        if not wikidata_utils.is_wikidata_id(entity_title):
+            entity_info["label"] = entity_title
+            entity_information_list.append(entity_info)
 
-    created_table = pd.DataFrame(book_information_list)
+    created_table = pd.DataFrame(entity_information_list)
     created_table = created_table.set_index("QID")
     
     print(created_table)
@@ -199,7 +196,7 @@ if __name__ == "__main__":
 
     # load the created hierarchy from disk
     print(SAVE_DIR.exists())
-    with open(SAVE_DIR / "old" / "astronomical_hierarchy_manual.json", "r") as file:
+    with open(SAVE_DIR / "astronomical_hierarchy.json", "r") as file:
         hierarchy = json.load(file)
 
     # get all classes
@@ -215,17 +212,13 @@ if __name__ == "__main__":
     with open(SAVE_DIR / "old" /"items_labels.json", "r") as file:
         item_label_lookup = json.load(file)
 
-
-    # TODO: need to add replacements to leaf nodes 
-    ## TODO: need to save them to disk in create_hierarchy first
-
     rebuild_table = True
 
     if rebuild_table:
         created_table = build_table(all_classes, items_per_subclass, item_label_lookup)
-        created_table.to_csv(SAVE_DIR / "astronomical_table.csv")
+        created_table.to_csv(SAVE_DIR / "astronomical_table_initial.csv")
     else:
-        created_table = pd.read_csv(SAVE_DIR / "astronomical_table.csv", low_memory=False)
+        created_table = pd.read_csv(SAVE_DIR / "astronomical_table_initial.csv", low_memory=False)
     
 
     print(f"Have columns: {created_table.columns}")
@@ -284,7 +277,4 @@ if __name__ == "__main__":
     print(created_table)
 
     # create pandas dataframe and save to disk
-    created_table.to_csv(SAVE_DIR / "astronomical_table_cleaned.csv", index=True)
-
-    ## TODO: next prune table (remove too sparse rows??)
-
+    created_table.to_csv(SAVE_DIR / "astronomical_table.csv", index=True)
