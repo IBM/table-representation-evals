@@ -1,0 +1,27 @@
+# @package _global_
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: sap_rpt_oss
+
+hydra:
+  verbose: True
+  sweeper:
+    params:
+      approach.bagging: 8  # Use fewer bagging iterations for testing
+      approach.max_context_size: 8192  # Use smaller context size for testing (8192 for best performance)
+      approach.predML_based_on: custom_predictiveML_model
+  launcher:
+    n_jobs: 1  # Use fewer jobs to avoid memory issues
+    prefer: processes
+    backend: loky
+
+benchmark_output_dir: main_experiments
+
+benchmark_tasks:
+  #################################### 
+  ###### Predictive ML
+  #################################### 
+  predictive_ml:
+    datasets: ${experiment_datasets.predictive_ml_datasets} 
+    task_parameters:
+      run_task_based_on: custom_predictiveML_model # needs to be either "row_embeddings" or "custom_predictiveML_model"

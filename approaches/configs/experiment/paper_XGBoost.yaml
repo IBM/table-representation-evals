@@ -1,16 +1,16 @@
 # @package _global_
 defaults:
   - /experiment_datasets/global_datasets
-  - override /approach: baseline # must be how you named the config file for your approach
+  - override /approach: baseline  
 
 hydra:
-  verbose: True # set to True for debug outprints, set to False for Info prints only
+  verbose: True 
 
-benchmark_output_dir: run_01 # how to call the folder inside /results (benchmark is not re-run if results exist for this configuration in the given folder)
+benchmark_output_dir: main_experiments 
 
 benchmark_tasks:
 
-  #################################### 
+  ################################### 
   ###### Predictive ML
   #################################### 
   predictive_ml:
