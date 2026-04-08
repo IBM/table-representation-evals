@@ -103,6 +103,8 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         self.tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
         self.max_token_length = DEFAULT_MAX_TOKEN_LENGTH
+
+        self.table_row_limit = cfg.approach.table_row_limit
         
         logger.info(f"HyTrelEmbedder initialized on device: {self.device}")
 

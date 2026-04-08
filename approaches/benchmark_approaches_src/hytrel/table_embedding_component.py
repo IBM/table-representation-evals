@@ -33,7 +33,6 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         Returns:
             np.ndarray: Table embedding of shape (embedding_dim,)
         """
-        # Convert List[List] to DataFrame
         if len(input_table) == 0:
             raise ValueError("Input table is empty")
         
@@ -49,6 +48,11 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         #     print(f"Error creating DataFrame with headers: {headers} and data_rows: {data_rows}")
         #     print(f"Input table: {input_table}")
         
+        # limit input table:
+        if self.approach_instance.table_row_limit != -1:
+            input_table = input_table.head(self.approach_instance.table_row_limit)
+
+
         # Get table embedding using the approach instance
         table_embedding = self.approach_instance.get_table_embedding(input_table)
         
