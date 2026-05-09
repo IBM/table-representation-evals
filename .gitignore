@@ -23,3 +23,6 @@ ContextAwareJoin/*
 
 # only have the template in the repo
 setup_benchmark.sh
+
+# personal docs (never commit)
+/docs/

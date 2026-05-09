@@ -45,14 +45,28 @@ cell_task_datasets:
 ###### Table Retrieval
 ####################################
 table_retrieval_datasets:
-  - gitTables
-  # - fetaqa # 2003 tables, 2003 queries
+  # - gitTables # for other paper experiments; not used for table-level task experiments here
+  - fetaqa # 2003 tables, 2003 queries
   # - tabfact # 1695 tables, 12779 queries
   # - ottqa # 789 tables, 2114 queries
   # - spider-train # 795 tables, 6997 queries
   # - spider-validation # 81 tables, 1034 queries
   # - spider-test # 180 tables, 2147 queries
   # - bird-validation # 75 tables, 1534 queries
+
+####################################
+###### Table Shuffling
+####################################
+table_shuffling_datasets:
+  - fetaqa@@v0
+  - tabfact@@v0
+  - fetaqa@@v1
+
+####################################
+###### Table Type Detection
+####################################
+table_type_detection_datasets:
+  - wdc_schema_org
 
 ################################### 
 ##### Predictive ML
