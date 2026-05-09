@@ -16,7 +16,7 @@ from omegaconf import DictConfig
 from tqdm import tqdm
 
 from benchmark_src.approach_interfaces.table_embedding_interface import TableEmbeddingInterface
-from benchmark_src.dataset_creation.table_type_detection.load_ttd import LABEL_DICT, load_ttd_split
+from benchmark_src.dataset_creation.table_type_detection.load_ttd import load_ttd_split
 from benchmark_src.tasks import component_utils
 from benchmark_src.utils import result_utils
 from benchmark_src.utils.framework import get_approach_class
@@ -89,9 +89,13 @@ def _embed_or_load_cached(
     return train_embeddings, test_embeddings
 
 
-def _train_classifiers(train_embeddings: np.ndarray, train_labels: list[int]) -> dict[str, Any]:
-    y_train = np.asarray(train_labels)
-    num_classes = len(LABEL_DICT)
+def _train_classifiers(
+    train_embeddings: np.ndarray, train_labels: list[int]
+) -> tuple[dict[str, Any], sklearn.preprocessing.LabelEncoder]:
+    label_encoder = sklearn.preprocessing.LabelEncoder()
+    y_train = label_encoder.fit_transform(train_labels)
+    num_classes = len(label_encoder.classes_)
+    logger.info(f"TTD label mapping: {list(label_encoder.classes_)}")
 
     model_xgb = xgb.XGBClassifier(
         objective="multi:softprob",
@@ -114,7 +118,7 @@ def _train_classifiers(train_embeddings: np.ndarray, train_labels: list[int]) ->
         "XGBoost": model_xgb,
         "MLP": model_mlp,
         "KNeighbors": model_knn,
-    }
+    }, label_encoder
 
 
 def _predict_classifiers(
@@ -132,26 +136,20 @@ def run_ttd_task(
     train_tables: list,
     train_labels: list[int],
     test_tables: list,
-) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], sklearn.preprocessing.LabelEncoder]:
     train_embeddings, test_embeddings = _embed_or_load_cached(
         table_component=table_component,
         cfg=cfg,
         train_tables=train_tables,
         test_tables=test_tables,
     )
-    models = _train_classifiers(train_embeddings, train_labels)
+    models, label_encoder = _train_classifiers(train_embeddings, train_labels)
     hard_preds, proba_preds = _predict_classifiers(models, test_embeddings)
-    return hard_preds, proba_preds
-
-
-def _limit_split(tables: list, labels: list[int], limit: int | None) -> tuple[list, list[int]]:
-    if limit is None:
-        return tables, labels
-    return tables[:limit], labels[:limit]
+    return hard_preds, proba_preds, label_encoder
 
 
 def main(cfg: DictConfig):
-    logger.debug("Started table type detection benchmark")
+    logger.info("Started table type detection benchmark")
     multiprocessing.set_start_method("spawn", force=True)
 
     if cfg.dataset_name != TTD_DATASET_NAME:
@@ -160,12 +158,10 @@ def main(cfg: DictConfig):
 
     table_embedding_component, resource_metrics_setup = get_embedder(cfg)
 
-    train_tables, train_labels = load_ttd_split("train")
-    test_tables, test_labels = load_ttd_split("test")
-    train_tables, train_labels = _limit_split(train_tables, train_labels, cfg.test_case_limit)
-    test_tables, test_labels = _limit_split(test_tables, test_labels, cfg.test_case_limit)
+    test_tables, test_labels = load_ttd_split("test", limit=cfg.test_case_limit)
+    train_tables, train_labels = load_ttd_split("train", limit=cfg.test_case_limit)
 
-    (y_pred_values, y_proba_values), resource_metrics_task = run_ttd_task(
+    (y_pred_values, y_proba_values, label_encoder), resource_metrics_task = run_ttd_task(
         table_component=table_embedding_component,
         cfg=cfg,
         train_tables=train_tables,
@@ -174,7 +170,7 @@ def main(cfg: DictConfig):
     )
 
     result_metrics = {}
-    y_test = np.asarray(test_labels)
+    y_test = label_encoder.transform(test_labels)
     for model_name, y_pred in y_pred_values.items():
         accuracy = sklearn.metrics.accuracy_score(y_test, y_pred)
         f1_macro = sklearn.metrics.f1_score(y_test, y_pred, average="macro")
