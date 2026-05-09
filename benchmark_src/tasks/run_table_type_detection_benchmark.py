@@ -40,7 +40,8 @@ def get_embedder(cfg: DictConfig) -> tuple[TableEmbeddingInterface, dict[str, An
 def _cache_path(cfg: DictConfig) -> Path:
     cache_dir = Path(cfg.cache_dir) / "ttd_embeddings"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    run_hash = hashlib.sha1(str(cfg.run_identifier).encode("utf-8")).hexdigest()[:16]
+    key = f"{cfg.run_identifier}|limit={cfg.test_case_limit}"
+    run_hash = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
     return cache_dir / f"{run_hash}.npz"
 
 
