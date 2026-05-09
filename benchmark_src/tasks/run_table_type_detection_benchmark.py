@@ -107,7 +107,7 @@ def _train_classifiers(train_embeddings: np.ndarray, train_labels: list[int]) ->
     )
     model_mlp.fit(train_embeddings, y_train)
 
-    model_knn = sklearn.neighbors.KNeighborsClassifier(n_neighbors=min(5, len(y_train)))
+    model_knn = sklearn.neighbors.KNeighborsClassifier(n_neighbors=5)
     model_knn.fit(train_embeddings, y_train)
 
     return {
@@ -117,8 +117,12 @@ def _train_classifiers(train_embeddings: np.ndarray, train_labels: list[int]) ->
     }
 
 
-def _predict_classifiers(models: dict[str, Any], test_embeddings: np.ndarray) -> dict[str, np.ndarray]:
-    return {model_name: model.predict(test_embeddings) for model_name, model in models.items()}
+def _predict_classifiers(
+    models: dict[str, Any], test_embeddings: np.ndarray
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
+    hard_preds = {name: model.predict(test_embeddings) for name, model in models.items()}
+    proba_preds = {name: model.predict_proba(test_embeddings) for name, model in models.items()}
+    return hard_preds, proba_preds
 
 
 @monitor_resources()
@@ -128,7 +132,7 @@ def run_ttd_task(
     train_tables: list,
     train_labels: list[int],
     test_tables: list,
-) -> dict[str, np.ndarray]:
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
     train_embeddings, test_embeddings = _embed_or_load_cached(
         table_component=table_component,
         cfg=cfg,
@@ -136,7 +140,8 @@ def run_ttd_task(
         test_tables=test_tables,
     )
     models = _train_classifiers(train_embeddings, train_labels)
-    return _predict_classifiers(models, test_embeddings)
+    hard_preds, proba_preds = _predict_classifiers(models, test_embeddings)
+    return hard_preds, proba_preds
 
 
 def _limit_split(tables: list, labels: list[int], limit: int | None) -> tuple[list, list[int]]:
@@ -160,7 +165,7 @@ def main(cfg: DictConfig):
     train_tables, train_labels = _limit_split(train_tables, train_labels, cfg.test_case_limit)
     test_tables, test_labels = _limit_split(test_tables, test_labels, cfg.test_case_limit)
 
-    y_pred_values, resource_metrics_task = run_ttd_task(
+    (y_pred_values, y_proba_values), resource_metrics_task = run_ttd_task(
         table_component=table_embedding_component,
         cfg=cfg,
         train_tables=train_tables,
@@ -173,9 +178,13 @@ def main(cfg: DictConfig):
     for model_name, y_pred in y_pred_values.items():
         accuracy = sklearn.metrics.accuracy_score(y_test, y_pred)
         f1_macro = sklearn.metrics.f1_score(y_test, y_pred, average="macro")
-        logger.info(f"{model_name} TTD accuracy: {accuracy:.4f}, f1_macro: {f1_macro:.4f}")
+        f1_micro = sklearn.metrics.f1_score(y_test, y_pred, average="micro")
+        log_loss = sklearn.metrics.log_loss(y_test, y_proba_values[model_name])
+        logger.info(f"{model_name} TTD accuracy: {accuracy:.4f}, f1_macro: {f1_macro:.4f}, f1_micro: {f1_micro:.4f}, log_loss: {log_loss:.4f}")
         result_metrics[f"{model_name}_accuracy (↑)"] = float(accuracy)
         result_metrics[f"{model_name}_f1_macro (↑)"] = float(f1_macro)
+        result_metrics[f"{model_name}_f1_micro (↑)"] = float(f1_micro)
+        result_metrics[f"{model_name}_log_loss (↓)"] = float(log_loss)
 
     save_resource_metrics_to_disk(
         cfg=cfg,
