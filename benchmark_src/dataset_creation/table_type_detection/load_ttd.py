@@ -1,8 +1,12 @@
 import logging
+import math
+from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
 from hydra.utils import get_original_cwd
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +31,44 @@ def _ttd_root() -> Path:
     return Path(get_original_cwd()) / TTD_DATA_SUBDIR
 
 
-def _with_empty_header(df: pd.DataFrame) -> pd.DataFrame:
-    """Match HyTrel TTD preprocessing: empty header, body from df.values."""
+def _load_single(path: Path) -> pd.DataFrame | None:
+    """Load one TTD file, returning a table with empty column headers or None on failure."""
+    try:
+        df = pd.read_json(path, compression="gzip", lines=True)
+    except ValueError:
+        return None
+    if df.empty:
+        return None
     table = pd.DataFrame(df.values)
-    table.columns = ["" for _ in table.columns]
+    table.columns = [""] * len(table.columns)
     return table
 
 
-def load_ttd_split(split: str) -> tuple[list[pd.DataFrame], list[int]]:
+def _filter_paths(all_paths: list[Path]) -> tuple[list[tuple[Path, int]], int]:
+    """Filter to paths with known label prefixes. Returns (valid_paths, unknown_count)."""
+    valid_paths = []
+    unknown_count = 0
+    for path in all_paths:
+        label = path.name.split("_", 1)[0]
+        if label not in LABEL_DICT:
+            unknown_count += 1
+            logger.warning(f"Skipping TTD file with unknown label prefix: {path.name}")
+        else:
+            valid_paths.append((path, LABEL_DICT[label]))
+    return valid_paths, unknown_count
+
+
+def _apply_limit(valid_paths: list[tuple[Path, int]], limit: int) -> list[tuple[Path, int]]:
+    """Subsample to at most `limit` entries, balanced across classes."""
+    by_label: dict[int, list[tuple[Path, int]]] = defaultdict(list)
+    for path, label_id in valid_paths:
+        by_label[label_id].append((path, label_id))
+    per_class = math.ceil(limit / len(by_label))
+    limited = [entry for entries in by_label.values() for entry in entries[:per_class]]
+    return limited[:limit]
+
+
+def load_ttd_split(split: str, limit: int | None = None) -> tuple[list[pd.DataFrame], list[int]]:
     """
     Load one WDC Schema.org TTD split.
 
@@ -49,31 +83,25 @@ def load_ttd_split(split: str) -> tuple[list[pd.DataFrame], list[int]]:
     if not split_dir.exists():
         raise FileNotFoundError(f"TTD split directory does not exist: {split_dir}")
 
-    tables: list[pd.DataFrame] = []
-    labels: list[int] = []
-    skipped = 0
+    valid_paths, skipped = _filter_paths(sorted(split_dir.glob("*.json.gz")))
 
-    for path in sorted(split_dir.glob("*.json.gz")):
-        label = path.name.split("_", 1)[0]
-        if label not in LABEL_DICT:
-            skipped += 1
-            logger.warning(f"Skipping TTD file with unknown label prefix: {path.name}")
-            continue
+    if limit is not None:
+        valid_paths = _apply_limit(valid_paths, limit)
 
-        try:
-            df = pd.read_json(path, compression="gzip", lines=True)
-        except ValueError:
-            skipped += 1
-            logger.exception(f"Skipping unreadable TTD file: {path}")
-            continue
+    ordered: dict[int, tuple[pd.DataFrame, int]] = {}
 
-        if df.empty:
-            skipped += 1
-            logger.warning(f"Skipping empty TTD table: {path.name}")
-            continue
+    with ProcessPoolExecutor(max_workers=16) as pool:
+        futures = {pool.submit(_load_single, path): (i, label_id) for i, (path, label_id) in enumerate(valid_paths)}
+        for future in tqdm(as_completed(futures), total=len(futures), desc=f"Loading TTD {split}"):
+            i, label_id = futures[future]
+            table = future.result()
+            if table is None:
+                skipped += 1
+            else:
+                ordered[i] = (table, label_id)
 
-        tables.append(_with_empty_header(df))
-        labels.append(LABEL_DICT[label])
+    tables = [ordered[i][0] for i in sorted(ordered)]
+    labels = [ordered[i][1] for i in sorted(ordered)]
 
     logger.info(f"Loaded {len(tables)} TTD {split} tables from {split_dir}; skipped {skipped} files.")
     return tables, labels
