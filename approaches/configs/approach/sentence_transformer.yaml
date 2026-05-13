@@ -9,3 +9,4 @@ class_name: SentenceTransformerEmbedder # please provide the class name that you
 # but if they are hyperparameters, set them in the experiment config!
 embedding_model: ~
 table_row_limit: 100 # -1 for no limit
+table_serialization_format: markdown  # "markdown" or "csv"

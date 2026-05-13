@@ -14,6 +14,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
     def __init__(self, approach_instance):
         self.approach_instance = approach_instance
         self.table_row_limit = approach_instance.table_row_limit
+        self.table_serialization_format = approach_instance.table_serialization_format
         super().__init__()
 
     def gritlm_instruction(self, instruction: str):
@@ -27,18 +28,23 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
 
     def create_table_embedding(self, input_table: pd.DataFrame):
         """
-        Serialize the table to Markdown (headers + rows) and embed with GritLM.
+        Serialize the table to the configured format (Markdown or CSV)
+        and embed with GritLM.
         """
-        markdown_str = approach_utils.convert_df_to_markdown(
-            input_table, max_rows=self.table_row_limit
-        )
+        if self.table_serialization_format == "csv":
+            serialized = approach_utils.convert_df_to_csv(
+                input_table, max_rows=self.table_row_limit
+            )
+        else:
+            serialized = approach_utils.convert_df_to_markdown(
+                input_table, max_rows=self.table_row_limit
+            )
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
             embeddings = self.approach_instance.model.encode(
-                [markdown_str],
+                [serialized],
                 instruction=self.gritlm_instruction(""),
                 show_progress_bar=False,
             )
-        # model.encode returns a batch; unwrap single item for consistency
         return embeddings[0]
 
     def create_query_embedding(self, query: str):

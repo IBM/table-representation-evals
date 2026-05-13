@@ -35,6 +35,7 @@ class SentenceTransformerEmbedder(BaseTabularEmbeddingApproach):
         assert cfg.approach.table_row_limit is not None, f"Please pass a table_row_limit"
         self.embedding_model_name = cfg.approach.embedding_model
         self.table_row_limit = cfg.approach.table_row_limit
+        self.table_serialization_format = cfg.approach.get("table_serialization_format", "markdown")
 
         logger.info("SentenceTransformerEmbedder: Initialized.")
         
