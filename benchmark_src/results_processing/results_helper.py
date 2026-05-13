@@ -15,6 +15,16 @@ performance_cols = {
     'XGBoost_log_loss (↓)': 'lower_is_better',
     'KNeighbors_log_loss (↓)': 'lower_is_better',
     "MLP_log_loss (↓)": 'lower_is_better',
+    # TTD classification metrics
+    'XGBoost_accuracy (↑)': 'higher_is_better',
+    'KNeighbors_accuracy (↑)': 'higher_is_better',
+    "MLP_accuracy (↑)": 'higher_is_better',
+    'XGBoost_f1_macro (↑)': 'higher_is_better',
+    'KNeighbors_f1_macro (↑)': 'higher_is_better',
+    "MLP_f1_macro (↑)": 'higher_is_better',
+    'XGBoost_f1_micro (↑)': 'higher_is_better',
+    'KNeighbors_f1_micro (↑)': 'higher_is_better',
+    "MLP_f1_micro (↑)": 'higher_is_better',
     # accuracy
     'accuracy': 'higher_is_better',
     'accuracy_easy': 'higher_is_better',

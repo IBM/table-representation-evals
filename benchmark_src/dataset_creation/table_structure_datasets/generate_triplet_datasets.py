@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import random
@@ -11,6 +12,8 @@ from tqdm import tqdm
 
 from benchmark_src.dataset_creation.utils import table_2d_to_df
 from benchmark_src.dataset_creation.target.collect_all_target_datasets import get_target_dataset_by_name
+from benchmark_src.dataset_creation.lakebench.load_ckan import load_ckan
+from benchmark_src.dataset_creation.lakebench.load_ecb import load_ecb
 
 logger = logging.getLogger(__name__)
 
@@ -365,25 +368,70 @@ def _resolve_dataset_limits(dataset_cfg: DictConfig) -> Tuple[int, Optional[int]
     return min_rows, max_rows, min_cols, max_cols, max_tables
 
 
-def _select_corpus_subset(
-    corpus,
-    dataset_cfg: DictConfig,
+def _load_ckan_subset_corpus(
+    merged_cfg: DictConfig,
+    project_root: Path,
 ) -> List[Dict[str, Any]]:
-    """
-    Apply filtering based on the dataset block:
-      - keep tables whose #rows and #cols fall into the configured ranges
-      - randomly sample up to max_tables from the qualifying tables or all if max_tables is unset.
-    """
-    min_rows, max_rows, min_cols, max_cols, max_tables = _resolve_dataset_limits(dataset_cfg)
+    data_dir = str(merged_cfg.data_dir)
+    if not Path(data_dir).is_absolute():
+        data_dir = str(project_root / data_dir)
+
+    min_rows, max_rows, min_cols, max_cols, max_tables = _resolve_dataset_limits(merged_cfg)
+
+    return load_ckan(
+        data_dir,
+        min_rows=min_rows,
+        max_rows=max_rows,
+        min_cols=min_cols,
+        max_cols=max_cols,
+        max_tables=max_tables,
+    )
+
+
+def _load_ecb_corpus(
+    merged_cfg: DictConfig,
+    project_root: Path,
+) -> List[Dict[str, Any]]:
+    data_dir = str(merged_cfg.data_dir)
+    if not Path(data_dir).is_absolute():
+        data_dir = str(project_root / data_dir)
+
+    max_rows_per_table = int(OmegaConf.select(merged_cfg, "max_rows_per_table", default=500))
+
+    min_rows, max_rows, min_cols, max_cols, max_tables = _resolve_dataset_limits(merged_cfg)
+
+    corpus_list = load_ecb(
+        data_dir,
+        max_rows_per_table=max_rows_per_table,
+        min_rows=min_rows,
+        min_cols=min_cols,
+        max_cols=max_cols,
+    )
+
+    if max_rows is not None:
+        corpus_list = [t for t in corpus_list if len(t["table"]) - 1 <= max_rows]
+
+    if max_tables is not None and len(corpus_list) > max_tables:
+        corpus_list = random.sample(corpus_list, max_tables)
+
+    return corpus_list
+
+
+def _load_target_corpus(
+    dataset_id: str,
+    merged_cfg: DictConfig,
+) -> List[Dict[str, Any]]:
+    corpus = get_target_dataset_by_name(dataset_id).corpus
+
+    min_rows, max_rows, min_cols, max_cols, max_tables = _resolve_dataset_limits(merged_cfg)
 
     selected_indices: List[int] = []
-
     for idx, rec in enumerate(corpus):
         table = rec.get("table")
         if not table or not table[0]:
             continue
 
-        num_rows = len(table) - 1  # exclude header
+        num_rows = len(table) - 1
         num_cols = len(table[0])
 
         if num_rows < min_rows or (max_rows is not None and num_rows > max_rows):
@@ -402,6 +450,13 @@ def _select_corpus_subset(
     return corpus.select(selected_indices).to_list()
 
 
+def _make_deterministic_seed(root_seed: int, dataset_id: str, variation_id: str) -> int:
+    key = f"{dataset_id}@@{variation_id}"
+    key_hash = hashlib.sha256(key.encode()).digest()
+    per_pair_offset = int.from_bytes(key_hash[:4], "big") % (2**16)
+    return int(root_seed) + per_pair_offset
+
+
 def run_variation(
     dataset_id: str,
     dataset_cfg: DictConfig,
@@ -418,18 +473,30 @@ def run_variation(
     - variation_id: global variation id (e.g. "v0"), defining filters and perturbation params.
     - variation_cfg: variation config from table_shuffling.yaml.
     """
-    # Derive a deterministic seed per dataset×variation from the root seed and ids
-    seed = int(root_random_seed) + abs(hash(f"{dataset_id}@@{variation_id}")) % (2**16)
+    seed = _make_deterministic_seed(root_random_seed, dataset_id, variation_id)
     random.seed(seed)
 
-    corpus = get_target_dataset_by_name(dataset_id).corpus
+    try:
+        project_root = Path(get_original_cwd())
+    except ValueError:
+        project_root = Path.cwd()
 
-    # Global row/column filters live on the variation under "dataset".
-    filters_cfg = variation_cfg["dataset"]
+    # Merge variation-level filters with per-dataset overrides upfront so
+    # loaders can filter in-stream and avoid OOM.
+    merged_cfg = OmegaConf.merge(variation_cfg["dataset"], dataset_cfg)
 
-    # Combine global filters with per-dataset settings (e.g. max_tables).
-    # dataset_cfg is expected to only add/override keys like max_tables.
-    corpus_list = _select_corpus_subset(corpus, OmegaConf.merge(filters_cfg, dataset_cfg))
+    source = dataset_cfg.source
+    if source == "ckan_subset":
+        corpus_list = _load_ckan_subset_corpus(merged_cfg, project_root)
+    elif source == "ecb":
+        corpus_list = _load_ecb_corpus(merged_cfg, project_root)
+    elif source == "target":
+        corpus_list = _load_target_corpus(dataset_id, merged_cfg)
+    else:
+        raise ValueError(
+            f"Unknown source '{source}' for dataset '{dataset_id}'. "
+            "Expected one of: ckan_subset, ecb, target."
+        )
 
     pos_params = dict(variation_cfg.pos_params)
     neg_params = dict(variation_cfg.neg_params)

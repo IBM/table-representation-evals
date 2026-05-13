@@ -14,9 +14,20 @@ random_seed: 1
 
 datasets:
   fetaqa:
+    source: target
     max_tables: 500
   tabfact:
+    source: target
     max_tables: -1  # use all tables passing the global filters
+  ckan_subset:
+    source: ckan_subset
+    data_dir: cache/dataset_creation_resources/ckan-subset/tables
+    max_tables: 5000
+  ecb:
+    source: ecb
+    data_dir: cache/dataset_creation_resources/tables
+    max_tables: -1
+    max_rows_per_table: 500
 
 variations:
   v0:
@@ -42,6 +53,19 @@ variations:
     triplets_per_anchor: 1
     pos_params:
       pos_type: row_reorder
+      pos_strength: 0.5
+    neg_params:
+      neg_columns_frac: 0.3
+      neg_degree: 0.8
+  v2:
+    dataset:
+      min_rows: 5
+      max_rows: 500
+      min_cols: 3
+      max_cols: 100
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: both
       pos_strength: 0.5
     neg_params:
       neg_columns_frac: 0.3
