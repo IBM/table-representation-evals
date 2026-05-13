@@ -357,6 +357,9 @@ def _populate_vectordb(
     except Exception:
         pass
 
+    corpus_dfs = [_table_to_df(row["table"]) for row in corpus_dataset]
+    table_embedding_component.fit_corpus(corpus_dfs)
+
     vector_size = infer_embedder_output_dim(table_embedding_component, corpus_dataset)
 
     try:

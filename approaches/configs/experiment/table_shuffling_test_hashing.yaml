@@ -1,0 +1,15 @@
+# @package _global_
+defaults:
+  - override /approach: hashing
+
+hydra:
+  verbose: False
+
+benchmark_output_dir: "tmp"
+
+benchmark_tasks:
+  table_shuffling:
+    datasets:
+      - fetaqa@@v0
+      - tabfact@@v0
+      - fetaqa@@v1

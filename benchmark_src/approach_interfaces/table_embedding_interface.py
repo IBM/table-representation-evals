@@ -19,3 +19,6 @@ class TableEmbeddingInterface(ABC):
     @abstractmethod
     def create_query_embedding(self, query: str):
         pass
+
+    def fit_corpus(self, tables) -> None:
+        pass
