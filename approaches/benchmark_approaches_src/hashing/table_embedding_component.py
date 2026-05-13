@@ -9,10 +9,11 @@ from benchmark_src.approach_interfaces.table_embedding_interface import TableEmb
 logger = logging.getLogger(__name__)
 
 
-def _to_text(table: pd.DataFrame) -> str:
+def _to_text(table: pd.DataFrame, max_rows: int = -1) -> str:
     headers = [str(h) for h in table.columns]
     parts = headers[:]
-    for _, row in table.iterrows():
+    df = table if max_rows == -1 else table.head(max_rows)
+    for _, row in df.iterrows():
         parts.extend(str(v) for v in row.tolist())
     return " ".join(parts)
 
@@ -20,6 +21,7 @@ def _to_text(table: pd.DataFrame) -> str:
 class TableEmbeddingComponent(TableEmbeddingInterface):
     def __init__(self, approach_instance):
         self.approach_instance = approach_instance
+        self.table_row_limit = approach_instance.table_row_limit
         super().__init__()
 
     def setup_model_for_task(self):
@@ -31,7 +33,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         )
 
     def create_table_embedding(self, input_table: pd.DataFrame) -> np.ndarray:
-        return self.vectorizer.transform([_to_text(input_table)]).toarray().ravel()
+        return self.vectorizer.transform([_to_text(input_table, self.table_row_limit)]).toarray().ravel()
 
     def create_query_embedding(self, query: str) -> np.ndarray:
         return self.vectorizer.transform([query]).toarray().ravel()
