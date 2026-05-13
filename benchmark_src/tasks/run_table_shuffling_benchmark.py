@@ -256,6 +256,8 @@ def run_benchmark(
 
     detailed_results: List[Dict[str, Any]] = []
 
+    table_embedding_component.fit_corpus([t.anchor_table for t in triplets])
+
     total_triplets = len(triplets)
     correct_count = 0
 
