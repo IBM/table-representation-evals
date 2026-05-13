@@ -1,0 +1,7 @@
+approach_name: hashing
+
+module_path: "approaches/benchmark_approaches_src/hashing"
+class_name: HashingTableEmbedder
+
+n_features: 32768
+table_row_limit: -1

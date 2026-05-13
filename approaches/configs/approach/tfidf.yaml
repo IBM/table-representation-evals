@@ -1,0 +1,7 @@
+approach_name: tfidf
+
+module_path: "approaches/benchmark_approaches_src/tfidf"
+class_name: TFIDFTableEmbedder
+
+n_features: 32768
+table_row_limit: -1

@@ -2,6 +2,8 @@
 # from .<your_folder_name>.<your_file_name> import <YourClass>
 
 from .sentence_transformer.approach import SentenceTransformerEmbedder
+from .hashing.approach import HashingTableEmbedder
+from .tfidf.approach import TFIDFTableEmbedder
 
 #from .aidb.approach import PyAIDBEmbedder
 #from .tabicl.approach import TabICLEmbedder

@@ -1,0 +1,16 @@
+# @package _global_
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: hashing
+
+hydra:
+  verbose: False
+
+benchmark_output_dir: "tmp"
+test_case_limit: 300
+
+benchmark_tasks:
+  table_type_detection:
+    datasets: ${experiment_datasets.table_type_detection_datasets}
+    task_parameters:
+      force_embed_corpus: True

@@ -357,6 +357,9 @@ def _populate_vectordb(
     except Exception:
         pass
 
+    corpus_dfs = [_table_to_df(row["table"]) for row in corpus_dataset]
+    table_embedding_component.fit_corpus(corpus_dfs)
+
     vector_size = infer_embedder_output_dim(table_embedding_component, corpus_dataset)
 
     try:
@@ -458,6 +461,11 @@ def main(cfg: DictConfig):
     except Exception as e:
         logger.error(f"Failed to load dataset '{cfg.dataset_name}': {e}")
         raise e
+
+    if cfg.test_case_limit is not None and cfg.test_case_limit > 0:
+        n = cfg.test_case_limit
+        dataset_bundle.corpus = dataset_bundle.corpus.select(range(min(n, len(dataset_bundle.corpus))))
+        dataset_bundle.queries = dataset_bundle.queries.select(range(min(n, len(dataset_bundle.queries))))
 
     logger.info(
         f"Dataset '{cfg.dataset_name}': Corpus has {len(dataset_bundle.corpus)} rows, "

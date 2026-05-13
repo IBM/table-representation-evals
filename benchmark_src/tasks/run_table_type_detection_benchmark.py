@@ -81,6 +81,7 @@ def _embed_or_load_cached(
         return cached["train"], cached["test"]
 
     logger.info("Creating TTD table embeddings.")
+    table_component.fit_corpus(train_tables)
     train_embeddings = _embed_tables(table_component, train_tables)
     test_embeddings = _embed_tables(table_component, test_tables)
 
