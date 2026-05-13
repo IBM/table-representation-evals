@@ -462,6 +462,11 @@ def main(cfg: DictConfig):
         logger.error(f"Failed to load dataset '{cfg.dataset_name}': {e}")
         raise e
 
+    if cfg.test_case_limit is not None and cfg.test_case_limit > 0:
+        n = cfg.test_case_limit
+        dataset_bundle.corpus = dataset_bundle.corpus.select(range(min(n, len(dataset_bundle.corpus))))
+        dataset_bundle.queries = dataset_bundle.queries.select(range(min(n, len(dataset_bundle.queries))))
+
     logger.info(
         f"Dataset '{cfg.dataset_name}': Corpus has {len(dataset_bundle.corpus)} rows, "
         f"Queries has {len(dataset_bundle.queries)} rows."
