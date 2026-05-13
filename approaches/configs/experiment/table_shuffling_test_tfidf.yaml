@@ -1,7 +1,7 @@
 # @package _global_
 defaults:
   - /experiment_datasets/global_datasets
-  - override /approach: hashing
+  - override /approach: tfidf
 
 hydra:
   verbose: False

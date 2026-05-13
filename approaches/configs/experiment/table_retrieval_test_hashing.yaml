@@ -10,5 +10,7 @@ benchmark_output_dir: "tmp"
 test_case_limit: 300
 
 benchmark_tasks:
-  table_shuffling:
-    datasets: ${experiment_datasets.table_shuffling_datasets}
+  table_retrieval:
+    datasets: ${experiment_datasets.table_retrieval_datasets}
+    task_parameters:
+      force_embed_corpus: True
