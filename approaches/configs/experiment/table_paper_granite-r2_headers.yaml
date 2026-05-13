@@ -1,0 +1,21 @@
+# @package _global_
+# Header-only retrieval run for Granite-R2: table_row_limit=0, markdown only.
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: sentence_transformer
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.embedding_model: ibm-granite/granite-embedding-english-r2
+      approach.table_row_limit: 0
+      approach.table_serialization_format: markdown
+
+benchmark_output_dir: table_paper_experiments
+
+benchmark_tasks:
+  table_retrieval:
+    datasets: ${experiment_datasets.table_retrieval_datasets}
+    task_parameters:
+      force_embed_corpus: False

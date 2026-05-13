@@ -1,0 +1,28 @@
+# @package _global_
+# Full-content runs for HyTrel: all 3 table-level tasks.
+# HyTrel uses its own hypergraph tokenization -- no markdown/csv serialization sweep.
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: hytrel
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.table_row_limit: 100
+
+benchmark_output_dir: table_paper_experiments
+
+benchmark_tasks:
+  table_retrieval:
+    datasets: ${experiment_datasets.table_retrieval_datasets}
+    task_parameters:
+      force_embed_corpus: False
+
+  table_shuffling:
+    datasets: ${experiment_datasets.table_shuffling_datasets}
+
+  table_type_detection:
+    datasets: ${experiment_datasets.table_type_detection_datasets}
+    task_parameters:
+      force_embed_corpus: False

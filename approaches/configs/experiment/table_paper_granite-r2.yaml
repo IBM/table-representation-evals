@@ -1,0 +1,30 @@
+# @package _global_
+# Full-content runs for Granite-R2: all 3 table-level tasks at table_row_limit=100,
+# sweeping serialization format {markdown, csv}.
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: sentence_transformer
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.embedding_model: ibm-granite/granite-embedding-english-r2
+      approach.table_row_limit: 100
+      approach.table_serialization_format: markdown,csv
+
+benchmark_output_dir: table_paper_experiments
+
+benchmark_tasks:
+  table_retrieval:
+    datasets: ${experiment_datasets.table_retrieval_datasets}
+    task_parameters:
+      force_embed_corpus: False
+
+  table_shuffling:
+    datasets: ${experiment_datasets.table_shuffling_datasets}
+
+  table_type_detection:
+    datasets: ${experiment_datasets.table_type_detection_datasets}
+    task_parameters:
+      force_embed_corpus: False

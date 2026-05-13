@@ -1,0 +1,19 @@
+# @package _global_
+# Header-only retrieval run for Hashing BoW baseline: table_row_limit=0.
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: hashing
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.table_row_limit: 0
+
+benchmark_output_dir: table_paper_experiments
+
+benchmark_tasks:
+  table_retrieval:
+    datasets: ${experiment_datasets.table_retrieval_datasets}
+    task_parameters:
+      force_embed_corpus: False

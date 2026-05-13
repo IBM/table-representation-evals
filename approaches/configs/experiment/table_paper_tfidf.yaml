@@ -1,0 +1,28 @@
+# @package _global_
+# Full-content runs for TF-IDF BoW baseline: all 3 table-level tasks at table_row_limit=100.
+# TF-IDF has no serialization-format knob -- single run per task/dataset.
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: tfidf
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.table_row_limit: 100
+
+benchmark_output_dir: table_paper_experiments
+
+benchmark_tasks:
+  table_retrieval:
+    datasets: ${experiment_datasets.table_retrieval_datasets}
+    task_parameters:
+      force_embed_corpus: False
+
+  table_shuffling:
+    datasets: ${experiment_datasets.table_shuffling_datasets}
+
+  table_type_detection:
+    datasets: ${experiment_datasets.table_type_detection_datasets}
+    task_parameters:
+      force_embed_corpus: False

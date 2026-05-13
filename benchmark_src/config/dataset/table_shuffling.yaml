@@ -3,14 +3,41 @@ dataset_name: table_shuffling
 random_seed: 1
 
 # Table shuffling configuration:
-# - Global variations (v0, v1, ...) define row/column filters and perturbation params.
+# - Global variations (v0..v8) define row/column filters and perturbation params.
 # - Per-dataset blocks only define dataset-specific settings such as max_tables.
-
-# Use -1 or omit the key for "unbounded":
-#   - min_rows: -1/unset -> default 2 (minimum data rows, excluding header)
-#   - min_cols: -1/unset -> default 3 (minimum columns)
-#   - max_rows, max_cols, max_tables: -1/unset -> no upper bound (use all qualifying tables).
-# When max_tables is set, that many tables are chosen randomly from the qualifying subset.
+#
+# Variation grid (pos_type x magnitude):
+#   pos_type      | magnitude       | id
+#   ------------- | --------------- | ---
+#   both          | hi-pos / hi-neg | v0
+#   both          | lo-pos / hi-neg | v1
+#   both          | hi-pos / lo-neg | v2
+#   row_reorder   | hi-pos / hi-neg | v3
+#   row_reorder   | lo-pos / hi-neg | v4
+#   row_reorder   | hi-pos / lo-neg | v5
+#   col_reorder   | hi-pos / hi-neg | v6
+#   col_reorder   | lo-pos / hi-neg | v7
+#   col_reorder   | hi-pos / lo-neg | v8
+#
+# Size ablation (all at hi-pos/hi-neg magnitude, mirroring v0/v3/v6 pos_types):
+#   pos_type      | window  | id
+#   ------------- | ------- | ---
+#   both          | BIG     | v9
+#   row_reorder   | BIG     | v10
+#   col_reorder   | BIG     | v11
+#   both          | SMALL   | v12
+#   row_reorder   | SMALL   | v13
+#   col_reorder   | SMALL   | v14
+#
+# Magnitude knobs (neg_columns_frac and neg_degree move together as one neg-magnitude axis):
+#   hi-pos = pos_strength 0.75 ; lo-pos = pos_strength 0.25
+#   hi-neg = neg_columns_frac 0.7, neg_degree 0.8
+#   lo-neg = neg_columns_frac 0.2, neg_degree 0.2
+#
+# Filter windows:
+#   default = min_rows=5,  max_rows=100, min_cols=3, max_cols=30
+#   BIG     = min_rows=5,  max_rows=500, min_cols=3, max_cols=80
+#   SMALL   = min_rows=5,  max_rows=20,  min_cols=3, max_cols=8
 
 datasets:
   fetaqa:
@@ -18,7 +45,13 @@ datasets:
     max_tables: 500
   tabfact:
     source: target
-    max_tables: -1  # use all tables passing the global filters
+    max_tables: -1
+  ottqa:
+    source: target
+    max_tables: 500
+  spider-train:
+    source: target
+    max_tables: 500
   ckan_subset:
     source: ckan_subset
     data_dir: cache/dataset_creation_resources/ckan-subset/tables
@@ -31,42 +64,199 @@ datasets:
 
 variations:
   v0:
-    # Global row/column filters shared across all datasets for this variation
     dataset:
       min_rows: 5
       max_rows: 100
       min_cols: 3
-      max_cols: 100
+      max_cols: 30
     triplets_per_anchor: 1
     pos_params:
-      pos_type: both        # one of "row_reorder", "col_reorder", "both"
-      pos_strength: 0.5     # fraction [0..1] of rows/cols to shuffle
+      pos_type: both
+      pos_strength: 0.75
     neg_params:
-      neg_columns_frac: 0.3 # fraction [0..1] of columns to permute
-      neg_degree: 0.8       # [0..1] how shuffled each chosen column is
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
   v1:
     dataset:
       min_rows: 5
       max_rows: 100
       min_cols: 3
-      max_cols: 100
+      max_cols: 30
     triplets_per_anchor: 1
     pos_params:
-      pos_type: row_reorder
-      pos_strength: 0.5
+      pos_type: both
+      pos_strength: 0.25
     neg_params:
-      neg_columns_frac: 0.3
+      neg_columns_frac: 0.7
       neg_degree: 0.8
   v2:
     dataset:
       min_rows: 5
-      max_rows: 500
+      max_rows: 100
       min_cols: 3
-      max_cols: 100
+      max_cols: 30
     triplets_per_anchor: 1
     pos_params:
       pos_type: both
-      pos_strength: 0.5
+      pos_strength: 0.75
     neg_params:
-      neg_columns_frac: 0.3
+      neg_columns_frac: 0.2
+      neg_degree: 0.2
+  v3:
+    dataset:
+      min_rows: 5
+      max_rows: 100
+      min_cols: 3
+      max_cols: 30
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: row_reorder
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
+  v4:
+    dataset:
+      min_rows: 5
+      max_rows: 100
+      min_cols: 3
+      max_cols: 30
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: row_reorder
+      pos_strength: 0.25
+    neg_params:
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
+  v5:
+    dataset:
+      min_rows: 5
+      max_rows: 100
+      min_cols: 3
+      max_cols: 30
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: row_reorder
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.2
+      neg_degree: 0.2
+  v6:
+    dataset:
+      min_rows: 5
+      max_rows: 100
+      min_cols: 3
+      max_cols: 30
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: col_reorder
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
+  v7:
+    dataset:
+      min_rows: 5
+      max_rows: 100
+      min_cols: 3
+      max_cols: 30
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: col_reorder
+      pos_strength: 0.25
+    neg_params:
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
+  v8:
+    dataset:
+      min_rows: 5
+      max_rows: 100
+      min_cols: 3
+      max_cols: 30
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: col_reorder
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.2
+      neg_degree: 0.2
+  # ---- Size ablation: BIG window ----
+  v9:
+    dataset:
+      min_rows: 5
+      max_rows: 500
+      min_cols: 3
+      max_cols: 80
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: both
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
+  v10:
+    dataset:
+      min_rows: 5
+      max_rows: 500
+      min_cols: 3
+      max_cols: 80
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: row_reorder
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
+  v11:
+    dataset:
+      min_rows: 5
+      max_rows: 500
+      min_cols: 3
+      max_cols: 80
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: col_reorder
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
+  # ---- Size ablation: SMALL window ----
+  v12:
+    dataset:
+      min_rows: 5
+      max_rows: 20
+      min_cols: 3
+      max_cols: 8
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: both
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
+  v13:
+    dataset:
+      min_rows: 5
+      max_rows: 20
+      min_cols: 3
+      max_cols: 8
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: row_reorder
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.7
+      neg_degree: 0.8
+  v14:
+    dataset:
+      min_rows: 5
+      max_rows: 20
+      min_cols: 3
+      max_cols: 8
+    triplets_per_anchor: 1
+    pos_params:
+      pos_type: col_reorder
+      pos_strength: 0.75
+    neg_params:
+      neg_columns_frac: 0.7
       neg_degree: 0.8

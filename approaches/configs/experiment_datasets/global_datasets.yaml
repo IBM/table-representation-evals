@@ -57,13 +57,105 @@ table_retrieval_datasets:
 ####################################
 ###### Table Shuffling
 ####################################
+# Full 6 datasets x 9 variations grid for the table_paper_* experiments.
+# Variations are defined in benchmark_src/config/dataset/table_shuffling.yaml.
 table_shuffling_datasets:
+  # fetaqa
   - fetaqa@@v0
-  - tabfact@@v0
   - fetaqa@@v1
+  - fetaqa@@v2
+  - fetaqa@@v3
+  - fetaqa@@v4
+  - fetaqa@@v5
+  - fetaqa@@v6
+  - fetaqa@@v7
+  - fetaqa@@v8
+  - fetaqa@@v9
+  - fetaqa@@v10
+  - fetaqa@@v11
+  - fetaqa@@v12
+  - fetaqa@@v13
+  - fetaqa@@v14
+  # tabfact
+  - tabfact@@v0
+  - tabfact@@v1
+  - tabfact@@v2
+  - tabfact@@v3
+  - tabfact@@v4
+  - tabfact@@v5
+  - tabfact@@v6
+  - tabfact@@v7
+  - tabfact@@v8
+  - tabfact@@v9
+  - tabfact@@v10
+  - tabfact@@v11
+  - tabfact@@v12
+  - tabfact@@v13
+  - tabfact@@v14
+  # ottqa
+  - ottqa@@v0
+  - ottqa@@v1
+  - ottqa@@v2
+  - ottqa@@v3
+  - ottqa@@v4
+  - ottqa@@v5
+  - ottqa@@v6
+  - ottqa@@v7
+  - ottqa@@v8
+  - ottqa@@v9
+  - ottqa@@v10
+  - ottqa@@v11
+  - ottqa@@v12
+  - ottqa@@v13
+  - ottqa@@v14
+  # spider-train
+  - spider-train@@v0
+  - spider-train@@v1
+  - spider-train@@v2
+  - spider-train@@v3
+  - spider-train@@v4
+  - spider-train@@v5
+  - spider-train@@v6
+  - spider-train@@v7
+  - spider-train@@v8
+  - spider-train@@v9
+  - spider-train@@v10
+  - spider-train@@v11
+  - spider-train@@v12
+  - spider-train@@v13
+  - spider-train@@v14
+  # ckan_subset
   - ckan_subset@@v0
   - ckan_subset@@v1
+  - ckan_subset@@v2
+  - ckan_subset@@v3
+  - ckan_subset@@v4
+  - ckan_subset@@v5
+  - ckan_subset@@v6
+  - ckan_subset@@v7
+  - ckan_subset@@v8
+  - ckan_subset@@v9
+  - ckan_subset@@v10
+  - ckan_subset@@v11
+  - ckan_subset@@v12
+  - ckan_subset@@v13
+  - ckan_subset@@v14
+  # ecb
+  - ecb@@v0
+  - ecb@@v1
   - ecb@@v2
+  - ecb@@v3
+  - ecb@@v4
+  - ecb@@v5
+  - ecb@@v6
+  - ecb@@v7
+  - ecb@@v8
+  - ecb@@v9
+  - ecb@@v10
+  - ecb@@v11
+  - ecb@@v12
+  - ecb@@v13
+  - ecb@@v14
 
 ####################################
 ###### Table Type Detection
