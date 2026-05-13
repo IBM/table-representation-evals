@@ -61,6 +61,9 @@ table_shuffling_datasets:
   - fetaqa@@v0
   - tabfact@@v0
   - fetaqa@@v1
+  - ckan_subset@@v0
+  - ckan_subset@@v1
+  - ecb@@v2
 
 ####################################
 ###### Table Type Detection
