@@ -2,8 +2,11 @@ import bz2
 import csv
 import logging
 import random
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+csv.field_size_limit(sys.maxsize)
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +62,8 @@ def load_ckan(
             with bz2.open(filepath, "rt", encoding="utf-8", errors="replace") as f:
                 reader = csv.reader(f)
                 rows = [row for row in reader]
-        except Exception:
-            logger.warning(f"Failed to read {filepath.name}, skipping")
+        except Exception as e:
+            logger.warning(f"Failed to read {filepath.name}, skipping,reason:\n{e}")
             continue
 
         if not rows or not rows[0]:
