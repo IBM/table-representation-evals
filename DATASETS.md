@@ -19,7 +19,7 @@ Extract to `cache/dataset_creation_resources/ckan-subset/tables/`.
 ## WDC Schema.org (TTD)
 
 ```
-https://onedrive.live.com/?id=86FDED4BAA4DCE9D%2119255&cid=86FDED4BAA4DCE9D&redeem=aHR0cHM6Ly8xZHJ2Lm1zL2YvcyFBcDNPVGFwTDdmMkdnWlkzbXJGOG5tSHYxN1RSeWc%5FZT1rWkU0T3g
+https://github.com/awslabs/hypergraph-tabular-lm/blob/main/checkpoints/readme.txt
 ```
 
 Extract to `cache/dataset_creation_resources/ttd/`.
