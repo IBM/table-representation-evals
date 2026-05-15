@@ -200,7 +200,7 @@ def run_cell_benchmark(cfg, cell_embedding_component, tables_folder: Path, testc
     return results
 
 def main(cfg: DictConfig):
-    logger.info(f"Started run_row_similarity_benchmark")
+    logger.info(f"Started run_cell_semantic_retrieval_benchmark")
     logger.debug(f"Received cfg:")
     logger.debug(cfg)
     multiprocessing.set_start_method("spawn", force=True) 

@@ -27,7 +27,11 @@ def main(cfg: DictConfig):
 
     load_dotenv()  # loads variables from .env 
 
-    guard_cfg_no_none(cfg)
+    try:
+        guard_cfg_no_none(cfg)
+    except RecursionError as e:
+        logger.error(f"guard_cfg_no_none hit recursion limit: {e}")
+        raise
 
     # create cache folder
     cfg.cache_dir = Path(get_original_cwd()) / Path(cfg.cache_dir)
