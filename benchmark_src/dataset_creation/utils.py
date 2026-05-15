@@ -14,13 +14,20 @@ logger = logging.getLogger(__name__)
 def table_2d_to_df(table_2d):
     """
     table_2d: list[list] where table_2d[0] is the header row.
-    Returns a pandas DataFrame.
+    Returns a pandas DataFrame, or empty DataFrame if the table is not rectangular.
     """
     if table_2d is None or len(table_2d) == 0:
         return pd.DataFrame()
 
     header = list(table_2d[0])
     rows = table_2d[1:]
+
+    num_header_cols = len(header)
+    for i, row in enumerate(rows):
+        if len(row) != num_header_cols:
+            logger.warning(f"Skipping non-rectangular table: header has {num_header_cols} "
+                           f"columns, row {i + 1} has {len(row)} columns.")
+            return pd.DataFrame()
 
     df = pd.DataFrame(rows, columns=header)
 

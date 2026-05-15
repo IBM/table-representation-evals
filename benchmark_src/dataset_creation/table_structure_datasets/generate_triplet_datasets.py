@@ -205,6 +205,13 @@ def generate_negative(table: List[List[Optional[str]]], neg_columns_frac: float,
 # -----------------------------
 # Triplet generation
 # -----------------------------
+def _is_rectangular(table: list) -> bool:
+    if not table or not table[0]:
+        return False
+    n_cols = len(table[0])
+    return all(len(row) == n_cols for row in table)
+
+
 def generate_triplets_from_dataset(
     dataset: List[Dict[str, Any]],
     triplets_per_anchor: int,
@@ -218,6 +225,10 @@ def generate_triplets_from_dataset(
 
     for anchor_rec in tqdm(dataset, desc=f"Generating triplets for variation '{variation_name}'"):
         anchor_table = anchor_rec["table"]
+        if not _is_rectangular(anchor_table):
+            logger.warning(f"Skipping non-rectangular table: "
+                           f"database_id={anchor_rec.get('database_id')}, table_id={anchor_rec.get('table_id')}")
+            continue
         serialized_anchor = convert_array_to_markdown(anchor_table)
 
         for _ in range(triplets_per_anchor):
