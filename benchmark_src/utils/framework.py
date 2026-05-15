@@ -13,7 +13,7 @@ from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddin
 EXCLUDED_KEYS: set[str] = {"experiment", "approach.device"}
 
 
-def generate_run_id_string(_=None) -> str:
+def generate_run_id_string() -> str:
     """
     Generates a unique Hydra override string from HydraConfig, excluding any overrides whose key is present in
     EXCLUDED_KEYS.
@@ -75,7 +75,6 @@ def create_run_path(override_string: str) -> str:
     return "/".join(path_components)
 
 def register_resolvers():
-    OmegaConf.register_new_resolver("generate_run_id", generate_run_id_string)
     OmegaConf.register_new_resolver("create_run_path", create_run_path)
 
 

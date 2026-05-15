@@ -5,7 +5,7 @@ defaults:
   - experiment: ~
   - override hydra/launcher: joblib
 
-run_identifier: ${generate_run_id:}
+run_identifier: ???  # computed in run_benchmark.py after Hydra init to avoid recursion
 benchmark_output_dir: ~
 dataset_name: ~
 cache_dir: cache # if this is changed the setup script also needs to be changed

@@ -7,7 +7,7 @@ import traceback
 from hydra.utils import get_original_cwd
 from dotenv import load_dotenv
 
-from benchmark_src.utils.framework import register_resolvers, StreamToLogger
+from benchmark_src.utils.framework import register_resolvers, StreamToLogger, generate_run_id_string
 from benchmark_src.utils.cfg_utils import guard_cfg_no_none
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ def main(cfg: DictConfig):
     print("#"*100)
     print("#"*100)
 
+    cfg.run_identifier = generate_run_id_string()
     logger.info(f"Run id: {cfg.run_identifier}")
 
     load_dotenv()  # loads variables from .env 
