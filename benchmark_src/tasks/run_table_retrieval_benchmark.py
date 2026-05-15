@@ -71,33 +71,15 @@ def infer_embedder_output_dim(
 
 def embed_corpus(
     table_component: TableEmbeddingInterface,
-    corpus: Dataset
+    tables_info: list[tuple[pd.DataFrame, str, str]],
 ) -> tuple[list[np.ndarray], list[dict]]:
     vectors = []
     payloads = []
-    required_keys = ["table", "database_id", "table_id"]
 
-    # TODO: For testing purposes, limiting to a subset of corpus
-    # corpus = corpus.select(range(min(200, len(corpus))))
-    # logger.warning(f"Embedding only {len(corpus)} tables from the corpus.")
-
-    for row in tqdm(corpus, desc="Embedding tables"):
-        missing = [k for k in required_keys if k not in row or row.get(k) is None]
-        if missing:
-            logger.error(f"Row missing required fields: {missing}. Skipping.")
-            continue
-
-        table = _table_to_df(row["table"])
-        if table.empty:
-            logger.warning("Row has empty table, skipping. "
-                f"database_id: {row.get('database_id')}, table_id: {row.get('table_id')}")
-            continue  # discard datapoint
-
+    for table, db_id, tbl_id in tqdm(tables_info, desc="Embedding tables"):
         vec = table_component.create_table_embedding(table)
-        payload = {"database_id": row.get("database_id"), "table_id": row.get("table_id")}
-
         vectors.append(np.array(vec))
-        payloads.append(payload)
+        payloads.append({"database_id": db_id, "table_id": tbl_id})
 
     logger.info(f"Embedded {len(vectors)} tables from corpus")
     return vectors, payloads
@@ -345,6 +327,25 @@ def embeddings_exist(client: QdrantClient, collection_name: str) -> bool:
     return count > 0
 
 
+def _build_tables_info(corpus_dataset: Dataset) -> list[tuple[pd.DataFrame, str, str]]:
+    required_keys = ["table", "database_id", "table_id"]
+    tables_info = []
+    for row in corpus_dataset:
+        missing = [k for k in required_keys if k not in row or row.get(k) is None]
+        if missing:
+            logger.error(f"Row missing required fields: {missing}. Skipping.")
+            continue
+
+        table = _table_to_df(row["table"])
+        if table.empty:
+            logger.warning("Row has empty table, skipping. "
+                f"database_id: {row.get('database_id')}, table_id: {row.get('table_id')}")
+            continue
+
+        tables_info.append((table, row["database_id"], row["table_id"]))
+    return tables_info
+
+
 def _populate_vectordb(
     client: QdrantClient,
     collection_name: str,
@@ -357,8 +358,9 @@ def _populate_vectordb(
     except Exception:
         pass
 
-    corpus_dfs = [_table_to_df(row["table"]) for row in corpus_dataset]
-    table_embedding_component.fit_corpus(corpus_dfs)
+    tables_info = _build_tables_info(corpus_dataset)
+
+    table_embedding_component.fit_corpus([t[0] for t in tables_info])
 
     vector_size = infer_embedder_output_dim(table_embedding_component, corpus_dataset)
 
@@ -371,7 +373,7 @@ def _populate_vectordb(
     except Exception as e:
         logger.warning(f"Failed to create collection '{collection_name}': {e}")
 
-    vectors, payloads = embed_corpus(table_embedding_component, corpus_dataset)
+    vectors, payloads = embed_corpus(table_embedding_component, tables_info)
     upload_corpus(client, collection_name, vectors, payloads)
     logger.info("Completed corpus embedding and upload to qdrant.")
 
