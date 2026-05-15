@@ -8,7 +8,6 @@ from typing import List, Dict, Any, Optional, Tuple
 import Levenshtein
 from hydra.utils import get_original_cwd
 from omegaconf import OmegaConf, DictConfig
-from tqdm import tqdm
 
 from benchmark_src.dataset_creation.utils import table_2d_to_df
 from benchmark_src.dataset_creation.target.collect_all_target_datasets import get_target_dataset_by_name
@@ -223,7 +222,9 @@ def generate_triplets_from_dataset(
     deltas_pos = []
     deltas_neg = []
 
-    for anchor_rec in tqdm(dataset, desc=f"Generating triplets for variation '{variation_name}'"):
+    logger.info(f"Generating triplets for variation '{variation_name}' ({len(dataset)} tables)")
+
+    for anchor_rec in dataset:
         anchor_table = anchor_rec["table"]
         if not _is_rectangular(anchor_table):
             logger.warning(f"Skipping non-rectangular table: "
@@ -259,6 +260,8 @@ def generate_triplets_from_dataset(
 
     avg_delta_pos = sum(deltas_pos) / len(deltas_pos) if deltas_pos else 0.0
     avg_delta_neg = sum(deltas_neg) / len(deltas_neg) if deltas_neg else 0.0
+
+    logger.info(f"Finished generating triplets for variation '{variation_name}': {len(triplets)} triplets")
 
     return triplets, avg_delta_pos, avg_delta_neg
 

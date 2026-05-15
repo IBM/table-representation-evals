@@ -63,7 +63,7 @@ def infer_embedder_output_dim(
         raise ValueError("Corpus is empty; cannot infer embedding dimension.")
 
     sample_table = _table_to_df(corpus[1]["table"])
-    if sample_table.empty:
+    if len(sample_table.columns) == 0:
         raise ValueError("Sample table is empty after conversion; cannot infer embedding dimension.")
     sample_embedding = table_component.create_table_embedding(sample_table)
     return int(np.array(sample_embedding).shape[-1])
@@ -337,7 +337,7 @@ def _build_tables_info(corpus_dataset: Dataset) -> list[tuple[pd.DataFrame, str,
             continue
 
         table = _table_to_df(row["table"])
-        if table.empty:
+        if len(table.columns) == 0:
             logger.warning("Row has empty table, skipping. "
                 f"database_id: {row.get('database_id')}, table_id: {row.get('table_id')}")
             continue
