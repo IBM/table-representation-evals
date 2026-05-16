@@ -24,9 +24,7 @@ ContextAwareJoin/*
 # only have the template in the repo
 setup_benchmark.sh
 
-# personal docs (never commit)
-/docs/
-/paper/
-
-# personal docs (never commit)
-/docs/
+/.claude
+/paper
+.ignore
+CLAUDE.md
