@@ -12,40 +12,59 @@
 
 set -e
 
+MAX_RETRIES=20
+RETRY_DELAY=5
+
+retry() {
+    local n=1
+    while true; do
+        if "$@"; then
+            return 0
+        fi
+        if [ $n -ge $MAX_RETRIES ]; then
+            echo "  FAILED after $MAX_RETRIES retries"
+            return 1
+        fi
+        echo "  Retry $n/$MAX_RETRIES after failure, waiting ${RETRY_DELAY}s..."
+        sleep $RETRY_DELAY
+        n=$((n + 1))
+    done
+}
+
 eval "$(conda shell.bash hook)"
 
 #============================
 # Sentence Transformer (MiniLM)
 #============================
-./run_benchmark.sh table_paper_minilm benchmark_env
-./run_benchmark.sh table_paper_minilm_headers benchmark_env
+retry ./run_benchmark.sh table_paper_minilm benchmark_env
+retry ./run_benchmark.sh table_paper_minilm_headers benchmark_env
 
 #============================
 # Sentence Transformer (Granite-R2)
 #============================
-./run_benchmark.sh table_paper_granite-r2 benchmark_env
-./run_benchmark.sh table_paper_granite-r2_headers benchmark_env
+retry ./run_benchmark.sh table_paper_granite-r2 benchmark_env
+retry ./run_benchmark.sh table_paper_granite-r2_headers benchmark_env
 
 #============================
 # GritLM
 #============================
-./run_benchmark.sh table_paper_gritlm benchmark_env_gritlm
-./run_benchmark.sh table_paper_gritlm_headers benchmark_env_gritlm
+retry ./run_benchmark.sh table_paper_gritlm benchmark_env_gritlm
+retry ./run_benchmark.sh table_paper_gritlm_headers benchmark_env_gritlm
 
 #============================
 # HyTrel
 #============================
-./run_benchmark.sh table_paper_hytrel benchmark_env_hytrel
-./run_benchmark.sh table_paper_hytrel_headers benchmark_env_hytrel
+retry ./run_benchmark.sh table_paper_hytrel benchmark_env_hytrel
+retry ./run_benchmark.sh table_paper_hytrel_headers benchmark_env_hytrel
 
 #============================
 # Hashing BoW baseline
 #============================
-./run_benchmark.sh table_paper_hashing benchmark_env
-./run_benchmark.sh table_paper_hashing_headers benchmark_env
+retry ./run_benchmark.sh table_paper_hashing benchmark_env
+retry ./run_benchmark.sh table_paper_hashing_headers benchmark_env
 
 #============================
 # TF-IDF BoW baseline
 #============================
-./run_benchmark.sh table_paper_tfidf benchmark_env
-./run_benchmark.sh table_paper_tfidf_headers benchmark_env
+retry ./run_benchmark.sh table_paper_tfidf benchmark_env
+retry ./run_benchmark.sh table_paper_tfidf_headers benchmark_env
