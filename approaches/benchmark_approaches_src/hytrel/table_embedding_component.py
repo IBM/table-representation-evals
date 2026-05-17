@@ -28,13 +28,13 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         Create an embedding for the entire table using HyTrel's table hyperedge.
         
         Args:
-            input_table: List[List[Any]] - Table as list of rows (first row is headers)
+            input_table: pd.DataFrame - Table to embed
             
         Returns:
             np.ndarray: Table embedding of shape (embedding_dim,)
         """
-        if len(input_table) == 0:
-            raise ValueError("Input table is empty")
+        if len(input_table.columns) == 0:
+            raise ValueError("Input table has no columns")
         
         # no longer necessary
         # # First row is headers, rest are data rows

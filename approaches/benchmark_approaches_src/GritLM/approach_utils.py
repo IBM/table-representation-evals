@@ -90,8 +90,12 @@ def convert_df_to_markdown(df: pd.DataFrame, max_rows: int) -> str:
         max_rows: The maximum number of rows to include.
                   If -1, there is no limit.
     """
-    if df is None or df.empty:
-        print("ERROR: Empty DataFrame provided.")  # TODO: replace with logging
+    if df is None:
+        print("ERROR: DataFrame is None.")
+        return ""
+
+    if len(df.columns) == 0:
+        print("ERROR: Empty DataFrame provided (no columns).")
         return ""
 
     # Apply row limit if needed
@@ -155,8 +159,12 @@ def convert_df_to_csv(df: pd.DataFrame, max_rows: int) -> str:
         max_rows: The maximum number of rows to include.
                   If -1, there is no limit.
     """
-    if df is None or df.empty:
-        print("ERROR: Empty DataFrame provided.")
+    if df is None:
+        print("ERROR: DataFrame is None.")
+        return ""
+
+    if len(df.columns) == 0:
+        print("ERROR: Empty DataFrame provided (no columns).")
         return ""
 
     if max_rows != -1 and len(df) > max_rows:

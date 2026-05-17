@@ -404,7 +404,6 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
 
         # hytrel cannot deal with empty tables, fill first row with empty if needed
         if input_table.shape[0] == 0:
-            print(f"Empty table detected, adding empty row for HyTrel processing: {input_table.shape}")
             empty_row = pd.DataFrame([[ '' for _ in range(input_table.shape[1]) ]], columns=input_table.columns)
             input_table = pd.concat([empty_row, input_table], ignore_index=True)
         
