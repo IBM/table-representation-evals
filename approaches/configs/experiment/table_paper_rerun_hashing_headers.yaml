@@ -1,0 +1,20 @@
+# @package _global_
+# Rerun: Hashing header-only retrieval on spider-train at table_row_limit=0.
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: hashing
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.table_row_limit: 0
+
+benchmark_output_dir: table_paper_experiments
+
+benchmark_tasks:
+  table_retrieval:
+    datasets:
+      - spider-train
+    task_parameters:
+      force_embed_corpus: True

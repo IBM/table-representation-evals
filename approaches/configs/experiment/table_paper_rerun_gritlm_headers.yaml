@@ -1,0 +1,22 @@
+# @package _global_
+# Rerun: GritLM header-only retrieval on spider-train at table_row_limit=0, md only.
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: GritLM
+
+hydra:
+  verbose: False
+  sweeper:
+    params:
+      approach.embedding_model: GritLM/GritLM-7B
+      approach.table_row_limit: 0
+      approach.table_serialization_format: markdown
+
+benchmark_output_dir: table_paper_experiments
+
+benchmark_tasks:
+  table_retrieval:
+    datasets:
+      - spider-train
+    task_parameters:
+      force_embed_corpus: True
