@@ -1,3 +1,6 @@
 task_name: table_type_detection
 
 elo_metric: "XGBoost_f1_macro (↑)"
+
+train_limit: null
+test_limit: null

@@ -58,7 +58,7 @@ def guard_cfg_no_none(cfg, path="cfg", _depth=0):
             "The config may contain circular references."
         )
 
-    allow_none_keys = set(["cfg.test_case_limit"])
+    allow_none_keys = {"cfg.test_case_limit", "cfg.task.train_limit", "cfg.task.test_limit"}
     if isinstance(cfg, DictConfig) or isinstance(cfg, dict):
         for key, value in cfg.items():
             guard_cfg_no_none(value, f"{path}.{key}", _depth + 1)
