@@ -236,20 +236,28 @@ def run_benchmark(
 
     total_triplets = len(triplets)
     correct_count = 0
+    skipped_count = 0
 
     for i, t in enumerate(triplets):
-        emb_anchor = np.asarray(
-            table_embedding_component.create_table_embedding(t.anchor_table),
-            dtype=float,
-        )
-        emb_pos = np.asarray(
-            table_embedding_component.create_table_embedding(t.pos_table),
-            dtype=float,
-        )
-        emb_neg = np.asarray(
-            table_embedding_component.create_table_embedding(t.neg_table),
-            dtype=float,
-        )
+        try:
+            emb_anchor = np.asarray(
+                table_embedding_component.create_table_embedding(t.anchor_table),
+                dtype=float,
+            )
+            emb_pos = np.asarray(
+                table_embedding_component.create_table_embedding(t.pos_table),
+                dtype=float,
+            )
+            emb_neg = np.asarray(
+                table_embedding_component.create_table_embedding(t.neg_table),
+                dtype=float,
+            )
+        except Exception as e:
+            skipped_count += 1
+            logger.warning(
+                f"Skipping triplet {t.triplet_id}: embedding failed ({type(e).__name__}: {e})"
+            )
+            continue
 
         d_pos = _cosine_distance(emb_anchor, emb_pos, eps=eps)
         d_neg = _cosine_distance(emb_anchor, emb_neg, eps=eps)
@@ -295,6 +303,11 @@ def run_benchmark(
     triplet_accuracy = float(np.mean(correct_flags)) if correct_flags else 0.0
     mean_silhouette = float(np.mean(silhouette_scores)) if silhouette_scores else 0.0
     mean_contrastive = float(np.mean(contrastive_scores)) if contrastive_scores else 0.5
+
+    if skipped_count:
+        logger.warning(
+            f"Skipped {skipped_count}/{total_triplets} triplets due to embedding failures"
+        )
     textual_bias = _pearson_correlation(pos_embedding_distances, delta_pos_values)
 
     metrics = {
