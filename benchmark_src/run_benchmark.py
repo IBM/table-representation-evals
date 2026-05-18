@@ -23,7 +23,7 @@ def main(cfg: DictConfig):
     print("#"*100)
     print("#"*100)
 
-    cfg.run_identifier = generate_run_id_string()
+    cfg.run_identifier = generate_run_id_string(cfg.approach.approach_name)
     logger.info(f"Run id: {cfg.run_identifier}")
 
     load_dotenv()  # loads variables from .env 

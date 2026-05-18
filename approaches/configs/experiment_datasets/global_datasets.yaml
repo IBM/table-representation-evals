@@ -137,25 +137,29 @@ table_shuffling_datasets:
   - ckan_subset@@v9
   - ckan_subset@@v10
   - ckan_subset@@v11
-  - ckan_subset@@v12
-  - ckan_subset@@v13
-  - ckan_subset@@v14
+  # ckan_subset SMALL window (v12-v14): no CKAN tables pass row<=20, col<=8 filter
+  # - ckan_subset@@v12
+  # - ckan_subset@@v13
+  # - ckan_subset@@v14
   # ecb
   - ecb@@v0
   - ecb@@v1
-  - ecb@@v2
+  # ecb@@v2: lo-neg produces delta≈0 for ECB (few rectangular tables)
+  # - ecb@@v2
   - ecb@@v3
   - ecb@@v4
-  - ecb@@v5
+  # ecb@@v5: lo-neg produces delta≈0 for ECB (few rectangular tables)
+  # - ecb@@v5
   - ecb@@v6
   - ecb@@v7
   - ecb@@v8
   - ecb@@v9
   - ecb@@v10
   - ecb@@v11
-  - ecb@@v12
-  - ecb@@v13
-  - ecb@@v14
+  # ecb SMALL window (v12-v14): no ECB tables pass row<=20, col<=8 filter
+  # - ecb@@v12
+  # - ecb@@v13
+  # - ecb@@v14
 
 ####################################
 ###### Table Type Detection

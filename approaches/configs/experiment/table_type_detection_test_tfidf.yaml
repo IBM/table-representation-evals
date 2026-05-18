@@ -5,6 +5,10 @@ defaults:
 
 hydra:
   verbose: False
+  sweeper:
+    params:
+      approach.table_row_limit: 100
+      approach.n_features: 32768
 
 benchmark_output_dir: "tmp"
 test_case_limit: 300

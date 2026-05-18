@@ -11,10 +11,10 @@ hydra:
       approach.n_features: 32768
 
 benchmark_output_dir: "tmp"
-test_case_limit: 300
+test_case_limit: 10
 
 benchmark_tasks:
-  table_type_detection:
-    datasets: ${experiment_datasets.table_type_detection_datasets}
+  table_retrieval:
+    datasets: ${experiment_datasets.table_retrieval_datasets}
     task_parameters:
       force_embed_corpus: True

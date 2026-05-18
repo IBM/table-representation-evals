@@ -9,6 +9,7 @@ hydra:
   sweeper:
     params:
       approach.table_row_limit: 0
+      approach.n_features: 32768
 
 benchmark_output_dir: table_paper_experiments
 

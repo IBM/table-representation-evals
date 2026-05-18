@@ -350,17 +350,14 @@ def _populate_vectordb(
     client: QdrantClient,
     collection_name: str,
     table_embedding_component: TableEmbeddingInterface,
-    corpus_dataset: Dataset
+    corpus_dataset: Dataset,
+    tables_info: list,
 ) -> None:
     try:
         client.delete_collection(collection_name=collection_name)
         logger.info(f"Deleted existing collection '{collection_name}' due to force_embed flag or because it was empty.")
     except Exception:
         pass
-
-    tables_info = _build_tables_info(corpus_dataset)
-
-    table_embedding_component.fit_corpus([t[0] for t in tables_info])
 
     vector_size = infer_embedder_output_dim(table_embedding_component, corpus_dataset)
 
@@ -390,13 +387,17 @@ def run_table_retrieval(
     except Exception:
         force_embed = False
 
-    # Embed corpus before evaluation if forced or not already embedded
+    tables_info = _build_tables_info(dataset_bundle.corpus)
+    table_embedding_component.fit_corpus([t[0] for t in tables_info])
+
+    # Populate vectorDB if forced or collection doesn't exist
     if force_embed or not embeddings_exist(client, cfg.run_identifier):
         _populate_vectordb(
             client=client,
             collection_name=cfg.run_identifier,
             table_embedding_component=table_embedding_component,
             corpus_dataset=dataset_bundle.corpus,
+            tables_info=tables_info,
         )
     else:
         logger.info(
