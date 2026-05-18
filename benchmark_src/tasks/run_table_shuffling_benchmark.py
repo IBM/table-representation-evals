@@ -262,7 +262,7 @@ def run_benchmark(
         if is_correct:
             correct_count += 1
 
-        if (i + 1) % 10 == 0:
+        if (i + 1) % 100 == 0:
             logger.info(
                 f"Table shuffling progress: {i + 1}/{total_triplets} | correct={correct_count}"
             )

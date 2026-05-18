@@ -89,5 +89,6 @@ def main(cfg: DictConfig):
 
     
 if __name__ == "__main__":
+    sys.setrecursionlimit(500000)
     register_resolvers()
     main()

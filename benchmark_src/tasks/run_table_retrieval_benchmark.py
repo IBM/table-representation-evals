@@ -76,7 +76,7 @@ def embed_corpus(
     vectors = []
     payloads = []
 
-    for table, db_id, tbl_id in tqdm(tables_info, desc="Embedding tables"):
+    for table, db_id, tbl_id in tqdm(tables_info, desc="Embedding tables", miniters=100):
         vec = table_component.create_table_embedding(table)
         vectors.append(np.array(vec))
         payloads.append({"database_id": db_id, "table_id": tbl_id})
@@ -272,7 +272,7 @@ def _evaluate_retrieval(
 
     per_query_results = []
 
-    for query_row in tqdm(queries_dataset, desc="Evaluating queries"):
+    for query_row in tqdm(queries_dataset, desc="Evaluating queries", miniters=100):
         query_text = query_row["query"]
         query_id = query_row["query_id"]
         gt_database_id = query_row["database_id"]
