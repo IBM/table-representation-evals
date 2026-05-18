@@ -1,0 +1,19 @@
+\begin{table*}[t]
+\centering
+\begin{tabular*}{\textwidth}{lcccccccc}
+\hline
+Dataset & GritLM & HyTrel & IBM Granite R2 & MiniLM & SAP-RPT-1* & TabICL v2* & TabPFN v2.5* & TabuLa-8B* \\
+\hline
+Wikidata Astronomical Objects & \underline{0.93} & 0.75 & \textbf{0.94} & 0.89 & 0.80 & 0.77 & 0.67 & 0.92 \\
+Wikidata Astronomical Objects\textsubscript{TEXT} & \underline{0.92} & 0.79 & \textbf{0.94} & 0.91 & 0.89 & 0.74 & 0.76 & 0.90 \\
+Wikidata Books & \textbf{0.84} & 0.57 & 0.68 & 0.77 & 0.59 & 0.64 & 0.59 & \underline{0.81} \\
+Wikidata Books\textsubscript{NO-COL-NAMES} & \textbf{0.82} & 0.57 & 0.78 & \underline{0.81} & 0.60 & 0.64 & 0.59 & \textbf{0.82} \\
+Wikidata Books\textsubscript{NO-GENRE-COL} & \underline{0.77} & 0.56 & 0.64 & 0.70 & 0.59 & 0.61 & 0.60 & \textbf{0.79} \\
+Wikidata Books\textsubscript{NO-PID-IN-COL} & \textbf{0.82} & 0.57 & 0.72 & 0.73 & 0.60 & 0.64 & 0.59 & \underline{0.81} \\
+Wikidata Books\textsubscript{ONLY-5-COLS} & \underline{0.89} & 0.55 & \textbf{0.90} & 0.83 & 0.83 & 0.54 & 0.57 & 0.81 \\
+Mean & \textbf{0.85} & 0.62 & 0.80 & 0.81 & 0.70 & 0.65 & 0.63 & \underline{0.84} \\
+\hline
+\end{tabular*}
+\caption{Triplet-Based Row Embedding Evaluations: Accuracy per dataset for all approaches. - indicates that the approach could not be run on the dataset, mostly due to memory constraints.}
+\label{tab:triplet_per_dataset}
+\end{table*}
