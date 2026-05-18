@@ -29,3 +29,5 @@ benchmark_tasks:
     datasets: ${experiment_datasets.table_type_detection_datasets}
     task_parameters:
       force_embed_corpus: False
+      train_limit: 8000
+      test_limit: 1000

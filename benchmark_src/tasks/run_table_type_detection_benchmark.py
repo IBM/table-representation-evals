@@ -16,7 +16,7 @@ from omegaconf import DictConfig
 from tqdm import tqdm
 
 from benchmark_src.approach_interfaces.table_embedding_interface import TableEmbeddingInterface
-from benchmark_src.dataset_creation.table_type_detection.load_ttd import load_ttd_split
+from benchmark_src.dataset_creation.table_type_detection.load_ttd import load_wdc_split
 from benchmark_src.tasks import component_utils
 from benchmark_src.utils import result_utils
 from benchmark_src.utils.framework import get_approach_class
@@ -40,7 +40,7 @@ def get_embedder(cfg: DictConfig) -> tuple[TableEmbeddingInterface, dict[str, An
 def _cache_path(cfg: DictConfig) -> Path:
     cache_dir = Path(cfg.cache_dir) / "ttd_embeddings"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    key = f"{cfg.run_identifier}|limit={cfg.test_case_limit}"
+    key = f"{cfg.run_identifier}|train_limit={cfg.benchmark_tasks.table_type_detection.task_parameters.train_limit}|test_limit={cfg.benchmark_tasks.table_type_detection.task_parameters.test_limit}"
     run_hash = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
     return cache_dir / f"{run_hash}.npz"
 
@@ -53,7 +53,7 @@ def _normalize_table_embedding(table_embedding: Any) -> np.ndarray:
 
 def _embed_tables(table_component: TableEmbeddingInterface, tables: list) -> np.ndarray:
     embeddings = []
-    for table in tqdm(tables, desc="Embedding TTD tables"):
+    for table in tqdm(tables, desc="Embedding TTD tables", mininterval=10):
         embeddings.append(_normalize_table_embedding(table_component.create_table_embedding(table)))
 
     if not embeddings:
@@ -160,8 +160,8 @@ def main(cfg: DictConfig):
 
     table_embedding_component, resource_metrics_setup = get_embedder(cfg)
 
-    test_tables, test_labels = load_ttd_split("test", limit=cfg.test_case_limit)
-    train_tables, train_labels = load_ttd_split("train", limit=cfg.test_case_limit)
+    test_tables, test_labels = load_wdc_split("test", limit=cfg.benchmark_tasks.table_type_detection.task_parameters.test_limit)
+    train_tables, train_labels = load_wdc_split("train", limit=cfg.benchmark_tasks.table_type_detection.task_parameters.train_limit)
 
     (y_pred_values, y_proba_values, label_encoder), resource_metrics_task = run_ttd_task(
         table_component=table_embedding_component,
