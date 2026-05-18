@@ -13,10 +13,10 @@ from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddin
 EXCLUDED_KEYS: set[str] = {"experiment", "approach.device"}
 
 
-def generate_run_id_string() -> str:
+def generate_run_id_string(approach_name: str) -> str:
     """
     Generates a unique Hydra override string from HydraConfig, excluding any overrides whose key is present in
-    EXCLUDED_KEYS.
+    EXCLUDED_KEYS. Prepends approach_name to avoid collisions across approaches.
     """
     hc = HydraConfig.get()
     if hc is None:
@@ -28,7 +28,10 @@ def generate_run_id_string() -> str:
     combined = [*hc.overrides.hydra, *hc.overrides.task]
     filtered = [item for item in combined if _key(item) not in EXCLUDED_KEYS]
 
-    return ",".join(filtered)
+    prefix = f"approach.approach_name={approach_name}"
+    if filtered:
+        return f"{prefix},{','.join(filtered)}"
+    return prefix
 
 def _sanitize_dirname(dirname: str) -> str:
     return dirname.replace("/", "_")
