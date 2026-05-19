@@ -5,26 +5,24 @@ import numpy as np
 # Maps task_key -> metric, or task_key -> (task_col_value, metric)
 # for subtasks that share a task column value (predictive_ml).
 task_metrics = {
-    "row_similarity_search": "MRR",
-    "more_similar_than": "accuracy",
-    "predictive_ml_regression": ("predictive_ml", "LinearRegression_rmse (↓)"),
-    "predictive_ml_multiclass": ("predictive_ml", "XGBoost_log_loss (↓)"),
-    "predictive_ml_binary":     ("predictive_ml", "XGBoost_roc_auc_score (↑)"),
-    "column_similarity_search": "MRR",
-    "table_retrieval": "MRR",
-    "cell_task": "accuracy",
+    "table_retrieval": "MRR@10",
+    "table_shuffling": "TripletAccuracy",
+    "table_type_detection": "XGBoost_accuracy (↑)",
+}
+
+# Per-task slice filters: applied to the task dataframe before aggregation.
+# Each filter receives a df slice and returns a narrower slice.
+task_slice_filters = {
+    "table_retrieval": lambda d: d[
+        d['Configuration'].str.contains(r'table_row_limit=100', na=False)
+    ],
+    "table_shuffling": lambda d: d[d['dataset'].str.endswith('@@v0')],
 }
 
 TASK_NAME_MAP = {
-    "row_similarity_search": r"\makecell{Row \\ Similarity Search \\ (MRR)}",
-    "more_similar_than": r"\makecell{Triplet \\ Evaluation \\ (Accuracy) }",
-    "predictive_ml": r"\makecell{Tabular \\ Prediction\\ (ELO)}",
-    "predictive_ml_regression": r"\makecell{Tabular \\ Prediction\\ (Regression)}",
-    "predictive_ml_binary": r"\makecell{Tabular \\ Prediction\\ (Binary)}",
-    "predictive_ml_multiclass": r"\makecell{Tabular \\ Prediction\\ (Multiclass)}",
-    "column_similarity_search": r"\makecell{Column \\ Similarity Search \\ (MRR)}",
-    "table_retrieval": r"\makecell{Table \\ Retrieval \\ (MRR)}",
-    "cell_task": r"\makecell{Cell Level\\ Retrieval \\ (Accuracy)}",
+    "table_retrieval": r"\makecell{Table \\ Retrieval \\ (MRR@10)}",
+    "table_shuffling": r"\makecell{Table \\ Shuffling \\ (Accuracy)}",
+    "table_type_detection": r"\makecell{Table Type \\ Detection \\ (XGB Acc.)}",
     "Overall": "Overall",
 }
 
@@ -147,6 +145,10 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
         # Filter to rows for this task
         task_df = df[df["task"] == task_filter].copy()
 
+        # Apply task-specific slice filter if defined
+        if task_key in task_slice_filters:
+            task_df = task_slice_filters[task_key](task_df)
+
         if task_df.empty or metric_col not in task_df.columns:
             cannot_do[task_key] = set(all_approaches)
             rankings[task_key] = pd.Series(PENALTY_RANK, index=all_approaches)
@@ -175,31 +177,27 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
         rankings[task_key] = ranks
 
     # ------------------------------------------------------------------
-    # Add combined predictive ML ELO ranking
+    # Add combined predictive ML ELO ranking (skip if not available)
     # ------------------------------------------------------------------
-    # predictive_ml_elo_ranking_df: expects columns ['chart_name', 'elo_score_task']
-    elo_df = predictive_ml_elo_ranking_df.copy()
-    elo_df["base_name"] = elo_df["chart_name"]
+    if predictive_ml_elo_ranking_df is not None:
+        elo_df = predictive_ml_elo_ranking_df.copy()
+        elo_df["base_name"] = elo_df["chart_name"]
 
-    # update TabuLa-8B* chart name to just TabuLa-8B (exactly those, don't affect others), update it permatently
-    elo_df.loc[elo_df["base_name"] == "TabuLa-8B*", "base_name"] = "TabuLa-8B"
-    print("HEREEEE")
-    print(elo_df)
+        elo_df.loc[elo_df["base_name"] == "TabuLa-8B*", "base_name"] = "TabuLa-8B"
 
-    # ELO: higher better
-    elo_series = elo_df.groupby("base_name")["elo_score_task"].mean()
-    elo_series = elo_series.reindex(all_approaches)
+        # ELO: higher better
+        elo_series = elo_df.groupby("base_name")["elo_score_task"].mean()
+        elo_series = elo_series.reindex(all_approaches)
 
-    missing = set(elo_series[elo_series.isna()].index)
-    cannot_do["predictive_ml"] = missing
-    partial_do["predictive_ml"] = set()  # assume no partial info
-    mean_values["predictive_ml"] = elo_series.copy()
+        missing = set(elo_series[elo_series.isna()].index)
+        cannot_do["predictive_ml"] = missing
+        partial_do["predictive_ml"] = set()
+        mean_values["predictive_ml"] = elo_series.copy()
 
-    # Rank ELO descending (higher is better)
-    ranks = elo_series.rank(ascending=False, method="average", na_option="keep")
-    for approach in missing:
-        ranks[approach] = PENALTY_RANK
-    rankings["predictive_ml"] = ranks
+        ranks = elo_series.rank(ascending=False, method="average", na_option="keep")
+        for approach in missing:
+            ranks[approach] = PENALTY_RANK
+        rankings["predictive_ml"] = ranks
 
     # ------------------------------------------------------------------
     # Build ranking DataFrame

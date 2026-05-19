@@ -1,0 +1,20 @@
+\begin{table*}[t]
+\centering
+\begin{tabular*}{\textwidth}{lcccc}
+\hline
+Approach & \makecell{Table \\ Retrieval \\ (MRR@10)} & \makecell{Table \\ Shuffling \\ (Accuracy)} & \makecell{Table Type \\ Detection \\ (XGB Acc.)} & Overall \\
+\hline
+GritLM (md) & \textbf{1.00} & 3.00 & 5.00 & \textbf{3.00} \\
+GritLM (csv) & \underline{2.00} & 4.00 & 4.00 & \underline{3.33} \\
+Granite-R2 (md) & 4.00 & 7.00 & 3.00 & 4.67 \\
+Granite-R2 (csv) & 3.00 & 6.00 & 6.00 & 5.00 \\
+MiniLM (md) & 6.00 & \underline{2.00} & 8.00 & 5.33 \\
+MiniLM (csv) & 5.00 & 5.00 & 7.00 & 5.67 \\
+Hashing & 8.00 & 8.50 & \textbf{1.00} & 5.83 \\
+TF-IDF & 7.00 & 8.50 & \underline{2.00} & 5.83 \\
+HyTrel & 9.00 & \textbf{1.00} & 9.00 & 6.33 \\
+\hline
+\end{tabular*}
+\caption{Overall Ranking of approaches across tasks. \text{---} indicates the approach does not support the task. $^\dagger$ indicates the approach could not complete all datasets for the task; missing datasets were imputed with a worst-case value.}
+\label{tab:overall_ranking}
+\end{table*}

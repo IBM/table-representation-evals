@@ -1,0 +1,21 @@
+\begin{table}[t]
+\centering
+\begin{tabular}{lcccccc}
+\hline
+Approach & \multicolumn{1}{c}{XGBoost} & \multicolumn{1}{c}{XGBoost} & \multicolumn{1}{c}{MLP} & \multicolumn{1}{c}{MLP} & \multicolumn{1}{c}{KNeighbors} & \multicolumn{1}{c}{KNeighbors} \\
+ & accuracy & macro-F1 & accuracy & macro-F1 & accuracy & macro-F1 \\
+\hline
+Granite-R2 (csv) & 0.8980 & 0.8959 & 0.9090 & 0.9078 & 0.8560 & 0.8507 \\
+Granite-R2 (md) & 0.9110 & 0.9103 & 0.9240 & 0.9233 & 0.8600 & 0.8549 \\
+GritLM (csv) & 0.9090 & 0.9083 & 0.9330 & 0.9324 & 0.8690 & 0.8627 \\
+GritLM (md) & 0.9060 & 0.9059 & 0.9380 & 0.9375 & 0.8820 & 0.8758 \\
+Hashing & 0.9358 & 0.9252 & 0.8684 & 0.8503 & 0.8376 & 0.8017 \\
+HyTrel & 0.6490 & 0.6439 & 0.6610 & 0.6557 & 0.5630 & 0.5545 \\
+MiniLM (csv) & 0.7910 & 0.7888 & 0.8100 & 0.8070 & 0.7680 & 0.7519 \\
+MiniLM (md) & 0.7850 & 0.7818 & 0.8180 & 0.8154 & 0.7600 & 0.7443 \\
+TF-IDF & 0.9356 & 0.9231 & 0.9153 & 0.9076 & 0.8660 & 0.8398 \\
+\hline
+\end{tabular}
+\caption{Table Type Detection: accuracy and macro-F1 per classifier on WDC Schema.org (header-stripped, frozen embeddings).}
+\label{tab:ttd_classifier}
+\end{table}

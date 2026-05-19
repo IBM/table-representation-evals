@@ -10,7 +10,9 @@
             "XGBoost_log_loss (↓)"
         ],
         "row_similarity_search": "In top-1 [%]",
-        "table_retrieval": "Recall@1"
+        "table_retrieval": "MRR@10",
+        "table_shuffling": "TripletAccuracy",
+        "table_type_detection": "XGBoost_accuracy (↑)"
     },
     "metric_ranges": {
         "silhouette": [
@@ -183,7 +185,39 @@
         ],
         "execution_time (s)": [
             0,
-            "∞"
+            "\u221e"
+        ],
+        "TripletAccuracy": [
+            0,
+            1
+        ],
+        "Bounded Contrastive Score": [
+            0,
+            1
+        ],
+        "XGBoost_accuracy": [
+            0,
+            1
+        ],
+        "XGBoost_f1_macro": [
+            0,
+            1
+        ],
+        "MLP_accuracy": [
+            0,
+            1
+        ],
+        "MLP_f1_macro": [
+            0,
+            1
+        ],
+        "KNeighbors_accuracy": [
+            0,
+            1
+        ],
+        "KNeighbors_f1_macro": [
+            0,
+            1
         ]
     }
 }
