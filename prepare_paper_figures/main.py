@@ -23,6 +23,7 @@ import shuffling_magnitude_table
 import shuffling_size_table
 import shuffling_ecb_table
 import ttd_classifier_table
+import ttd_classifier_bars
 import headline_bars
 import retrieval_per_dataset_bars
 import retrieval_recall_line
@@ -283,6 +284,9 @@ if __name__ == "__main__":
 
         # T14: TTD classifier table
         ttd_classifier_table.create_table(df, plots_folder)
+
+        # P11: TTD classifier faceted bars
+        ttd_classifier_bars.create_barplot(df, plots_folder)
 
     # ======================================================================
     # CROSS-TASK PLOTS

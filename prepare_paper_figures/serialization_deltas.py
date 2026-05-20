@@ -33,7 +33,7 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
     tasks = [
         ('Table Retrieval', 'table_retrieval', 'MRR@10_mean'),
         ('Table Shuffling', 'table_shuffling', 'TripletAccuracy_mean'),
-        ('Table Type Detection', 'table_type_detection', 'XGBoost_accuracy (↑)_mean'),
+        ('Table Type Detection', 'table_type_detection', 'XGBoost_f1_macro (↑)_mean'),
     ]
 
     colors = {'GritLM': '#1f77b4', 'MiniLM': '#ff7f0e', 'Granite-R2': '#9467bd'}

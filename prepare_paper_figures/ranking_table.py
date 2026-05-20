@@ -7,7 +7,7 @@ import numpy as np
 task_metrics = {
     "table_retrieval": "MRR@10",
     "table_shuffling": "TripletAccuracy",
-    "table_type_detection": "XGBoost_accuracy (↑)",
+    "table_type_detection": "XGBoost_f1_macro (↑)",
 }
 
 # Per-task slice filters: applied to the task dataframe before aggregation.
@@ -22,7 +22,7 @@ task_slice_filters = {
 TASK_NAME_MAP = {
     "table_retrieval": r"\makecell{Table \\ Retrieval \\ (MRR@10)}",
     "table_shuffling": r"\makecell{Table \\ Shuffling \\ (Accuracy)}",
-    "table_type_detection": r"\makecell{Table Type \\ Detection \\ (XGB Acc.)}",
+    "table_type_detection": r"\makecell{Table Type \\ Detection \\ (XGB F1)}",
     "Overall": "Overall",
 }
 

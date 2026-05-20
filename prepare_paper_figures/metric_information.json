@@ -12,7 +12,7 @@
         "row_similarity_search": "In top-1 [%]",
         "table_retrieval": "MRR@10",
         "table_shuffling": "TripletAccuracy",
-        "table_type_detection": "XGBoost_accuracy (↑)"
+        "table_type_detection": "XGBoost_f1_macro (↑)"
     },
     "metric_ranges": {
         "silhouette": [

@@ -41,7 +41,7 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
 
     # TTD: XGBoost accuracy
     t_df = _get_quality(df[df['task'] == 'table_type_detection'],
-                        'table_type_detection', 'XGBoost_accuracy (↑)_mean', normalize=True)
+                        'table_type_detection', 'XGBoost_f1_macro (↑)_mean', normalize=True)
 
     # Compute mean quality across tasks
     all_quality = pd.concat([r_df, s_df, t_df], ignore_index=True)
