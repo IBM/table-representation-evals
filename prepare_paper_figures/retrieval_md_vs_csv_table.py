@@ -21,9 +21,10 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         print(f"WARNING: {metric_col} not found in retrieval data")
         return
 
+    # Pivot: rows=approach, columns=dataset
     pivoted = filtered.pivot_table(
-        index='dataset',
-        columns='chart_name',
+        index='chart_name',
+        columns='dataset',
         values=metric_col,
         aggfunc='mean',
     ).sort_index()
@@ -33,7 +34,10 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         plots_folder,
         filename='retrieval_md_vs_csv_table.tex',
         caption='Table Retrieval MRR@10: markdown vs CSV serialization (rl=100, transformers only). '
-                'Best per dataset in bold, second-best underlined.',
+                'Best per column in bold, second-best underlined.',
         label='tab:retrieval_md_csv',
+        index_name='Approach',
         float_fmt='.4f',
+        axis='columns',
+        add_mean_column=True,
     )

@@ -1,20 +1,17 @@
 \begin{table*}[t]
 \centering
-\begin{tabular*}{\textwidth}{lcccccc}
+\begin{tabular*}{\textwidth}{lccccccc|c}
 \hline
-Dataset & Granite-R2 (csv) & Granite-R2 (md) & GritLM (csv) & GritLM (md) & MiniLM (csv) & MiniLM (md) \\
+Approach & bird-validation & fetaqa & ottqa & spider-test & spider-train & spider-validation & tabfact & Mean \\
 \hline
-bird-validation & 0.8231 & \underline{0.8257} & 0.7810 & \textbf{0.8290} & 0.6913 & 0.6986 \\
-fetaqa & 0.5015 & 0.5112 & \textbf{0.6196} & \underline{0.6086} & 0.2980 & 0.2819 \\
-ottqa & 0.7675 & 0.7777 & \underline{0.8569} & \textbf{0.8605} & 0.5086 & 0.4983 \\
-spider-test & \textbf{0.7608} & \underline{0.7562} & 0.7190 & 0.7418 & 0.6615 & 0.6604 \\
-spider-train & \textbf{0.6090} & \underline{0.5932} & 0.5219 & 0.5527 & 0.4942 & 0.4825 \\
-spider-validation & \textbf{0.8957} & \underline{0.8650} & 0.8023 & 0.8160 & 0.7989 & 0.7590 \\
-tabfact & 0.5500 & 0.5673 & \textbf{0.6183} & \underline{0.6161} & 0.4291 & 0.4072 \\
-\hline
-Mean & 0.7011 & 0.6995 & \underline{0.7027} & \textbf{0.7178} & 0.5545 & 0.5411 \\
+Granite-R2 (csv) & 0.8231 & 0.5015 & 0.7675 & \textbf{0.7608} & \textbf{0.6090} & \textbf{0.8957} & 0.5500 & 0.7011 \\
+Granite-R2 (md) & \underline{0.8257} & 0.5112 & 0.7777 & \underline{0.7562} & \underline{0.5932} & \underline{0.8650} & 0.5673 & 0.6995 \\
+GritLM (csv) & 0.7810 & \textbf{0.6196} & \underline{0.8569} & 0.7190 & 0.5219 & 0.8023 & \textbf{0.6183} & \underline{0.7027} \\
+GritLM (md) & \textbf{0.8290} & \underline{0.6086} & \textbf{0.8605} & 0.7418 & 0.5527 & 0.8160 & \underline{0.6161} & \textbf{0.7178} \\
+MiniLM (csv) & 0.6913 & 0.2980 & 0.5086 & 0.6615 & 0.4942 & 0.7989 & 0.4291 & 0.5545 \\
+MiniLM (md) & 0.6986 & 0.2819 & 0.4983 & 0.6604 & 0.4825 & 0.7590 & 0.4072 & 0.5411 \\
 \hline
 \end{tabular*}
-\caption{Table Retrieval MRR@10: markdown vs CSV serialization (rl=100, transformers only). Best per dataset in bold, second-best underlined.}
+\caption{Table Retrieval MRR@10: markdown vs CSV serialization (rl=100, transformers only). Best per column in bold, second-best underlined.}
 \label{tab:retrieval_md_csv}
 \end{table*}

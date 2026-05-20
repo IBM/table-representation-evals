@@ -19,23 +19,23 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         print(f"WARNING: {metric_col} not found in retrieval data")
         return
 
-    # Pivot: rows=dataset, columns=chart_name
+    # Pivot: rows=approach, columns=dataset
     pivoted = filtered.pivot_table(
-        index='dataset',
-        columns='chart_name',
+        index='chart_name',
+        columns='dataset',
         values=metric_col,
         aggfunc='mean',
     )
-
-    # Sort datasets for consistent output
-    pivoted = pivoted.sort_index()
 
     h.write_latex_table(
         pivoted,
         plots_folder,
         filename='retrieval_main_table.tex',
         caption='Table Retrieval MRR@10 per dataset (rl=100, markdown serialization). '
-                'Best per dataset in bold, second-best underlined.',
+                'Best per column in bold, second-best underlined.',
         label='tab:retrieval_main',
+        index_name='Approach',
         float_fmt='.4f',
+        axis='columns',
+        add_mean_column=True,
     )

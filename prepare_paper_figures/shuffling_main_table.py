@@ -23,21 +23,25 @@ def create_accuracy_table(df: pd.DataFrame, plots_folder: Path):
         print(f"WARNING: {metric_col} not found in shuffling data")
         return
 
+    # Pivot: rows=approach, columns=dataset
     pivoted = filtered.pivot_table(
-        index='dataset',
-        columns='chart_name',
+        index='chart_name',
+        columns='dataset',
         values=metric_col,
         aggfunc='mean',
-    ).sort_index()
+    )
 
     h.write_latex_table(
         pivoted,
         plots_folder,
         filename='shuffling_accuracy_table.tex',
         caption='Table Shuffling accuracy per dataset (v0: hi-pos/hi-neg, both row+col perturbation, '
-                'default window). Best per dataset in bold, second-best underlined.',
+                'default window). Best per column in bold, second-best underlined.',
         label='tab:shuffling_accuracy',
+        index_name='Approach',
         float_fmt='.4f',
+        axis='columns',
+        add_mean_column=True,
     )
 
 
@@ -50,12 +54,13 @@ def create_bcs_table(df: pd.DataFrame, plots_folder: Path):
         print(f"WARNING: {metric_col} not found in shuffling data")
         return
 
+    # Pivot: rows=approach, columns=dataset
     pivoted = filtered.pivot_table(
-        index='dataset',
-        columns='chart_name',
+        index='chart_name',
+        columns='dataset',
         values=metric_col,
         aggfunc='mean',
-    ).sort_index()
+    )
 
     h.write_latex_table(
         pivoted,
@@ -63,8 +68,11 @@ def create_bcs_table(df: pd.DataFrame, plots_folder: Path):
         filename='shuffling_bcs_table.tex',
         caption='Table Shuffling Bounded Contrastive Score per dataset '
                 '(v0: hi-pos/hi-neg, both row+col perturbation, default window). '
-                'Lower is better. Best per dataset in bold, second-best underlined.',
+                'Lower is better. Best per column in bold, second-best underlined.',
         label='tab:shuffling_bcs',
+        index_name='Approach',
         float_fmt='.4f',
+        axis='columns',
+        add_mean_column=True,
         higher_better=False,
     )
