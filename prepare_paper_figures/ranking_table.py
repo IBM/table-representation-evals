@@ -115,6 +115,11 @@ def aggregate_per_task(
 def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml_elo_ranking_df: pd.DataFrame):
     df = all_results_df[all_results_df["chart_name"] != "Baseline"].copy()
 
+    # Exclude transformer CSV variants (keep only md and non-serialized approaches)
+    md_mask = df['chart_name'].str.endswith('(md)')
+    no_serial_mask = ~df['chart_name'].str.contains(r'\(', regex=True, na=False)
+    df = df[md_mask | no_serial_mask]
+
     # All base approach names
     all_approaches = sorted(df["chart_name"].str.replace(r"\*$", "", regex=True).unique())
     n_approaches = len(all_approaches)

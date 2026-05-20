@@ -18,6 +18,11 @@ SIZE_LABELS = {
 def create_table(df: pd.DataFrame, plots_folder: Path):
     filtered = df.copy()
 
+    # Exclude transformer CSV variants
+    md_mask = filtered['chart_name'].str.endswith('(md)')
+    no_serial_mask = ~filtered['chart_name'].str.contains(r'\(', regex=True, na=False)
+    filtered = filtered[md_mask | no_serial_mask]
+
     filtered['base_ds'], filtered['variation'] = zip(
         *filtered['dataset'].apply(h.parse_variation)
     )

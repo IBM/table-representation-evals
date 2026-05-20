@@ -26,6 +26,9 @@ def _compute_retrieval_scores(df: pd.DataFrame) -> pd.DataFrame:
 def _compute_shuffling_scores(df: pd.DataFrame) -> pd.DataFrame:
     """TripletAccuracy, v0, avg over datasets."""
     d = df[df['task'] == 'table_shuffling'].copy()
+    md_mask = d['chart_name'].str.endswith('(md)')
+    no_serial_mask = ~d['chart_name'].str.contains(r'\(', regex=True, na=False)
+    d = d[md_mask | no_serial_mask]
     d['base_ds'], d['variation'] = zip(*d['dataset'].apply(h.parse_variation))
     d = d[d['variation'] == 'v0']
     metric = 'TripletAccuracy_mean'
@@ -40,6 +43,9 @@ def _compute_shuffling_scores(df: pd.DataFrame) -> pd.DataFrame:
 def _compute_ttd_scores(df: pd.DataFrame) -> pd.DataFrame:
     """XGBoost macro-F1, frozen embeddings."""
     d = df[df['task'] == 'table_type_detection'].copy()
+    md_mask = d['chart_name'].str.endswith('(md)')
+    no_serial_mask = ~d['chart_name'].str.contains(r'\(', regex=True, na=False)
+    d = d[md_mask | no_serial_mask]
     metric = 'XGBoost_f1_macro (↑)_mean'
     if metric not in d.columns:
         return pd.DataFrame()
