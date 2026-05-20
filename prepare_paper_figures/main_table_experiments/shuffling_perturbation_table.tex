@@ -1,16 +1,14 @@
 \begin{table*}[t]
 \centering
-\begin{tabular*}{\textwidth}{lccc}
+\begin{tabular*}{\textwidth}{lccc|c}
 \hline
-Approach & Both & Row reorder & Col reorder \\
+Approach & Both & Row reorder & Col reorder & Mean \\
 \hline
-Granite-R2 (md) & 0.1286 & \underline{0.5318} & 0.3640 \\
-GritLM (md) & 0.1802 & 0.3953 & 0.5286 \\
-Hashing & 0.0000 & 0.0000 & 0.0000 \\
-HyTrel & \textbf{0.8747} & \textbf{0.9991} & \textbf{0.8723} \\
-MiniLM (md) & 0.1965 & 0.4895 & \underline{0.5640} \\
-\hline
-Mean & \underline{0.2760} & 0.4832 & 0.4658 \\
+Granite-R2 (md) & 0.1286 & \underline{0.5318} & 0.3640 & 0.3415 \\
+GritLM (md) & 0.1802 & 0.3953 & 0.5286 & 0.3680 \\
+Hashing & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
+HyTrel & \textbf{0.8747} & \textbf{0.9991} & \textbf{0.8723} & \textbf{0.9154} \\
+MiniLM (md) & \underline{0.1965} & 0.4895 & \underline{0.5640} & \underline{0.4167} \\
 \hline
 \end{tabular*}
 \caption{Table Shuffling: perturbation-type breakdown. Accuracy averaged over all 6 datasets (hi-pos/hi-neg, default window). Best per perturbation type in bold.}

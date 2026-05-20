@@ -45,4 +45,5 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         index_name='Approach',
         float_fmt='.4f',
         axis='columns',
+        add_mean_column=True,
     )

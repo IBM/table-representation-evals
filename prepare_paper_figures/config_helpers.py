@@ -61,6 +61,7 @@ def write_latex_table(
     nan_str: str = '---',
     table_env: bool = True,
     star: bool = True,
+    add_mean_column: bool = False,
 ):
     """
     Write a LaTeX table from a pivoted DataFrame.
@@ -73,13 +74,18 @@ def write_latex_table(
     higher_better : if True, max is best; if False, min is best (e.g. BCS).
     axis : 'rows' — best per row (e.g. best approach per dataset);
            'columns' — best per column (e.g. best approach per perturbation type).
+    add_mean_column : if True, add Mean as the final column (with | separator)
+                      instead of as a row. Use when approaches are the rows.
     """
     df = pivoted_df.copy()
     value_cols = list(df.columns)
 
-    # Add Mean row
-    mean_series = df.mean(numeric_only=True)
-    df.loc['Mean'] = mean_series
+    if add_mean_column:
+        df['Mean'] = df.mean(numeric_only=True, axis=1)
+        value_cols.append('Mean')
+    else:
+        mean_series = df.mean(numeric_only=True)
+        df.loc['Mean'] = mean_series
 
     # Precompute per-cell formatting tuples: (value, bold, underline)
     cell_formats = {}
@@ -117,10 +123,14 @@ def write_latex_table(
             f.write('\\centering\n')
 
         n_cols = len(value_cols)
-        if star:
-            f.write(f'\\begin{{tabular*}}{{\\textwidth}}{{l{"c" * n_cols}}}\n')
+        if add_mean_column:
+            col_spec = f'l{"c" * (n_cols - 1)}|c'
         else:
-            f.write(f'\\begin{{tabular}}{{l{"c" * n_cols}}}\n')
+            col_spec = f'l{"c" * n_cols}'
+        if star:
+            f.write(f'\\begin{{tabular*}}{{\\textwidth}}{{{col_spec}}}\n')
+        else:
+            f.write(f'\\begin{{tabular}}{{{col_spec}}}\n')
         f.write('\\hline\n')
 
         header = f'{index_name} & ' + ' & '.join(value_cols) + ' \\\\\n'
@@ -128,7 +138,7 @@ def write_latex_table(
         f.write('\\hline\n')
 
         for idx, row in df.iterrows():
-            if idx == 'Mean':
+            if not add_mean_column and idx == 'Mean':
                 f.write('\\hline\n')
 
             formatted = []
