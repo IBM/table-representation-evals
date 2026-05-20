@@ -43,11 +43,11 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         aggfunc='mean',
     )
 
-    # Write custom LaTeX with 2-level header
+    # Write custom LaTeX with 2-level header, spanning both columns
     with open(plots_folder / 'ttd_classifier_table.tex', 'w') as f:
-        f.write('\\begin{table}[t]\n')
+        f.write('\\begin{table*}[t]\n')
         f.write('\\centering\n')
-        f.write('\\begin{tabular}{l' + 'c' * len(pairs) + '}\n')
+        f.write('\\begin{tabular*}{\\textwidth}{l' + 'c' * len(pairs) + '}\n')
         f.write('\\hline\n')
 
         # 2-level header
@@ -65,6 +65,8 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         f.write('\\hline\n')
 
         for approach, row in pivoted.iterrows():
+            if approach == 'Mean':
+                f.write('\\hline\n')
             formatted = []
             for metric_label, cls, _ in pairs:
                 v = row.get((cls, metric_label), None)
@@ -75,8 +77,8 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
             f.write(f'{approach} & ' + ' & '.join(formatted) + ' \\\\\n')
 
         f.write('\\hline\n')
-        f.write('\\end{tabular}\n')
+        f.write('\\end{tabular*}\n')
         f.write('\\caption{Table Type Detection: accuracy and macro-F1 per classifier '
                 'on WDC Schema.org (header-stripped, frozen embeddings).}\n')
         f.write('\\label{tab:ttd_classifier}\n')
-        f.write('\\end{table}\n')
+        f.write('\\end{table*}\n')

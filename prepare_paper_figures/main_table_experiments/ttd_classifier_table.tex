@@ -1,6 +1,6 @@
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\begin{tabular}{lcccccc}
+\begin{tabular*}{\textwidth}{lcccccc}
 \hline
 Approach & \multicolumn{1}{c}{XGBoost} & \multicolumn{1}{c}{XGBoost} & \multicolumn{1}{c}{MLP} & \multicolumn{1}{c}{MLP} & \multicolumn{1}{c}{KNeighbors} & \multicolumn{1}{c}{KNeighbors} \\
  & accuracy & macro-F1 & accuracy & macro-F1 & accuracy & macro-F1 \\
@@ -14,7 +14,7 @@ HyTrel & 0.6490 & 0.6439 & 0.6610 & 0.6557 & 0.5630 & 0.5545 \\
 MiniLM (csv) & 0.7910 & 0.7888 & 0.8100 & 0.8070 & 0.7680 & 0.7519 \\
 MiniLM (md) & 0.7850 & 0.7818 & 0.8180 & 0.8154 & 0.7600 & 0.7443 \\
 \hline
-\end{tabular}
+\end{tabular*}
 \caption{Table Type Detection: accuracy and macro-F1 per classifier on WDC Schema.org (header-stripped, frozen embeddings).}
 \label{tab:ttd_classifier}
-\end{table}
+\end{table*}
