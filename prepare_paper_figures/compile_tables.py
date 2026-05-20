@@ -1,13 +1,10 @@
 """Compile all standalone .tex table files from main_table_experiments/ into PDFs in tables/."""
 
 import subprocess
-import shutil
 from pathlib import Path
 
 SRC = Path(__file__).parent / "main_table_experiments"
 OUT = SRC / "tables"
-
-OUT.mkdir(exist_ok=True)
 
 DOC_PREAMBLE = r"""\documentclass{article}
 \usepackage[landscape,margin=0.5in]{geometry}
@@ -20,39 +17,37 @@ DOC_POSTAMBLE = r"""
 \end{document}
 """
 
-for tex_file in sorted(SRC.glob("*.tex")):
-    stem = tex_file.stem
-    wrapped = OUT / f"{stem}.tex"
 
-    with open(tex_file) as f:
-        content = f.read()
+def compile_all():
+    OUT.mkdir(exist_ok=True)
 
-    with open(wrapped, "w") as f:
-        f.write(DOC_PREAMBLE)
-        f.write(content)
-        f.write(DOC_POSTAMBLE)
+    for tex_file in sorted(SRC.glob("*.tex")):
+        stem = tex_file.stem
+        wrapped = OUT / f"{stem}.tex"
 
-    result = subprocess.run(
-        ["pdflatex", "-interaction=nonstopmode", "-output-directory", str(OUT), wrapped.name],
-        cwd=str(OUT),
-        capture_output=True,
-        text=True,
-    )
+        content = tex_file.read_text()
+        wrapped.write_text(DOC_PREAMBLE + content + DOC_POSTAMBLE)
 
-    if result.returncode != 0:
-        print(f"FAILED: {stem}")
-        # print last 20 lines of log on failure
-        log = OUT / f"{stem}.log"
-        if log.exists():
-            lines = log.read_text().splitlines()
-            for line in lines[-20:]:
-                print(f"  {line}")
-    else:
-        print(f"  OK: {stem}")
+        result = subprocess.run(
+            ["pdflatex", "-interaction=nonstopmode", "-output-directory", str(OUT), wrapped.name],
+            cwd=str(OUT), capture_output=True, text=True,
+        )
 
-    # cleanup aux/log files
-    for ext in ["aux", "log", "out"]:
-        (OUT / f"{stem}.{ext}").unlink(missing_ok=True)
-    wrapped.unlink(missing_ok=True)
+        if result.returncode != 0:
+            print(f"FAILED: {stem}")
+            log = OUT / f"{stem}.log"
+            if log.exists():
+                for line in log.read_text().splitlines()[-20:]:
+                    print(f"  {line}")
+        else:
+            print(f"  OK: {stem}")
 
-print(f"\nDone. PDFs in {OUT}/")
+        for ext in ["aux", "log", "out"]:
+            (OUT / f"{stem}.{ext}").unlink(missing_ok=True)
+        wrapped.unlink(missing_ok=True)
+
+    print(f"\nDone. PDFs in {OUT}/")
+
+
+if __name__ == "__main__":
+    compile_all()
