@@ -56,10 +56,10 @@ color_mapping = {
     ("hashing", "n_features=32768,table_row_limit=0"):   "#d62728",
     ("hashing", "n_features=32768,table_row_limit=100"): "#d62728",
     ("hashing", "table_row_limit=100"):                  "#d62728",  # legacy config
-    # TF-IDF
-    ("tfidf", "n_features=32768,table_row_limit=0"):   "#2ca02c",
-    ("tfidf", "n_features=32768,table_row_limit=100"): "#2ca02c",
-    ("tfidf", "table_row_limit=100"):                  "#2ca02c",  # legacy config
+    # # TF-IDF (disabled)
+    # ("tfidf", "n_features=32768,table_row_limit=0"):   "#2ca02c",
+    # ("tfidf", "n_features=32768,table_row_limit=100"): "#2ca02c",
+    # ("tfidf", "table_row_limit=100"):                  "#2ca02c",  # legacy config
 }
 
 name_mapping = {
@@ -82,10 +82,10 @@ name_mapping = {
     ("hashing", "n_features=32768,table_row_limit=0"):   "Hashing",
     ("hashing", "n_features=32768,table_row_limit=100"): "Hashing",
     ("hashing", "table_row_limit=100"):                  "Hashing",
-    # TF-IDF
-    ("tfidf", "n_features=32768,table_row_limit=0"):   "TF-IDF",
-    ("tfidf", "n_features=32768,table_row_limit=100"): "TF-IDF",
-    ("tfidf", "table_row_limit=100"):                  "TF-IDF",
+    # # TF-IDF (disabled)
+    # ("tfidf", "n_features=32768,table_row_limit=0"):   "TF-IDF",
+    # ("tfidf", "n_features=32768,table_row_limit=100"): "TF-IDF",
+    # ("tfidf", "table_row_limit=100"):                  "TF-IDF",
 }
 
 # ---------------------------------------------------------------------------
@@ -123,6 +123,9 @@ if __name__ == "__main__":
     plots_folder.mkdir(exist_ok=True, parents=True)
 
     all_results_df = create_plots.gather_results_and_metrics(results_folder=results_folder)
+
+    # Exclude TF-IDF from all tables, figures, and evaluations
+    all_results_df = all_results_df[all_results_df["Approach"] != "tfidf"]
 
     print("Approaches:", all_results_df["Approach"].unique())
     print("Tasks:", all_results_df["task"].unique())
@@ -298,3 +301,10 @@ if __name__ == "__main__":
     # OVERALL RANKING TABLE (T1)
     # ======================================================================
     ranking_table.create_table(all_results_df, plots_folder, elo_table)
+
+    # ======================================================================
+    # COMPILE .tex TABLES TO .pdf
+    # ======================================================================
+    import compile_tables
+    print("Compiling .tex tables to PDF...")
+    compile_tables.compile_all()
