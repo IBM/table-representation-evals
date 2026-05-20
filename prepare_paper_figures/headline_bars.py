@@ -86,13 +86,14 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
         bars = ax.bar(range(len(all_approaches)), scores, color=colors, edgecolor='white', linewidth=0.5)
         ax.set_title(title, fontsize=11)
         ax.set_xticks(range(len(all_approaches)))
-        ax.set_xticklabels(all_approaches, rotation=45, ha='right', fontsize=8)
+        ax.set_xticklabels(all_approaches, rotation=45, ha='right', fontsize=11)
         ax.set_ylim(0, 1.05)
+        ax.tick_params(axis='y', labelsize=13)
 
         for bar, v in zip(bars, scores):
             if v > 0:
                 ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.015,
-                        f'{v:.3f}', ha='center', va='bottom', fontsize=7, rotation=90)
+                        f'{v:.3f}', ha='center', va='bottom', fontsize=11, rotation=90)
 
     fig.suptitle('Table-Level Embedding Quality Across Three Diagnostic Tasks', fontsize=13, y=1.02)
     fig.tight_layout()

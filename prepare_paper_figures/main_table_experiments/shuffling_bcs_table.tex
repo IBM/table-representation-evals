@@ -1,6 +1,6 @@
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\begin{tabular}{lcccccccc}
+\begin{tabular*}{\textwidth}{lcccccccc}
 \hline
 Dataset & Granite-R2 (csv) & Granite-R2 (md) & GritLM (csv) & GritLM (md) & Hashing & HyTrel & MiniLM (csv) & MiniLM (md) \\
 \hline
@@ -12,7 +12,7 @@ spider-train & 0.6911 & 0.7000 & 0.6514 & 0.6452 & \underline{0.3333} & \textbf{
 tabfact & 0.6803 & 0.6748 & 0.6384 & 0.6296 & \underline{0.3333} & \textbf{0.0022} & 0.6789 & 0.6305 \\
 Mean & 0.7299 & 0.7289 & 0.6625 & 0.6627 & \underline{0.3453} & \textbf{0.1769} & 0.7187 & 0.6923 \\
 \hline
-\end{tabular}
+\end{tabular*}
 \caption{Table Shuffling Bounded Contrastive Score per dataset (v0: hi-pos/hi-neg, both row+col perturbation, default window). Lower is better. Best per dataset in bold, second-best underlined.}
 \label{tab:shuffling_bcs}
-\end{table}
+\end{table*}

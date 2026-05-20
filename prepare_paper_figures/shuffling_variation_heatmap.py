@@ -37,23 +37,24 @@ def create_heatmap(df: pd.DataFrame, plots_folder: Path):
     im = ax.imshow(pivoted.values, aspect='auto', cmap='RdYlGn', vmin=0.4, vmax=1.0)
 
     ax.set_xticks(range(len(pivoted.columns)))
-    ax.set_xticklabels(pivoted.columns, rotation=45, ha='right', fontsize=9)
+    ax.set_xticklabels(pivoted.columns, rotation=45, ha='right', fontsize=11)
     ax.set_yticks(range(len(pivoted.index)))
-    ax.set_yticklabels(pivoted.index, fontsize=9)
+    ax.set_yticklabels(pivoted.index, fontsize=11)
 
     for i in range(len(pivoted.index)):
         for j in range(len(pivoted.columns)):
             v = pivoted.iloc[i, j]
             if not pd.isna(v):
                 ax.text(j, i, f'{v:.4f}', ha='center', va='center',
-                        fontsize=7, color='black' if 0.4 < v < 0.8 else 'white')
+                        fontsize=9, color='black' if 0.4 < v < 0.8 else 'white')
 
     cbar = plt.colorbar(im, ax=ax, shrink=0.8)
-    cbar.set_label('Triplet Accuracy')
+    cbar.set_label('Triplet Accuracy', fontsize=14)
 
-    ax.set_xlabel('Approach')
-    ax.set_ylabel('Variation')
+    ax.set_xlabel('Approach', fontsize=14)
+    ax.set_ylabel('Variation', fontsize=16)
     ax.set_title('Table Shuffling: Variation Heatmap (avg over all 6 datasets)')
+    ax.tick_params(labelsize=13)
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'shuffling_variation_heatmap.pdf', bbox_inches='tight')

@@ -63,9 +63,9 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
     sizes = ['BIG', 'SMALL']
 
     with open(plots_folder / 'shuffling_size_table.tex', 'w') as f:
-        f.write('\\begin{table}[t]\n')
+        f.write('\\begin{table*}[t]\n')
         f.write('\\centering\n')
-        f.write('\\begin{tabular}{l' + 'c' * 6 + '}\n')
+        f.write('\\begin{tabular*}{\\textwidth}{l' + 'c' * 6 + '}\n')
         f.write('\\hline\n')
 
         # Level 1: perturbation type (spanning 2 cols each)
@@ -93,9 +93,9 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
             f.write(f'{approach} & ' + ' & '.join(formatted) + ' \\\\\n')
 
         f.write('\\hline\n')
-        f.write('\\end{tabular}\n')
+        f.write('\\end{tabular*}\n')
         f.write('\\caption{Table Shuffling: size ablation (hi-pos/hi-neg). '
                 'Averaged over fetaqa, tabfact, ottqa, spider-train. '
                 'CKAN and ECB excluded (no tables pass SMALL window filter).}\n')
         f.write('\\label{tab:shuffling_size}\n')
-        f.write('\\end{table}\n')
+        f.write('\\end{table*}\n')

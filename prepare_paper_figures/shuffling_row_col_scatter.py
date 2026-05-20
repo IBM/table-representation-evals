@@ -46,7 +46,7 @@ def create_scatter(df: pd.DataFrame, plots_folder: Path):
         ax.annotate(r['chart_name'],
                     (r['row_acc'], r['col_acc']),
                     textcoords='offset points', xytext=(8, 6),
-                    fontsize=9, color=r['color'],
+                    fontsize=11, color=r['color'],
                     path_effects=[pe.withStroke(linewidth=2, foreground='white')])
 
     # Diagonal line (symmetric behaviour)
@@ -54,14 +54,15 @@ def create_scatter(df: pd.DataFrame, plots_folder: Path):
     max_val = max(merged['row_acc'].max(), merged['col_acc'].max()) + 0.05
     ax.plot([min_val, max_val], [min_val, max_val], 'k--', alpha=0.3, label='Row = Col')
 
-    ax.set_xlabel('Accuracy on Row Reorder (v3)')
-    ax.set_ylabel('Accuracy on Col Reorder (v6)')
+    ax.set_xlabel('Accuracy on Row Reorder (v3)', fontsize=14)
+    ax.set_ylabel('Accuracy on Col Reorder (v6)', fontsize=16)
     ax.set_title('Row vs Column Perturbation Sensitivity\n(hi-pos/hi-neg, default window, avg over datasets)')
     ax.set_xlim(min_val, max_val)
     ax.set_ylim(min_val, max_val)
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3)
     ax.set_aspect('equal')
+    ax.tick_params(labelsize=13)
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'shuffling_row_col_scatter.pdf', bbox_inches='tight')

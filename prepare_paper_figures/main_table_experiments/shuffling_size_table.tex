@@ -1,6 +1,6 @@
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\begin{tabular}{lcccccc}
+\begin{tabular*}{\textwidth}{lcccccc}
 \hline
 Approach & \multicolumn{2}{c}{Both} & \multicolumn{2}{c}{Row reorder} & \multicolumn{2}{c}{Col reorder} \\
  & BIG & SMALL & BIG & SMALL & BIG & SMALL \\
@@ -11,7 +11,7 @@ Hashing & 0.0000 & 0.0000 & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
 HyTrel & 0.9654 & 0.9850 & 0.9995 & 0.9995 & 0.9694 & 0.9824 \\
 MiniLM (md) & 0.2434 & 0.2345 & 0.3906 & 0.4270 & 0.6821 & 0.6403 \\
 \hline
-\end{tabular}
+\end{tabular*}
 \caption{Table Shuffling: size ablation (hi-pos/hi-neg). Averaged over fetaqa, tabfact, ottqa, spider-train. CKAN and ECB excluded (no tables pass SMALL window filter).}
 \label{tab:shuffling_size}
-\end{table}
+\end{table*}

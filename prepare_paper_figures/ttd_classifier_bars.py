@@ -48,14 +48,15 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
         for bar, v in zip(bars, vals):
             if not np.isnan(v) and v > 0:
                 ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                        f'{v:.3f}', ha='center', va='bottom', fontsize=6,
+                        f'{v:.3f}', ha='center', va='bottom', fontsize=11,
                         rotation=90)
 
     ax.set_xticks(x_centers)
-    ax.set_xticklabels(classifiers, fontsize=10)
+    ax.set_xticklabels(classifiers, fontsize=13)
     ax.set_ylim(0, 1.05)
-    ax.set_ylabel('macro-F1', fontsize=10)
-    ax.legend(fontsize=7, ncol=2, loc='lower right')
+    ax.set_ylabel('macro-F1', fontsize=16)
+    ax.tick_params(labelsize=13)
+    ax.legend(fontsize=11, ncol=2, loc='lower right')
 
     fig.suptitle('Table Type Detection: macro-F1 per Classifier\n'
                  '(WDC Schema.org, frozen embeddings)', fontsize=12, y=1.02)

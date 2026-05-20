@@ -1,6 +1,6 @@
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\begin{tabular}{lcccccccc}
+\begin{tabular*}{\textwidth}{lcccccccc}
 \hline
 Dataset & Granite-R2 (csv) & Granite-R2 (md) & GritLM (csv) & GritLM (md) & Hashing & HyTrel & MiniLM (csv) & MiniLM (md) \\
 \hline
@@ -12,7 +12,7 @@ spider-train & 0.1344 & 0.1222 & 0.1141 & 0.1181 & 0.0000 & \textbf{0.9980} & 0.
 tabfact & 0.1342 & 0.1584 & 0.1348 & 0.1602 & 0.0000 & \textbf{1.0000} & 0.1507 & \underline{0.2092} \\
 Mean & 0.1287 & 0.1286 & 0.1652 & 0.1802 & 0.0000 & \textbf{0.8747} & 0.1550 & \underline{0.1965} \\
 \hline
-\end{tabular}
+\end{tabular*}
 \caption{Table Shuffling accuracy per dataset (v0: hi-pos/hi-neg, both row+col perturbation, default window). Best per dataset in bold, second-best underlined.}
 \label{tab:shuffling_accuracy}
-\end{table}
+\end{table*}

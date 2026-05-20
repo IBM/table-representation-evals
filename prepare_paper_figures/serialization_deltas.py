@@ -70,15 +70,16 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
             y_pos = bar.get_height() + 0.002 if v >= 0 else bar.get_height() - 0.015
             ax.text(bar.get_x() + bar.get_width() / 2, y_pos,
                     f'{v:+.4f}', ha='center', va='bottom' if v >= 0 else 'top',
-                    fontsize=8, rotation=45)
+                    fontsize=11, rotation=45)
 
     ax.axhline(0, color='black', linewidth=0.8)
     ax.set_xticks(x + bar_width)
-    ax.set_xticklabels(task_labels, fontsize=10)
-    ax.set_ylabel(r'$\Delta$ (csv $-$ markdown)')
+    ax.set_xticklabels(task_labels, fontsize=13)
+    ax.set_ylabel(r'$\Delta$ (csv $-$ markdown)', fontsize=16)
     ax.set_title('Serialization Impact: CSV vs Markdown Across Tasks')
-    ax.legend(loc='upper right', fontsize=9)
+    ax.legend(loc='upper right', fontsize=11)
     ax.grid(axis='y', alpha=0.3)
+    ax.tick_params(labelsize=13)
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'serialization_deltas.pdf', bbox_inches='tight')

@@ -1,6 +1,6 @@
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\begin{tabular}{lccc}
+\begin{tabular*}{\textwidth}{lccc}
 \hline
 Approach & hi-pos / hi-neg & lo-pos / hi-neg & hi-pos / lo-neg \\
 \hline
@@ -11,7 +11,7 @@ HyTrel & \textbf{0.8747} & \textbf{0.9712} & \textbf{0.8277} \\
 MiniLM (md) & 0.1965 & 0.6376 & 0.0036 \\
 Mean & \underline{0.2760} & 0.6044 & \underline{0.1688} \\
 \hline
-\end{tabular}
+\end{tabular*}
 \caption{Table Shuffling: magnitude grid. Accuracy averaged over all 6 datasets (perturbation=both, default window). Rows = positive-magnitude / negative-magnitude. Best in bold.}
 \label{tab:shuffling_magnitude}
-\end{table}
+\end{table*}

@@ -60,7 +60,7 @@ def write_latex_table(
     float_fmt: str = '.4f',
     nan_str: str = '---',
     table_env: bool = True,
-    star: bool = False,
+    star: bool = True,
 ):
     """
     Write a LaTeX table from a pivoted DataFrame.
@@ -117,7 +117,10 @@ def write_latex_table(
             f.write('\\centering\n')
 
         n_cols = len(value_cols)
-        f.write(f'\\begin{{tabular}}{{l{"c" * n_cols}}}\n')
+        if star:
+            f.write(f'\\begin{{tabular*}}{{\\textwidth}}{{l{"c" * n_cols}}}\n')
+        else:
+            f.write(f'\\begin{{tabular}}{{l{"c" * n_cols}}}\n')
         f.write('\\hline\n')
 
         header = f'{index_name} & ' + ' & '.join(value_cols) + ' \\\\\n'
@@ -145,7 +148,7 @@ def write_latex_table(
             f.write(f'{row_label} & ' + ' & '.join(formatted) + ' \\\\\n')
 
         f.write('\\hline\n')
-        f.write('\\end{tabular}\n')
+        f.write('\\end{tabular*}\n' if star else '\\end{tabular}\n')
 
         if table_env:
             if caption:

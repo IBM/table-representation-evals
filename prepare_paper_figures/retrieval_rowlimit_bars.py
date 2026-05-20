@@ -40,14 +40,15 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
         for bar, v in zip(bars, values):
             if v > 0:
                 ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                        f'{v:.3f}', ha='center', va='bottom', fontsize=7, rotation=90)
+                        f'{v:.3f}', ha='center', va='bottom', fontsize=11, rotation=90)
 
-    ax.set_ylabel('MRR@10')
+    ax.set_ylabel('MRR@10', fontsize=16)
     ax.set_title('Table Retrieval: Schema-only vs Schema+Content (markdown, avg over datasets)')
     ax.set_xticks(x + bar_width / 2)
-    ax.set_xticklabels(approaches, rotation=20, ha='right')
+    ax.set_xticklabels(approaches, rotation=20, ha='right', fontsize=11)
     ax.set_ylim(0, 1.05)
-    ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.35), ncol=2)
+    ax.tick_params(labelsize=13)
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.35), ncol=2, fontsize=11)
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'retrieval_rowlimit_bars.pdf', bbox_inches='tight')
