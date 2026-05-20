@@ -31,17 +31,15 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
     # Build summary
     summary = pd.DataFrame({
         'ECB': ecb,
-        'Mean (5 semantic)': semantic_mean,
+        'Mean of 5 other datasets': semantic_mean,
     })
-    summary[r'$\Delta$'] = summary['ECB'] - summary['Mean (5 semantic)']
 
     h.write_latex_table(
         summary,
         plots_folder,
         filename='shuffling_ecb_table.tex',
-        caption='Table Shuffling: ECB vs semantic datasets (v0, hi-pos/hi-neg, both perturbation). '
+        caption='Table Shuffling: ECB vs other datasets (v0, hi-pos/hi-neg, both perturbation). '
                 'ECB = low-lexical numerical regime; Mean(5) = fetaqa, tabfact, ottqa, spider-train, ckan. '
-                'Negative $\\Delta$ indicates structural collapse when lexical shortcut is removed. '
                 'Best (highest) per column in bold.',
         label='tab:shuffling_ecb',
         index_name='Approach',
