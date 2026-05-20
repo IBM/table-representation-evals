@@ -128,6 +128,9 @@ def write_latex_table(
         f.write('\\hline\n')
 
         for idx, row in df.iterrows():
+            if idx == 'Mean':
+                f.write('\\hline\n')
+
             formatted = []
             for c in value_cols:
                 v = row[c]
