@@ -81,6 +81,7 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
     for ax, (title, panel_df, _) in zip(axes, panels):
         panel_df = panel_df.set_index('chart_name').reindex(all_approaches)
         colors = panel_df['color'].fillna('#999999').values
+        has_data = panel_df['score'].notna().values
         scores = panel_df['score'].fillna(0).values
 
         bars = ax.bar(range(len(all_approaches)), scores, color=colors, edgecolor='white', linewidth=0.5)
@@ -90,8 +91,8 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
         ax.set_ylim(0, 1.05)
         ax.tick_params(axis='y', labelsize=13)
 
-        for bar, v in zip(bars, scores):
-            if v > 0:
+        for bar, v, present in zip(bars, scores, has_data):
+            if present:
                 ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.015,
                         f'{v:.3f}', ha='center', va='bottom', fontsize=11, rotation=90)
 
