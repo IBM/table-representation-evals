@@ -46,6 +46,22 @@ def filter_chart_names(df: pd.DataFrame, suffix: str) -> pd.DataFrame:
     return df[df['chart_name'].str.endswith(suffix, na=False)]
 
 
+def escape_latex(text: str) -> str:
+    """Escape LaTeX special characters."""
+    text = str(text)
+    text = text.replace('\\', '\\textbackslash{}')
+    text = text.replace('_', '\\_')
+    text = text.replace('^', '\\^{}')
+    text = text.replace('~', '\\textasciitilde{}')
+    text = text.replace('#', '\\#')
+    text = text.replace('$', '\\$')
+    text = text.replace('%', '\\%')
+    text = text.replace('&', '\\&')
+    text = text.replace('{', '\\{')
+    text = text.replace('}', '\\}')
+    return text
+
+
 def write_latex_table(
     pivoted_df: pd.DataFrame,
     plots_folder: Path,
@@ -133,7 +149,7 @@ def write_latex_table(
             f.write(f'\\begin{{tabular}}{{{col_spec}}}\n')
         f.write('\\hline\n')
 
-        header = f'{index_name} & ' + ' & '.join(value_cols) + ' \\\\\n'
+        header = f'{index_name} & ' + ' & '.join(escape_latex(c) for c in value_cols) + ' \\\\\n'
         f.write(header)
         f.write('\\hline\n')
 
@@ -157,7 +173,7 @@ def write_latex_table(
                             s = f'\\underline{{{s}}}'
                     formatted.append(s)
 
-            row_label = str(idx).replace('_', '\\_')
+            row_label = escape_latex(idx)
             f.write(f'{row_label} & ' + ' & '.join(formatted) + ' \\\\\n')
 
         f.write('\\hline\n')
