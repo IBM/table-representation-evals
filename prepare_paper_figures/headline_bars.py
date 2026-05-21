@@ -75,28 +75,55 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
         ('Table Type Detection\n(XGBoost macro-F1)', t_df, 'TTD'),
     ]
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
-    axes = axes.flatten()
+    # 3 bar panels + 1 narrow legend panel
+    fig, axes = plt.subplots(1, 4, figsize=(17, 4.2), layout='constrained',
+                             gridspec_kw={'width_ratios': [3, 3, 3, 0.7], 'wspace': 0.08})
 
-    for ax, (title, panel_df, _) in zip(axes, panels):
+    panel_axes = axes[:3]
+    legend_ax = axes[3]
+
+    panel_labels = [
+        'Table Retrieval\n(MRR@10)',
+        'Table Shuffling\n(Triplet Accuracy)',
+        'Table Type Detection\n(XGBoost macro-F1)',
+    ]
+
+    for ax, (title, panel_df, _), label in zip(panel_axes, panels, panel_labels):
         panel_df = panel_df.set_index('chart_name').reindex(all_approaches)
         colors = panel_df['color'].fillna('#999999').values
         has_data = panel_df['score'].notna().values
         scores = panel_df['score'].fillna(0).values
 
         bars = ax.bar(range(len(all_approaches)), scores, color=colors, edgecolor='white', linewidth=0.5)
-        ax.set_title(title, fontsize=11)
-        ax.set_xticks(range(len(all_approaches)))
-        ax.set_xticklabels(all_approaches, rotation=45, ha='right', fontsize=11)
+        ax.set_title(label, fontsize=11)
+        ax.set_ylabel('')
+        ax.set_xticks([])
         ax.set_ylim(0, 1.05)
-        ax.tick_params(axis='y', labelsize=13)
+        ax.tick_params(axis='y', labelsize=11)
 
         for bar, v, present in zip(bars, scores, has_data):
             if present:
                 ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.015,
-                        f'{v:.3f}', ha='center', va='bottom', fontsize=11, rotation=90)
+                        f'{v:.3f}', ha='center', va='bottom', fontsize=9, rotation=90)
 
-    fig.suptitle('Table-Level Embedding Quality Across Three Diagnostic Tasks', fontsize=13, y=1.02)
-    fig.tight_layout()
+    # Build legend from unique (name, color) pairs in approach order
+    seen = {}
+    for name in all_approaches:
+        # find color from any panel that has it
+        for _, panel_df, _ in panels:
+            row = panel_df[panel_df['chart_name'] == name]
+            if not row.empty:
+                seen[name] = row['color'].iloc[0]
+                break
+
+    legend_handles = [
+        plt.Rectangle((0, 0), 1, 1, color=color, label=name)
+        for name, color in seen.items()
+    ]
+    legend_ax.legend(handles=legend_handles, loc='center left', fontsize=13,
+                     frameon=True, framealpha=0.9, edgecolor='#cccccc',
+                     title='Approach', title_fontsize=13)
+    legend_ax.axis('off')
+
     fig.savefig(plots_folder / 'headline_bars.pdf', bbox_inches='tight')
     plt.close(fig)

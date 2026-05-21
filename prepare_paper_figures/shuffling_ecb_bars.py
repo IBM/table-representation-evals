@@ -49,7 +49,7 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
     ax.set_xticks(x + bar_width * (len(approaches) - 1) / 2)
     ax.set_xticklabels(variations, rotation=45, ha='right', fontsize=11)
     ax.set_ylabel('Triplet Accuracy', fontsize=16)
-    ax.set_title('ECB Spotlight: Accuracy Across All Perturbation Variations')
+
     ax.set_ylim(0, 1.05)
     ax.tick_params(labelsize=13)
     ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.5), ncol=4, fontsize=11)

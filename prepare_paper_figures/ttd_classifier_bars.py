@@ -58,8 +58,6 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
     ax.tick_params(labelsize=13)
     ax.legend(fontsize=11, ncol=2, loc='lower right')
 
-    fig.suptitle('Table Type Detection: macro-F1 per Classifier\n'
-                 '(WDC Schema.org, frozen embeddings)', fontsize=12, y=1.02)
     fig.tight_layout()
     fig.savefig(plots_folder / 'ttd_classifier_bars.pdf', bbox_inches='tight')
     plt.close(fig)

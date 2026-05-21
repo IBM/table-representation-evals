@@ -46,7 +46,7 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
 
     ax.set_ylabel('MRR@10', fontsize=16)
     ax.set_xlabel('Dataset', fontsize=14)
-    ax.set_title('Table Retrieval MRR@10 per Dataset (rl=100, markdown)')
+
     ax.set_xticks(x + bar_width * (len(approaches) - 1) / 2)
     ax.set_xticklabels(datasets, rotation=30, ha='right', fontsize=13)
     ax.set_ylim(0, 1.05)

@@ -53,7 +53,7 @@ def create_heatmap(df: pd.DataFrame, plots_folder: Path):
 
     ax.set_xlabel('Approach', fontsize=14)
     ax.set_ylabel('Variation', fontsize=16)
-    ax.set_title('Table Shuffling: Variation Heatmap (avg over all 6 datasets)')
+
     ax.tick_params(labelsize=13)
 
     fig.tight_layout()

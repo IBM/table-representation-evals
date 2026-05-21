@@ -38,15 +38,15 @@ def create_scatter(df: pd.DataFrame, plots_folder: Path):
         print("WARNING: No data for row-col scatter")
         return
 
-    fig, ax = plt.subplots(figsize=(8, 7))
+    fig, ax = plt.subplots(figsize=(6, 6))
 
     for _, r in merged.iterrows():
         ax.scatter(r['row_acc'], r['col_acc'], color=r['color'],
-                   s=150, edgecolors='white', linewidth=1, zorder=5)
+                   s=180, edgecolors='white', linewidth=1, zorder=5)
         ax.annotate(r['chart_name'],
                     (r['row_acc'], r['col_acc']),
                     textcoords='offset points', xytext=(8, 6),
-                    fontsize=11, color=r['color'],
+                    fontsize=13, color=r['color'],
                     path_effects=[pe.withStroke(linewidth=2, foreground='white')])
 
     # Diagonal line (symmetric behaviour)
@@ -56,7 +56,7 @@ def create_scatter(df: pd.DataFrame, plots_folder: Path):
 
     ax.set_xlabel('Accuracy on Row Reorder (v3)', fontsize=14)
     ax.set_ylabel('Accuracy on Col Reorder (v6)', fontsize=16)
-    ax.set_title('Row vs Column Perturbation Sensitivity\n(hi-pos/hi-neg, default window, avg over datasets)')
+
     ax.set_xlim(min_val, max_val)
     ax.set_ylim(min_val, max_val)
     ax.legend(fontsize=11)

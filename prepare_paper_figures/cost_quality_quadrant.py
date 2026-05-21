@@ -92,7 +92,7 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
 
     ax.set_xlabel('Execution Time (s)', fontsize=14)
     ax.set_ylabel('Average Quality (pooled across tasks, normalized)', fontsize=16)
-    ax.set_title('Cost vs Quality: Embedding Time Against Pooled Task Performance')
+
     ax.tick_params(labelsize=13)
 
     fig.tight_layout()

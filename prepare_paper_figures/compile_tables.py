@@ -10,6 +10,7 @@ DOC_PREAMBLE = r"""\documentclass{article}
 \usepackage[landscape,margin=0.5in]{geometry}
 \usepackage{makecell}
 \usepackage{amsmath}
+\usepackage{float}
 \begin{document}
 """
 

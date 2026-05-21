@@ -43,7 +43,7 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
                         f'{v:.3f}', ha='center', va='bottom', fontsize=11, rotation=90)
 
     ax.set_ylabel('MRR@10', fontsize=16)
-    ax.set_title('Table Retrieval: Schema-only vs Schema+Content (markdown, avg over datasets)')
+
     ax.set_xticks(x + bar_width / 2)
     ax.set_xticklabels(approaches, rotation=20, ha='right', fontsize=11)
     ax.set_ylim(0, 1.05)

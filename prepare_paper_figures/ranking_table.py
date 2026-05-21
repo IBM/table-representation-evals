@@ -258,16 +258,17 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
 
     with open(plots_folder / "overall_ranking_table.tex", "w") as f:
         f.write(
-            "\\begin{table*}[t]\n"
+            "\\begin{table}[H]\n"
             "\\centering\n"
-            f"\\begin{{tabular*}}{{\\textwidth}}{{l{'c'*len(value_cols)}}}\n"
+            "\\setlength{\\tabcolsep}{3pt}\n"
+            f"\\begin{{tabular*}}{{\\columnwidth}}{{l{'c'*len(value_cols)}}}\n"
             "\\hline\n"
         )
         f.write("Approach & " + " & ".join(value_cols) + " \\\\\n")
         f.write("\\hline\n")
 
         for _, row in df_out.iterrows():
-            approach = row["Approach"]
+            approach = row["Approach"].replace("_", "\\_")
             formatted = []
 
             for col in value_cols:
@@ -302,6 +303,6 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
             "missing datasets were imputed with a worst-case value.}\n"
         )
         f.write("\\label{tab:overall_ranking}\n")
-        f.write("\\end{table*}\n")
+        f.write("\\end{table}\n")
 
     return ranking_df

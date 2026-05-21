@@ -76,7 +76,7 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
     ax.set_xticks(x + bar_width)
     ax.set_xticklabels(task_labels, fontsize=13)
     ax.set_ylabel(r'$\Delta$ (csv $-$ markdown)', fontsize=16)
-    ax.set_title('Serialization Impact: CSV vs Markdown Across Tasks')
+
     ax.legend(loc='upper right', fontsize=11)
     ax.grid(axis='y', alpha=0.3)
     ax.tick_params(labelsize=13)

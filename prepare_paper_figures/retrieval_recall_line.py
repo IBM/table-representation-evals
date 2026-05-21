@@ -37,7 +37,7 @@ def create_lineplot(df: pd.DataFrame, plots_folder: Path):
 
     ax.set_xlabel('k', fontsize=14)
     ax.set_ylabel('Recall@k', fontsize=16)
-    ax.set_title('Table Retrieval: Recall@k (rl=100, markdown, avg over 7 datasets)')
+
     ax.set_xticks(k_values)
     ax.set_ylim(0, 1.05)
     ax.tick_params(labelsize=13)
