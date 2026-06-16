@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\begin{tabular}{lccc}
+\hline
+Approach & Both & Row reorder & Col reorder \\
+\hline
+Granite-R2 (csv) & 0.1287 & 0.3769 & 0.3294 \\
+Granite-R2 (md) & 0.1286 & \underline{0.5318} & 0.3640 \\
+GritLM (csv) & 0.1652 & 0.4231 & 0.4749 \\
+GritLM (md) & 0.1802 & 0.3953 & 0.5286 \\
+Hashing & 0.0000 & 0.0000 & 0.0000 \\
+HyTrel & \textbf{0.8747} & \textbf{0.9991} & \textbf{0.8723} \\
+MiniLM (csv) & 0.1550 & 0.3280 & 0.4532 \\
+MiniLM (md) & 0.1965 & 0.4895 & \underline{0.5640} \\
+Mean & \underline{0.2286} & 0.4430 & 0.4483 \\
+\hline
+\end{tabular}
+\caption{Table Shuffling: perturbation-type breakdown. Accuracy averaged over all 6 datasets (hi-pos/hi-neg, default window). Best per perturbation type in bold.}
+\label{tab:shuffling_perturbation}
+\end{table}

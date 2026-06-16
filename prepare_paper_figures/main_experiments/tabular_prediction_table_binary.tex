@@ -1,0 +1,43 @@
+\begin{table*}[t]
+\footnotesize
+\centering
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} l c c c c c c c c c c c c @{{}}}
+\hline
+Dataset & XGBoost & GritLM* & HyTrel* & Granite* & MiniLM* & SAP-RPT & SAP-RPT-1* & TabICL v2 & TabICL v2* & TabPFN v2.5 & TabPFN v2.5* & TabuLa-8B* \\
+\hline
+APSFailure & \underline{0.99} & 0.97 & - & 0.96 & 0.97 & \underline{0.99} & - & \textbf{1.00} & 0.50 & - & - & 0.98 \\
+Amazon\_employee\_a. & 0.82 & 0.74 & 0.50 & 0.68 & 0.72 & \textbf{0.85} & 0.78 & \textbf{0.85} & 0.50 & \underline{0.84} & 0.52 & 0.73 \\
+Bank\_Customer\_Chu. & 0.85 & 0.81 & 0.50 & 0.76 & 0.73 & \underline{0.87} & 0.82 & \textbf{0.88} & 0.48 & \textbf{0.88} & 0.56 & 0.80 \\
+Bioresponse & \underline{0.88} & 0.78 & - & 0.66 & 0.60 & 0.87 & - & 0.87 & 0.49 & \textbf{0.89} & 0.48 & 0.78 \\
+Diabetes130US & 0.63 & 0.60 & - & 0.61 & 0.60 & 0.65 & - & \textbf{0.68} & 0.50 & \underline{0.67} & 0.51 & 0.61 \\
+E-CommereShippingDa. & \underline{0.74} & 0.71 & 0.51 & 0.64 & 0.67 & \textbf{0.75} & \underline{0.74} & \underline{0.74} & 0.51 & \underline{0.74} & 0.52 & 0.70 \\
+Fitness\_Club & 0.76 & 0.72 & 0.53 & 0.74 & 0.68 & \textbf{0.81} & 0.76 & \textbf{0.81} & 0.50 & \textbf{0.81} & 0.61 & \underline{0.77} \\
+GiveMeSomeCredit & \underline{0.86} & 0.83 & - & 0.79 & 0.77 & \textbf{0.87} & - & \textbf{0.87} & 0.50 & - & - & 0.84 \\
+HR\_Analytics\_Job\. & 0.80 & 0.77 & 0.51 & 0.77 & 0.77 & \underline{0.81} & 0.78 & \textbf{0.82} & 0.50 & \underline{0.81} & 0.58 & 0.78 \\
+Is-this-a-good-cust. & 0.67 & 0.70 & 0.50 & 0.67 & 0.69 & \textbf{0.75} & 0.65 & \underline{0.74} & 0.53 & \underline{0.74} & 0.58 & 0.67 \\
+Marketing\_Campaign & \underline{0.92} & 0.81 & 0.51 & 0.74 & 0.75 & 0.89 & 0.84 & \textbf{0.94} & 0.48 & \textbf{0.94} & 0.52 & 0.86 \\
+NATICUSdroid & \underline{0.98} & 0.94 & 0.48 & 0.97 & 0.88 & \textbf{0.99} & 0.94 & \textbf{0.99} & 0.48 & \textbf{0.99} & 0.67 & 0.96 \\
+bank-marketing & 0.75 & 0.72 & 0.51 & 0.71 & 0.70 & \underline{0.77} & 0.72 & \textbf{0.78} & 0.52 & \underline{0.77} & 0.52 & 0.72 \\
+blood-transfusion-s. & 0.65 & 0.63 & 0.45 & 0.65 & 0.62 & 0.68 & \underline{0.70} & \textbf{0.74} & 0.53 & \textbf{0.74} & 0.60 & 0.69 \\
+churn & \underline{0.93} & 0.73 & 0.52 & 0.62 & 0.66 & \underline{0.93} & 0.87 & \textbf{0.94} & 0.49 & \textbf{0.94} & 0.61 & 0.78 \\
+coil2000\_insurance. & 0.71 & 0.67 & - & 0.63 & 0.61 & \underline{0.73} & 0.64 & \textbf{0.76} & 0.49 & \textbf{0.76} & 0.53 & 0.65 \\
+credit-g & 0.77 & 0.78 & 0.53 & 0.73 & 0.74 & \textbf{0.80} & 0.67 & \underline{0.79} & 0.50 & \underline{0.79} & 0.49 & 0.75 \\
+credit\_card\_clien. & \underline{0.77} & 0.75 & 0.49 & 0.72 & 0.67 & \textbf{0.79} & 0.74 & \textbf{0.79} & 0.50 & \textbf{0.79} & 0.48 & 0.75 \\
+customer\_satisfact. & \underline{0.99} & 0.97 & - & 0.93 & 0.92 & \underline{0.99} & - & \textbf{1.00} & 0.51 & - & - & \underline{0.99} \\
+diabetes & 0.81 & 0.82 & 0.44 & 0.70 & 0.70 & \underline{0.84} & 0.73 & \textbf{0.85} & 0.42 & \textbf{0.85} & 0.67 & 0.80 \\
+hazelnut-spread-con. & \underline{0.97} & 0.80 & 0.48 & 0.71 & 0.75 & \textbf{0.99} & 0.79 & \textbf{0.99} & 0.48 & \textbf{0.99} & 0.44 & 0.82 \\
+heloc & \underline{0.77} & 0.75 & 0.51 & 0.75 & 0.72 & \textbf{0.80} & 0.75 & \textbf{0.80} & 0.52 & \textbf{0.80} & 0.47 & 0.76 \\
+in\_vehicle\_coupon. & \underline{0.83} & 0.77 & 0.49 & 0.75 & 0.77 & 0.77 & 0.71 & \textbf{0.85} & 0.50 & \textbf{0.85} & 0.53 & 0.78 \\
+jm1 & 0.73 & 0.71 & 0.51 & 0.70 & 0.70 & 0.75 & 0.69 & \textbf{0.79} & 0.51 & \underline{0.77} & 0.57 & 0.72 \\
+kddcup09\_appetency & 0.77 & 0.54 & - & 0.65 & 0.55 & \underline{0.81} & - & \underline{0.81} & - & \textbf{0.82} & 0.49 & 0.56 \\
+online\_shoppers\_i. & \underline{0.92} & 0.90 & 0.49 & 0.85 & 0.86 & \textbf{0.93} & 0.89 & \textbf{0.93} & 0.49 & \textbf{0.93} & 0.64 & 0.89 \\
+polish\_companies\. & 0.96 & 0.87 & 0.51 & 0.82 & 0.71 & \underline{0.97} & 0.83 & 0.95 & 0.52 & \textbf{0.98} & 0.75 & 0.88 \\
+qsar-biodeg & \underline{0.91} & 0.90 & 0.47 & 0.84 & 0.77 & \textbf{0.94} & 0.86 & \textbf{0.94} & 0.51 & \textbf{0.94} & 0.73 & 0.90 \\
+seismic-bumps & 0.74 & 0.73 & 0.47 & 0.73 & 0.66 & 0.78 & 0.67 & \textbf{0.81} & 0.49 & \underline{0.79} & 0.56 & 0.75 \\
+taiwanese\_bankrupt. & \underline{0.94} & 0.84 & 0.53 & 0.74 & 0.65 & \underline{0.94} & 0.89 & \textbf{0.95} & 0.51 & \textbf{0.95} & 0.73 & 0.84 \\
+Mean & 0.83 & 0.78 & 0.50 & 0.74 & 0.72 & \underline{0.84} & 0.77 & \textbf{0.86} & 0.50 & \underline{0.84} & 0.57 & 0.78 \\
+\hline
+\end{tabular*}
+\caption{Tabular Prediction: Binary Classification Results per Dataset measured by ROC AUC Score (higher is better). * indicates that the results were obtained by training XGBoost on top of row embeddings.}
+\label{tab:tabular_prediction_binary}
+\end{table*}

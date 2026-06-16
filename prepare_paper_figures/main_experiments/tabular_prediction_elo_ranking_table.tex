@@ -1,0 +1,25 @@
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{p{0.45\columnwidth}rrr}
+\toprule
+Model & ELO Score & $\Delta$ & \#Comp \\
+\midrule
+TabICL v2 & 1620 & 120 & 530 \\
+TabPFN v2.5 & 1614 & 114 & 502 \\
+SAP-RPT-1 & 1583 & 83 & 530 \\
+Baseline & 1540 & 40 & 530 \\
+TabuLa-8B* & 1518 & 18 & 530 \\
+GritLM & 1508 & 8 & 530 \\
+SAP-RPT-1* & 1486 & -14 & 439 \\
+IBM Granite R2 & 1470 & -30 & 530 \\
+MiniLM & 1465 & -35 & 530 \\
+TabPFN v2.5* & 1399 & -101 & 502 \\
+HyTrel & 1386 & -114 & 439 \\
+TabICL v2* & 1383 & -117 & 522 \\
+\bottomrule
+\end{tabular}
+\caption{Tabular Prediction: ELO scores calculated from pairwise comparisons, where higher values indicate better performance. All models are initialized at 1500 and updated over 20 rounds. $\Delta$ reports the change from the initial rating, and \#Comp denotes the number of comparisons, which may differ since not all models ran on every dataset.}
+\label{tab:tabular_prediction_elo}
+\end{table}

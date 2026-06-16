@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\begin{tabular}{lccc}
+\hline
+Approach & ECB & Mean (5 semantic) & $\Delta$ \\
+\hline
+Granite-R2 (csv) & 0.0000 & 0.1544 & -0.1544 \\
+Granite-R2 (md) & 0.0000 & 0.1543 & -0.1543 \\
+GritLM (csv) & 0.0000 & 0.1983 & -0.1983 \\
+GritLM (md) & 0.0000 & 0.2163 & -0.2163 \\
+Hashing & 0.0000 & 0.0000 & \underline{0.0000} \\
+HyTrel & \textbf{1.0000} & \textbf{0.8497} & \textbf{0.1503} \\
+MiniLM (csv) & 0.0000 & 0.1860 & -0.1860 \\
+MiniLM (md) & 0.0000 & 0.2358 & -0.2358 \\
+Mean & \underline{0.1250} & \underline{0.2493} & -0.1243 \\
+\hline
+\end{tabular}
+\caption{Table Shuffling: ECB vs semantic datasets (v0, hi-pos/hi-neg, both perturbation). ECB = low-lexical numerical regime; Mean(5) = fetaqa, tabfact, ottqa, spider-train, ckan. Negative $\Delta$ indicates structural collapse when lexical shortcut is removed. Best (highest) per column in bold.}
+\label{tab:shuffling_ecb}
+\end{table}

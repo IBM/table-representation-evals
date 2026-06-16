@@ -1,0 +1,21 @@
+\begin{table*}[t]
+\centering
+\begin{tabular*}{\textwidth}{lcccccccc}
+\hline
+Dataset & GritLM & HyTrel & IBM Granite R2 & MiniLM & SAP-RPT-1 & TabICL v2 & TabPFN v2.5 & TabuLa-8B \\
+\hline
+Amazon-Google & 0.57 & 0.05 & \textbf{0.67} & \underline{0.58} & 0.02 & 0.00 & 0.00 & 0.35 \\
+Beer & \textbf{1.00} & 0.07 & \textbf{1.00} & \underline{0.86} & 0.00 & 0.00 & 0.00 & 0.45 \\
+DBLP-ACM & \textbf{0.98} & 0.16 & \textbf{0.98} & \underline{0.96} & 0.02 & 0.00 & 0.00 & 0.95 \\
+DBLP-GoogleScholar & \underline{0.61} & 0.03 & \textbf{0.62} & 0.60 & - & 0.19 & - & 0.48 \\
+Fodors-Zagats & \textbf{1.00} & 0.04 & \textbf{1.00} & \underline{0.94} & 0.08 & 0.04 & 0.01 & 0.87 \\
+MusicBrainz & \textbf{0.99} & 0.01 & \textbf{0.99} & \underline{0.96} & 0.00 & 0.00 & 0.00 & 0.34 \\
+Walmart-Amazon & \underline{0.75} & 0.05 & \textbf{0.79} & 0.72 & 0.10 & 0.00 & 0.00 & 0.50 \\
+geological-settlements & \textbf{0.58} & 0.00 & \underline{0.20} & 0.06 & 0.00 & 0.15 & 0.00 & 0.00 \\
+iTunes-Amazon & \textbf{0.29} & 0.00 & \underline{0.27} & 0.23 & - & 0.00 & - & 0.03 \\
+Mean & \textbf{0.75} & 0.05 & \underline{0.72} & 0.66 & 0.03 & 0.04 & 0.00 & 0.44 \\
+\hline
+\end{tabular*}
+\caption{Row Similarity Search: MRR results per dataset for all approaches. - indicates that the approach could not be run on the dataset, mostly due to memory constraints.}
+\label{tab:row_sim_per_dataset}
+\end{table*}
