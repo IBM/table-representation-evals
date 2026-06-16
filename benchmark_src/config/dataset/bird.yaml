@@ -1,0 +1,28 @@
+# @package _global_
+
+# Dataset configuration for BIRD (BIg Bench for LaRge-scale Database Grounded Text-to-SQL Evaluation)
+# https://bird-bench.github.io/
+
+dataset_name: bird
+
+# Configuration for the dataset
+dataset:
+  # Path to BIRD benchmark directory
+  # Should contain:
+  #   - cell_value_matching_queries.json (queries with matched values)
+  #   - cell_values_overextracted_matching_queries.json (queries with overextracted values)
+  #   - pure_concept_mapping_queries.json (queries with matched columns)
+  #   - bird/train/train_databases/ (SQLite databases, must be unzipped)
+  bird_path: "~/bird"
+  
+  # Benchmark file to use for NL2cell2column mapping (cell-to-column mapping task)
+  # Options:
+  #   - cell_value_matching_queries.json (default: extracted_values_from_NL matches exactly with matched_values)
+  #   - fuzzy_cell_matching.json (fuzzified cell values for semantic matching test)
+  #   - cell_values_overextracted_matching_queries.json (extracted_values_from_NL has more values than matched_values)
+  nl2cell2column_benchmark_file: "cell_value_matching_queries.json"
+  
+  # Benchmark file for NL2column mapping (concept mapping task)
+  nl2column_benchmark_file: "pure_concept_mapping_queries.json"
+
+# Made with Bob
