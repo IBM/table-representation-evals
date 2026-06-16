@@ -33,7 +33,7 @@ benchmark_tasks:
       top_k_cells: 100
       
       # Maximum number of queries to process (null = all queries)
-      max_queries: null
+      max_queries: 100
     
     # Override dataset configuration to use exact matching benchmark
     dataset_overrides:
