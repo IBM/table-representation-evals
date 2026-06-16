@@ -1,0 +1,41 @@
+# @package _global_
+# Experiment configuration for NL2Column Mapping (Concept Mapping)
+# Uses pure_concept_mapping_queries.json from BIRD benchmark
+# Tests column-level semantic matching without cell values
+
+defaults:
+  - /experiment_datasets/global_datasets
+  - override /approach: sentence_transformer # Change to your preferred approach
+
+hydra:
+  verbose: True # set to True for debug outprints, set to False for Info prints only
+  sweeper:
+    params:
+      approach.embedding_model: all-MiniLM-L6-v2 # Change to your preferred model
+
+benchmark_output_dir: nl2column_experiments
+
+benchmark_tasks:
+  #################################### 
+  ###### NL2Column Mapping - Concept Mapping
+  #################################### 
+  nl2column_mapping:
+    datasets:
+      - bird # Uses BIRD benchmark with SQLite databases
+    task_parameters:
+      # Maximum number of rows to sample per table when creating column embeddings
+      # Reduces memory usage for large tables
+      max_rows_per_table: 1000
+      
+      # Number of top columns to retrieve from Qdrant
+      # Should be large enough to cover all relevant columns
+      top_k_columns: 50
+      
+      # Maximum number of queries to process (null = all queries)
+      max_queries: null
+    
+    # Override dataset configuration to use concept mapping benchmark
+    dataset_overrides:
+      nl2column_benchmark_file: "pure_concept_mapping_queries.json"
+
+# Made with Bob
