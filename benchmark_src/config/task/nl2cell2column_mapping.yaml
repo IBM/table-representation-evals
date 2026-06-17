@@ -1,3 +1,6 @@
+defaults:
+  - dataset: bird
+
 # Task configuration for Cell-to-Column Mapping benchmark
 # Uses cell embeddings to identify relevant columns for text-to-SQL queries
 
