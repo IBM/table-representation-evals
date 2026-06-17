@@ -1,5 +1,3 @@
-# @package _global_
-
 # Task configuration for NL-to-Column Mapping benchmark (Concept Mapping)
 # Uses column embeddings to identify relevant columns for text-to-SQL queries
 # Based on BIRD's pure_concept_mapping_queries.json

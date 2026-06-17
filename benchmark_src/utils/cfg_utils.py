@@ -49,7 +49,7 @@ def guard_cfg_no_none(cfg, path="cfg"):
     Raises:
         ValueError: If any value in cfg is None.
     """
-    allow_none_keys = set(["cfg.test_case_limit"])
+    allow_none_keys = set(["cfg.test_case_limit", "cfg.task.max_queries"])
     if isinstance(cfg, DictConfig) or isinstance(cfg, dict):
         for key, value in cfg.items():
             guard_cfg_no_none(value, f"{path}.{key}")
