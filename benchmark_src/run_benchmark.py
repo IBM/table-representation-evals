@@ -72,6 +72,12 @@ def main(cfg: DictConfig):
             elif cfg.task.task_name == "cell_task":
                 from benchmark_src.tasks import run_cell_semantic_retrieval_benchmark
                 run_cell_semantic_retrieval_benchmark.main(cfg)
+            elif cfg.task.task_name == "nl2column_mapping":
+                from benchmark_src.tasks import run_NL2column_mapping_benchmark
+                run_NL2column_mapping_benchmark.main(cfg)
+            elif cfg.task.task_name == "cell_to_column_mapping":
+                from benchmark_src.tasks import run_NL2cell2column_mapping_benchmark
+                run_NL2cell2column_mapping_benchmark.main(cfg)
             else:
                 logger.error("Unknown task:", cfg.task)
         except Exception as e:
