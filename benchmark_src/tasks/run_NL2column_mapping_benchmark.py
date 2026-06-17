@@ -390,6 +390,11 @@ def main(cfg: DictConfig):
     logger.debug(cfg)
     multiprocessing.set_start_method("spawn", force=True)
     
+    # Load dataset config
+    from benchmark_src.utils.cfg_utils import load_dataset_config
+    dataset_cfg = load_dataset_config(cfg.dataset_name)
+    cfg.dataset = dataset_cfg
+    
     # Load benchmark data
     databases_path, queries = load_benchmark_data(cfg)
     
