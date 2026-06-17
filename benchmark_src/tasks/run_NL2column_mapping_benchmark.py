@@ -12,7 +12,7 @@ Uses Qdrant for efficient ANN search over column embeddings.
 """
 
 from hydra.utils import get_original_cwd
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import json
 from pathlib import Path
 from tqdm import tqdm
@@ -391,8 +391,8 @@ def main(cfg: DictConfig):
     multiprocessing.set_start_method("spawn", force=True)
     
     # Load dataset config
-    from benchmark_src.utils.cfg_utils import load_dataset_config
-    dataset_cfg = load_dataset_config(cfg.dataset_name)
+    dataset_config_path = Path(get_original_cwd()) / "benchmark_src" / "config" / "dataset" / f"{cfg.dataset_name}.yaml"
+    dataset_cfg = OmegaConf.load(str(dataset_config_path))
     cfg.dataset = dataset_cfg
     
     # Load benchmark data
