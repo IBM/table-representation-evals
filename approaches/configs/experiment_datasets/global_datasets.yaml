@@ -42,6 +42,18 @@ cell_task_datasets:
   - s2abel@dirty
 
 ####################################
+###### NL2Column Mapping (Concept Mapping)
+####################################
+nl2column_mapping_datasets:
+  - bird
+
+####################################
+###### NL2Cell2Column Mapping (Cell Value Matching)
+####################################
+nl2cell2column_mapping_datasets:
+  - bird
+
+####################################
 ###### Table Retrieval
 ####################################
 table_retrieval_datasets:
