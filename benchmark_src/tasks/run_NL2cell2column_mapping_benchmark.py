@@ -88,7 +88,8 @@ def load_database_schema(db_path: Path) -> Dict[str, List[str]]:
     
     schema = {}
     for table in tables:
-        cursor.execute(f"PRAGMA table_info({table});")
+        # Quote table name to handle spaces and special characters
+        cursor.execute(f'PRAGMA table_info("{table}");')
         columns = [row[1] for row in cursor.fetchall()]
         schema[table] = columns
     
@@ -100,7 +101,7 @@ def load_table_data(db_path: Path, table: str, limit: int = 1000) -> pd.DataFram
     """Load data from a database table."""
     conn = sqlite3.connect(db_path)
     try:
-        query = f"SELECT * FROM {table} LIMIT {limit}"
+        query = f'SELECT * FROM "{table}" LIMIT {limit}'
         df = pd.read_sql_query(query, conn)
     except Exception as e:
         logger.warning(f"Error loading table {table}: {e}")
