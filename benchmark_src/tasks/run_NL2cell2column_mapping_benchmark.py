@@ -547,7 +547,9 @@ def main(cfg: DictConfig):
     # Load dataset config
     dataset_config_path = Path(get_original_cwd()) / "benchmark_src" / "config" / "dataset" / f"{cfg.dataset_name}.yaml"
     dataset_cfg = OmegaConf.load(str(dataset_config_path))
+    OmegaConf.set_struct(cfg, False)
     cfg.dataset = dataset_cfg
+    OmegaConf.set_struct(cfg, True)
     
     # Load benchmark data
     databases_path, queries = load_benchmark_data(cfg)
