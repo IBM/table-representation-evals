@@ -158,17 +158,23 @@ def collect_matched_values_for_database(queries: List[Dict], db_id: str) -> Dict
         if query.get("db_id") != db_id:
             continue
             
-        # Get matched values from the query
+        # Get matched values and gold columns from the query
+        # matched_values is a list of strings: ["83373278", "1"]
+        # gold_columns is a list of dicts: [{"table": "lists", "column": "user_id"}, ...]
         matched_values = query.get("matched_values", [])
+        gold_columns = query.get("gold_columns", [])
         
-        for match in matched_values:
-            table = match.get("table")
-            column = match.get("column")
-            value = match.get("value")
-            
-            if table and column and value is not None:
-                table_column = f"{table}.{column}"
-                matched_values_by_column[table_column].add(str(value))
+        # Match values with their corresponding columns
+        # Assumes matched_values and gold_columns are aligned by index
+        for i, value in enumerate(matched_values):
+            if i < len(gold_columns):
+                col_info = gold_columns[i]
+                table = col_info.get("table")
+                column = col_info.get("column")
+                
+                if table and column and value is not None:
+                    table_column = f"{table}.{column}"
+                    matched_values_by_column[table_column].add(str(value))
     
     return matched_values_by_column
 
