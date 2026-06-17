@@ -76,7 +76,10 @@ def load_database_schema(db_path: Path) -> Dict[str, List[str]]:
     cursor = conn.cursor()
     
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = [row[0] for row in cursor.fetchall()]
+    all_tables = [row[0] for row in cursor.fetchall()]
+    
+    # Filter out SQLite system tables
+    tables = [t for t in all_tables if not t.startswith('sqlite_')]
     
     schema = {}
     for table in tables:
