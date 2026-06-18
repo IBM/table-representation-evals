@@ -40,11 +40,25 @@ logger = logging.getLogger(__name__)
 
 
 def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
-    """Initialize Qdrant client with persistent storage."""
-    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage" / f"qdrant_nl2column_{cfg.run_identifier}"
+    """
+    Initialize Qdrant client with persistent storage.
+    
+    Cache key is based on approach, embedding model, and dataset to enable reuse across experiments.
+    """
+    # Create a stable cache identifier based on approach, model, and dataset
+    approach_name = cfg.approach.approach_name
+    embedding_model = cfg.approach.get("embedding_model", "default")
+    dataset_name = cfg.dataset_name
+    
+    # Sanitize names for filesystem (replace / and : with _)
+    embedding_model_safe = embedding_model.replace("/", "_").replace(":", "_")
+    cache_key = f"{approach_name}_{embedding_model_safe}_{dataset_name}"
+    
+    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage" / f"qdrant_nl2column_{cache_key}"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
+    logger.info(f"Cache key: {cache_key} (enables reuse across experiments)")
     return client, qdrant_path
 
 
