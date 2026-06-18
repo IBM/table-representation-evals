@@ -1,0 +1,26 @@
+# Task configuration for NL2Cell2Column Fuzzy Mapping benchmark
+# Uses cell embeddings to identify relevant columns for text-to-SQL queries
+# This is for fuzzy/semantic matching (non-exact cell value matches)
+
+task_name: nl2cell2column_fuzzy_mapping
+
+# Maximum number of queries to process (for testing/debugging)
+# Set to null or remove to process all queries
+max_queries: null
+
+# Maximum number of unique values to sample per column when creating cell embeddings
+# Reduces memory usage for columns with many unique values
+# Note: Matched values from benchmark queries are ALWAYS included regardless of this limit
+max_unique_values_per_column: 1000
+
+# Number of nearest neighbor cells to retrieve from Qdrant
+# These cells are then mapped back to their columns
+top_k_cells: 100
+
+# Query embedding mode:
+# - "full_nl": Embed the entire natural language question
+# - "extracted_values": Embed extracted values from the query (requires extracted_values_from_NL field)
+# - "both": Run both modes and report metrics separately
+query_mode: both
+
+# Made with Bob
