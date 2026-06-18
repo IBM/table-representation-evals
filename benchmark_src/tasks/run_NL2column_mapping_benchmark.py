@@ -437,6 +437,7 @@ def main(cfg: DictConfig):
     
     # Setup models - column embedding needs a sample table
     # Load a sample table from the first database for setup
+    sample_df = None
     if queries:
         first_db_id = queries[0]["db_id"]
         first_db_path = databases_path / first_db_id / f"{first_db_id}.sqlite"
@@ -445,25 +446,17 @@ def main(cfg: DictConfig):
             if schema:
                 first_table = next(iter(schema.keys()))
                 sample_df = load_table_data(first_db_path, first_table, limit=100)
-                _, resource_metrics_setup_col = component_utils.run_model_setup(
-                    component=column_embedding_component,
-                    dataset_information=sample_df
-                )
-            else:
-                _, resource_metrics_setup_col = component_utils.run_model_setup(
-                    component=column_embedding_component,
-                    dataset_information=None
-                )
-        else:
-            _, resource_metrics_setup_col = component_utils.run_model_setup(
-                component=column_embedding_component,
-                dataset_information=None
-            )
-    else:
-        _, resource_metrics_setup_col = component_utils.run_model_setup(
-            component=column_embedding_component,
-            dataset_information=None
-        )
+    
+    # If we couldn't load a sample, create a minimal dummy table
+    if sample_df is None or sample_df.empty:
+        import pandas as pd
+        sample_df = pd.DataFrame({"col1": ["sample"], "col2": [1]})
+        logger.warning("Could not load sample table from database, using dummy table for setup")
+    
+    _, resource_metrics_setup_col = component_utils.run_model_setup(
+        component=column_embedding_component,
+        dataset_information=sample_df
+    )
     
     _, resource_metrics_setup_cell = component_utils.run_model_setup(
         component=cell_embedding_component,
