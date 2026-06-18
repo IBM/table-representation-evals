@@ -402,17 +402,11 @@ def run_cell_to_column_mapping_benchmark(
                 continue
             
             collection_name = f"bird_{db_id}"
-            completed_file_path = qdrant_path / "collection" / collection_name / "COMPLETED"
             
-            # Check if collection already exists and is complete
-            if client.collection_exists(collection_name=collection_name) and completed_file_path.exists():
-                logger.info(f"Collection {collection_name} already exists and is complete")
+            # Check if collection already exists (simple check, no COMPLETED marker)
+            if client.collection_exists(collection_name=collection_name):
+                logger.info(f"Collection {collection_name} already exists, reusing it")
             else:
-                # Delete if exists but incomplete
-                if client.collection_exists(collection_name=collection_name):
-                    client.delete_collection(collection_name=collection_name)
-                    logger.info(f"Deleted incomplete collection {collection_name}")
-                
                 # Create new collection
                 logger.info(f"Creating cell embeddings for database {db_id}")
                 schema = load_database_schema(db_path)
@@ -431,10 +425,7 @@ def run_cell_to_column_mapping_benchmark(
                     max_unique_values_per_column=cfg.task.get("max_unique_values_per_column", 1000)
                 )
                 
-                # Mark as complete
-                completed_file_path.parent.mkdir(parents=True, exist_ok=True)
-                completed_file_path.write_text(f"Embedded {num_cells} cells")
-                logger.info(f"Marked collection {collection_name} as complete")
+                logger.info(f"Completed embedding {num_cells} cells for collection {collection_name}")
             
             db_collections[db_id] = collection_name
         
