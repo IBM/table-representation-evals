@@ -1,7 +1,7 @@
-# Task configuration for Cell-to-Column Mapping benchmark
+# Task configuration for NL2Cell2Column Mapping benchmark
 # Uses cell embeddings to identify relevant columns for text-to-SQL queries
 
-task_name: cell_to_column_mapping
+task_name: nl2cell2column_mapping
 
 # Maximum number of queries to process (for testing/debugging)
 # Set to null or remove to process all queries
