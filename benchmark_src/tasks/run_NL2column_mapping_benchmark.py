@@ -455,7 +455,8 @@ def main(cfg: DictConfig):
     
     _, resource_metrics_setup_col = component_utils.run_model_setup(
         component=column_embedding_component,
-        dataset_information=sample_df
+        input_table=sample_df,
+        dataset_information=None
     )
     
     _, resource_metrics_setup_cell = component_utils.run_model_setup(
