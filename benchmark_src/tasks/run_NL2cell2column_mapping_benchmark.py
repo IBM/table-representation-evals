@@ -565,6 +565,14 @@ def main(cfg: DictConfig):
     dataset_cfg = OmegaConf.load(str(dataset_config_path))
     OmegaConf.set_struct(cfg, False)
     cfg.dataset = dataset_cfg.dataset
+    
+    # Apply dataset_overrides from experiment config if present
+    task_name = cfg.task.task_name
+    if task_name in cfg.benchmark_tasks and "dataset_overrides" in cfg.benchmark_tasks[task_name]:
+        dataset_overrides = cfg.benchmark_tasks[task_name].dataset_overrides
+        cfg.dataset = OmegaConf.merge(cfg.dataset, dataset_overrides)
+        logger.info(f"Applied dataset_overrides: {dataset_overrides}")
+    
     OmegaConf.set_struct(cfg, True)
     
     # Load benchmark data
