@@ -435,11 +435,35 @@ def main(cfg: DictConfig):
         CellEmbeddingInterface
     )
     
-    # Setup models
-    _, resource_metrics_setup_col = component_utils.run_model_setup(
-        component=column_embedding_component,
-        dataset_information=None
-    )
+    # Setup models - column embedding needs a sample table
+    # Load a sample table from the first database for setup
+    if queries:
+        first_db_id = queries[0]["db_id"]
+        first_db_path = databases_path / first_db_id / f"{first_db_id}.sqlite"
+        if first_db_path.exists():
+            schema = load_database_schema(first_db_path)
+            if schema:
+                first_table = next(iter(schema.keys()))
+                sample_df = load_table_data(first_db_path, first_table, limit=100)
+                _, resource_metrics_setup_col = component_utils.run_model_setup(
+                    component=column_embedding_component,
+                    dataset_information=sample_df
+                )
+            else:
+                _, resource_metrics_setup_col = component_utils.run_model_setup(
+                    component=column_embedding_component,
+                    dataset_information=None
+                )
+        else:
+            _, resource_metrics_setup_col = component_utils.run_model_setup(
+                component=column_embedding_component,
+                dataset_information=None
+            )
+    else:
+        _, resource_metrics_setup_col = component_utils.run_model_setup(
+            component=column_embedding_component,
+            dataset_information=None
+        )
     
     _, resource_metrics_setup_cell = component_utils.run_model_setup(
         component=cell_embedding_component,
