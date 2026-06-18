@@ -183,6 +183,44 @@ if [ "$SETUP_DATASETS" = true ]; then
 
 fi
 
+# ============================
+# Setup BIRD dataset
+# ============================
+if [ -d "./data/bird/bird/train/train_databases" ] && [ "$(ls -A ./data/bird/bird/train/train_databases)" ]; then
+    echo "the BIRD dataset was already downloaded"
+else
+    echo "Setting up BIRD dataset"
+    conda activate benchmark_env
+    
+    # Create directory structure
+    mkdir -p ./data/bird
+    
+    # Copy JSON files from dataset_creation/bird to data/bird
+    echo "Copying JSON files..."
+    cp ./benchmark_src/dataset_creation/bird/*.json ./data/bird/
+    
+    # Download train.zip
+    echo "Downloading BIRD train.zip..."
+    wget -O ./data/bird/train.zip https://bird-bench.oss-cn-beijing.aliyuncs.com/train.zip
+    
+    # Unzip train.zip to data/bird/bird
+    echo "Unzipping train.zip..."
+    cd ./data/bird
+    unzip -q train.zip
+    rm train.zip
+    
+    # Unzip train_databases.zip
+    echo "Unzipping train_databases.zip..."
+    cd bird/train
+    unzip -q train_databases.zip
+    
+    # Return to project root
+    cd ../../../
+    
+    echo "BIRD Setup Done"
+    conda deactivate
+fi
+
 # ===================================
 # Create environments for approaches
 # ===================================
