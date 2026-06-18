@@ -54,6 +54,12 @@ nl2cell2column_mapping_datasets:
   - bird
 
 ####################################
+###### NL2Cell2Column Fuzzy Mapping (Fuzzy/Semantic Matching)
+####################################
+nl2cell2column_fuzzy_mapping_datasets:
+  - bird
+
+####################################
 ###### Table Retrieval
 ####################################
 table_retrieval_datasets:
