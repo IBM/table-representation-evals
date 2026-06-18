@@ -10,10 +10,10 @@ dataset:
   # Path to BIRD benchmark directory
   # Should contain:
   #   - cell_value_matching_queries.json (queries with matched values)
-  #   - cell_values_overextracted_matching_queries.json (queries with overextracted values)
+  #   - fuzzy_cell_matching.json (queries with fuzzed values)
   #   - pure_concept_mapping_queries.json (queries with matched columns)
   #   - bird/train/train_databases/ (SQLite databases, must be unzipped)
-  bird_path: "~/bird"
+  bird_path: "/data/kavitha/bird"
   
   # Benchmark file to use for NL2cell2column mapping (cell-to-column mapping task)
   # Options:
