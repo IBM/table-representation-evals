@@ -69,7 +69,6 @@ else
     mv '2020-04-26 Coronavirus Tweets.CSV' '2020-04-26_Coronavirus_Tweets.CSV' 
     mv '2020-04-27 Coronavirus Tweets.CSV' '2020-04-27_Coronavirus_Tweets.CSV' 
     mv '2020-04-29 Coronavirus Tweets.CSV' '2020-04-29_Coronavirus_Tweets.CSV' 
-    mv '2020-04-16 Coronavirus Tweets.CSV' '2020-04-16_Coronavirus_Tweets.CSV' 
 fi
 
 # Wiki Join
