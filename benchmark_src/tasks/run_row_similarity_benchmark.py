@@ -1,5 +1,3 @@
-from hydra.utils import get_original_cwd
-from omegaconf import DictConfig
 import json
 from pathlib import Path
 from tqdm import tqdm
@@ -7,6 +5,7 @@ import pandas as pd
 import sentence_transformers
 import logging
 import multiprocessing
+from omegaconf import DictConfig
 
 from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.row_similarity_task_interface import RowSimilaritySearchInterface
@@ -17,7 +16,7 @@ from benchmark_src.utils.resource_monitoring import monitor_resources, save_reso
 logger = logging.getLogger(__name__)
 
 def load_benchmark_data(cfg):
-    dataset_folder = Path(get_original_cwd()) / Path(cfg.cache_dir) / "row_similarity_data_full" / cfg.dataset_name
+    dataset_folder = Path(cfg.cache_dir) / "row_similarity_data_full" / cfg.dataset_name
     assert dataset_folder.exists(), f"Could not find path {dataset_folder}"
 
     with open(dataset_folder / "dataset_information.json", "r") as file:
@@ -106,7 +105,7 @@ def main(cfg: DictConfig):
     embedding_approach_class = framework.get_approach_class(cfg)
     embedder = embedding_approach_class(cfg)
 
-    run_row_similarity_search_based_on = cfg.benchmark_tasks.row_similarity_search.task_parameters.run_similarity_search_based_on
+    run_row_similarity_search_based_on = cfg.task.run_similarity_search_based_on
     if run_row_similarity_search_based_on == "row_embeddings":
         ## load the needed component
         row_embedding_component = embedder._load_component("row_embedding_component", "RowEmbeddingComponent", RowEmbeddingInterface)

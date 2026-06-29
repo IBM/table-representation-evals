@@ -1,5 +1,3 @@
-from hydra.utils import get_original_cwd
-from omegaconf import DictConfig
 import json
 from pathlib import Path
 from tqdm import tqdm
@@ -9,6 +7,7 @@ import logging
 import multiprocessing
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from omegaconf import DictConfig
 
 from benchmark_src.tasks import component_utils
 from benchmark_src.dataset_creation.cell_datasets import cell_dataset_creation
@@ -65,7 +64,7 @@ def load_benchmark_data(cfg):
     variaton_name = cfg.dataset_name.split("@")[1] if "@" in cfg.dataset_name else None
 
     # check if the dataset is in the cache
-    dataset_folder = Path(get_original_cwd()) / Path(cfg.cache_dir) / "cell_level_data" / dataset_name
+    dataset_folder = Path(cfg.cache_dir) / "cell_level_data" / dataset_name
 
     # if it isn't, create the dataset
     needs_download = False
@@ -239,5 +238,5 @@ def main(cfg: DictConfig):
     result_utils.save_results(cfg=cfg, metrics=result_metrics)
 
     # save all_results also as JSON
-    with open("results_per_testcase.json", "w") as file:
+    with open(Path(cfg.output_dir) / "results_per_testcase.json", "w") as file:
         json.dump(all_results, file, indent=2)

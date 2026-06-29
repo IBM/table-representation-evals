@@ -1,4 +1,3 @@
-from omegaconf import DictConfig, OmegaConf
 import multiprocessing
 import logging
 import json
@@ -8,23 +7,21 @@ import sys
 from pathlib import Path
 import statistics
 from tqdm import tqdm
-from hydra.utils import get_original_cwd
 import numpy as np
+from omegaconf import DictConfig
 import glob
 import gc
 import torch
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
 
-# Add ContextAwareJoin to Python path
-# Path to src folder in ContextAwareJoin submodule
-context_aware_join_src = Path(get_original_cwd()) / "ContextAwareJoin" / "src"
+# Derive project root from this file's location (benchmark_src/tasks/ -> repo root)
+_project_root = Path(__file__).resolve().parent.parent.parent
 
-# Make sure it exists
+# Add ContextAwareJoin to Python path
+context_aware_join_src = _project_root / "ContextAwareJoin" / "src"
 if not context_aware_join_src.exists():
     raise FileNotFoundError(f"{context_aware_join_src} does not exist!")
-
-# Add to sys.path if not already present
 if str(context_aware_join_src) not in sys.path:
     sys.path.insert(0, str(context_aware_join_src))
     print(f"Added {context_aware_join_src} to sys.path")
@@ -41,8 +38,8 @@ from benchmark_src.tasks import component_utils
 logger = logging.getLogger(__name__)
 
 
-def get_qdrant_client(cfg: DictConfig) -> QdrantClient:
-    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage" / f"qdrant_storage_{cfg.run_identifier}"
+def get_qdrant_client(cfg) -> QdrantClient:
+    qdrant_path = Path(cfg.cache_dir) / "qdrant_storage" / f"qdrant_storage_{cfg.run_identifier}"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
@@ -86,9 +83,9 @@ def load_benchmark_data(cfg):
     """
     # Determine dataset directory
     if cfg.dataset_name == 'wikijoin_small':
-        dataset_dir = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / "wikijoin")
+        dataset_dir = str(Path(cfg.project_root) / "ContextAwareJoin" / "datasets" / "wikijoin")
     else:
-        dataset_dir = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / cfg.dataset_name)
+        dataset_dir = str(Path(cfg.project_root) / "ContextAwareJoin" / "datasets" / cfg.dataset_name)
     
     logger.debug(f"Looking for datasets in dir: {dataset_dir}")
     assert Path(dataset_dir).exists(), f"Could not find dataset dir: {dataset_dir}"
@@ -109,6 +106,12 @@ def load_benchmark_data(cfg):
 
     if len(leaf_dirs) == 0:
         raise ValueError(f"Did not find the dataset. leaf_dirs={leaf_dirs}")
+
+    test_case_limit = getattr(cfg.task, "test_case_limit", None)
+    if test_case_limit:
+        test_case_limit = int(test_case_limit)
+        leaf_dirs = leaf_dirs[:test_case_limit]
+        logger.info(f"test_case_limit={test_case_limit}: using {len(leaf_dirs)} leaf dirs")
 
     # for valentine do the loading, for the others get the filepaths and gt from cache!
 
@@ -170,7 +173,7 @@ def load_benchmark_data(cfg):
             test_cases[dataset] = table_paths, gt_data, dataset.replace('/', '_')
     else:
         # load valid data from cache
-        dataset_cache_path = Path(get_original_cwd()) / cfg.cache_dir / "datasets" / "column_similarity_search" / cfg.dataset_name
+        dataset_cache_path = Path(cfg.cache_dir) / "datasets" / "column_similarity_search" / cfg.dataset_name
         print(dataset_cache_path)
         assert dataset_cache_path.exists(), f"Could not find path: {dataset_cache_path}"
         with open(dataset_cache_path / "valid_data.json") as file:
@@ -179,6 +182,16 @@ def load_benchmark_data(cfg):
             table_paths = cached_data[sub_dataset]["table_paths"]
             gt_data = cached_data[sub_dataset]["gt_data"]
             sub_dataset_name = cached_data[sub_dataset]["sub_dataset_name"]
+            if test_case_limit:
+                gt_data = dict(list(gt_data.items())[:test_case_limit])
+                needed_tables = set()
+                for query_col, target_cols in gt_data.items():
+                    needed_tables.add(query_col.split('.')[0])
+                    for tc in target_cols:
+                        needed_tables.add(tc.split('.')[0])
+                table_paths = {p: fmt for p, fmt in table_paths.items()
+                               if os.path.basename(p).replace('.df', '').replace('.csv', '') in needed_tables}
+                logger.info(f"test_case_limit={test_case_limit}: using {len(gt_data)} gt pairs, {len(table_paths)} tables")
             test_cases[sub_dataset] = table_paths, gt_data, sub_dataset_name
             num_gt_test_cases.append(len(gt_data))
             num_tables += len(table_paths)
@@ -246,7 +259,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
         # Infer embedding dimension from first available table
         first_table = next(iter(table_paths))
-        first_table_path = Path(get_original_cwd()) / first_table
+        first_table_path = Path(cfg.project_root) / first_table
         df = load_benchmark.load_dataframe(first_table_path, file_format=table_paths[first_table])
         sample_embeddings, column_names = column_embedding_component.create_column_embeddings_for_table(df)
         if hasattr(sample_embeddings, 'cpu'):
@@ -284,7 +297,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             current_id = 0
 
             for table_path in tqdm(table_paths, desc=f"Embedding tables for {dataset_name}"):
-                full_table_path = Path(get_original_cwd()) / table_path
+                full_table_path = Path(cfg.project_root) / table_path
                 df = load_benchmark.load_dataframe(full_table_path, file_format=table_paths[table_path])
                 tname = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
 

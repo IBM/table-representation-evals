@@ -21,9 +21,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from omegaconf import DictConfig
 from transformers import AutoTokenizer, AutoConfig
-from hydra.utils import get_original_cwd
+from omegaconf import DictConfig
 
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 
@@ -92,9 +91,9 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
     
     def __init__(self, cfg: DictConfig):
         """Initialize the HyTrel embedder.
-        
+
         Args:
-            cfg (DictConfig): Configuration object containing model parameters
+            cfg: Configuration object containing model parameters
         """
         super().__init__(cfg)
         self.cfg = cfg
@@ -119,7 +118,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             self.model = Encoder(config)
 
             checkpoint_path_from_config = getattr(self.cfg.approach, "checkpoint_path", None)
-            checkpoint_path = Path(get_original_cwd()) / Path(checkpoint_path_from_config)
+            checkpoint_path = Path(self.cfg.project_root) / Path(checkpoint_path_from_config)
             if checkpoint_path and os.path.exists(checkpoint_path):
                 logger.info(f"Loading checkpoint from: {checkpoint_path}")
                 self._inject_optimizer_config()

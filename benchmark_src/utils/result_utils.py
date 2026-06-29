@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -14,15 +15,15 @@ def save_results(cfg, metrics: dict):
     print(f"Dataset: {cfg.dataset_name}")
 
     results = {
-    "task": cfg.task.task_name,
-    "dataset": cfg.dataset_name,
-    "approach": cfg.approach.approach_name,
+        "task": cfg.task.task_name,
+        "dataset": cfg.dataset_name,
+        "approach": cfg.approach.approach_name,
     }
-
     results.update(metrics)
 
+    output_path = Path(cfg.output_dir) / "results.json"
     try:
-        with open("results.json", "w") as file:
+        with open(output_path, "w") as file:
             json.dump(results, file, indent=2)
     except (TypeError, OverflowError):
         logger.error(f"Received result dict that is not json serializable:")

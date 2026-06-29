@@ -1,10 +1,10 @@
 import sklearn.linear_model
 import sklearn.neighbors
 import sklearn.neural_network
-from omegaconf import DictConfig
 import multiprocessing
 import logging
 import pandas as pd
+from omegaconf import DictConfig
 
 import sklearn.metrics
 import xgboost as xgb
@@ -266,7 +266,7 @@ def main(cfg: DictConfig):
     
     logger.debug(f"Task type is: {task_type}")
 
-    run_task_based_on = cfg.benchmark_tasks.predictive_ml.task_parameters.run_task_based_on
+    run_task_based_on = cfg.task.run_task_based_on
     
     if run_task_based_on == "row_embeddings":
         logger.info(f"Running task based on row embeddings")

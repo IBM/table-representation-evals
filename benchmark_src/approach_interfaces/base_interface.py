@@ -1,10 +1,9 @@
 import pandas as pd
-from omegaconf import DictConfig
 from abc import ABC, abstractmethod
 from pathlib import Path
 import importlib
 import sys
-from hydra.utils import get_original_cwd
+from omegaconf import DictConfig
 
 class BaseTabularEmbeddingApproach(ABC):
 
@@ -12,7 +11,7 @@ class BaseTabularEmbeddingApproach(ABC):
         self.approach_name = cfg.approach.approach_name
         self.cfg = cfg
 
-        self._approach_path = Path(get_original_cwd()) / Path(cfg.approach.module_path)
+        self._approach_path = Path(cfg.project_root) / Path(cfg.approach.module_path)
 
         self._loaded_components = {} 
 
