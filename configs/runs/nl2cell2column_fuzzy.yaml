@@ -1,0 +1,17 @@
+benchmark_output_dir: nl2cell2column_experiments
+approaches:
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+    tasks:
+      - nl2cell2column_mapping
+    task_params:
+      nl2cell2column_mapping:
+        query_mode: both
+        max_unique_values_per_column: 1000
+        top_k_cells: 100
+        max_queries: null
+        nl2cell2column_benchmark_file: "fuzzy_cell_matching.json"
+    task_datasets:
+      nl2cell2column_mapping:
+        - bird

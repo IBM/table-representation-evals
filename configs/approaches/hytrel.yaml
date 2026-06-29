@@ -1,0 +1,49 @@
+approach_name: hytrel
+module_path: "approaches/benchmark_approaches_src/hytrel"
+class_name: HyTrelEmbedder
+
+checkpoint_path: "approaches/benchmark_approaches_src/hytrel/hytrel_src/checkpoints/ckpt_data/checkpoints/contrast/epoch=4-step=32690.ckpt/checkpoint/mp_rank_00_model_states.pt"
+table_row_limit: -1
+embedding_dim: 768
+
+model_config:
+  vocab_size: 30527
+  hidden_size: 768
+  num_layers: 12
+  num_attention_heads: 12
+  intermediate_size: 3072
+  max_position_embeddings: 512
+  type_vocab_size: 2
+  layer_norm_eps: 1e-12
+  hidden_dropout_prob: 0.1
+  attention_probs_dropout_prob: 0.1
+  pad_token_id: 0
+  pre_norm: false
+  activation_dropout: 0.1
+  gated_proj: false
+  num_hidden_layers: 12
+  hidden_act: "gelu"
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+  more_similar_than: {}
+  column_similarity_search:
+    run_similarity_search_based_on: column_embeddings
+  cell_task: {}
+  table_retrieval: {}
+  predictive_ml:
+    run_task_based_on: row_embeddings
+    exclude_datasets:  # OOM on A100 80GB VRAM
+      - coil2000_insurance_policies
+      - kddcup09_appetency
+      - Diabetes130US
+      - customer_satisfaction_in_airline
+      - Bioresponse
+      - APSFailure
+      - GiveMeSomeCredit
+      - hiva_agnostic
+      - SDSS17
+      - QSAR_fish_toxicity
+      - QSAR-TID-11
+      - superconductivity

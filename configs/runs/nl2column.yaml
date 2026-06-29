@@ -1,0 +1,16 @@
+benchmark_output_dir: nl2column_experiments
+approaches:
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+    tasks:
+      - nl2column_mapping
+    task_params:
+      nl2column_mapping:
+        max_rows_per_table: 1000
+        top_k_columns: 50
+        max_queries: null
+        nl2column_benchmark_file: "pure_concept_mapping_queries.json"
+    task_datasets:
+      nl2column_mapping:
+        - bird

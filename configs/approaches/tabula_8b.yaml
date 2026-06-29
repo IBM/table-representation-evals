@@ -1,0 +1,16 @@
+approach_name: tabula_8b
+module_path: "approaches/benchmark_approaches_src/tabula_8b"
+class_name: TabuLA8BEmbedder
+
+model_name: "mlfoundations/tabula-8b"
+device: ~
+max_length: ~
+batch_size: ~
+n_few_shot_examples: 10
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+  more_similar_than: {}
+  predictive_ml:
+    run_task_based_on: row_embeddings  # default; override to custom_predictiveML_model in pred run

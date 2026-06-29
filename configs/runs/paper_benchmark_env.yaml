@@ -1,0 +1,79 @@
+benchmark_output_dir: main_experiments
+approaches:
+
+  # ── Sentence transformer models ───────────────────────────────────────────
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+      table_row_limit: 100
+
+  - name: sentence_transformer
+    params:
+      embedding_model: ibm-granite/granite-embedding-english-r2
+      table_row_limit: 100
+
+  # ── XGBoost baseline ──────────────────────────────────────────────────────
+  - name: baseline
+
+  # ── Tabula-8B ─────────────────────────────────────────────────────────────
+  - name: tabula_8b
+    params:
+      run_task_based_on: row_embeddings  # default from approach config; can be omitted
+
+  - name: tabula_8b
+    params:
+      run_task_based_on: custom_predictiveML_model
+    tasks: [predictive_ml]
+    # Regression datasets only — disjoint from the default classification run above,
+    # so both entries write to different dataset subdirs without collision.
+    task_datasets:
+      predictive_ml:
+        - healthcare_insurance_expenses
+        - Another-Dataset-on-used-Fiat-500
+        - wine_quality
+        - Food_Delivery_Time
+        - diamonds
+        - QSAR_fish_toxicity
+        - concrete_compressive_strength
+        - airfoil_self_noise
+        - QSAR-TID-11
+        - miami_housing
+        - houses
+        - superconductivity
+        - physiochemical_protein
+
+  # ── SAP RPT OSS ───────────────────────────────────────────────────────────
+  - name: sap_rpt_oss
+    params:
+      run_task_based_on: row_embeddings  # default from approach config; can be omitted
+    task_exclude_datasets:
+      predictive_ml:  # OOM on 80GB VRAM in row-embeddings mode
+        - kddcup09_appetency
+        - Diabetes130US
+        - customer_satisfaction_in_airline
+        - Bioresponse
+        - hiva_agnostic
+        - QSAR-TID-11
+        - superconductivity
+        - APSFailure
+        - GiveMeSomeCredit
+        - SDSS17
+        - diamonds
+
+  - name: sap_rpt_oss
+    params:
+      run_task_based_on: custom_predictiveML_model
+    tasks: [predictive_ml]
+
+  # ── TabPFN ────────────────────────────────────────────────────────────────
+  - name: tabpfn
+    params:
+      run_task_based_on: row_embeddings  # default from approach config; can be omitted
+
+  - name: tabpfn
+    params:
+      run_task_based_on: custom_predictiveML_model
+    tasks: [predictive_ml]
+
+  # ── Mitra ─────────────────────────────────────────────────────────────────
+  - name: mitra
