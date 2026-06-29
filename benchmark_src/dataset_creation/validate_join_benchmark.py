@@ -1,4 +1,3 @@
-from hydra.utils import get_original_cwd
 from pathlib import Path
 import numpy as np
 import glob
@@ -8,10 +7,10 @@ from tqdm import tqdm
 import os
 import sys
 
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Add ContextAwareJoin to Python path
-# Path to src folder in ContextAwareJoin submodule
-context_aware_join_src = Path("ContextAwareJoin") / "src"
+context_aware_join_src = _PROJECT_ROOT / "ContextAwareJoin" / "src"
 
 # Make sure it exists
 if not context_aware_join_src.exists():

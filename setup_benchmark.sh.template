@@ -101,7 +101,6 @@ conda create -n benchmark_env python=3.13
 conda activate benchmark_env
 
 pip install -r reqs_benchmark.txt
-pip install hydra-joblib-launcher --upgrade
 
 pip install -e .
 pip install -e approaches/ .
@@ -143,7 +142,6 @@ if [ "$SETUP_TABICL" = true ]; then
     pip install -r reqs_benchmark.txt
     ./approaches/benchmark_approaches_src/tabicl/setup.sh
 
-    pip install hydra-joblib-launcher --upgrade
     pip install -e .
     pip install -e approaches/ .
 
@@ -163,7 +161,6 @@ if [ "$SETUP_HYTREL" = true ]; then
 
     ./approaches/benchmark_approaches_src/hytrel/setup.sh
 
-    pip install hydra-joblib-launcher --upgrade
     pip install -e .
     pip install -e approaches/ .
 
@@ -237,7 +234,6 @@ if [ "$SETUP_GRITLM" = true ]; then
     pip uninstall transformers -y
     pip install transformers==4.40.2
 
-    pip install hydra-joblib-launcher --upgrade
     pip install -e .
     pip install -e approaches/ .
     pip install gritlm

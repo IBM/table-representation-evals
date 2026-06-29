@@ -17,9 +17,12 @@ performance_cols = {
     "MLP_log_loss (↓)": 'lower_is_better',
     # accuracy
     'accuracy': 'higher_is_better',
+    'accuracy (↑)': 'higher_is_better',
     'accuracy_easy': 'higher_is_better',
     'accuracy_medium': 'higher_is_better',
     'accuracy_hard': 'higher_is_better',
+    # column type annotation
+    'macro_f1 (↑)': 'higher_is_better',
     'In top-1 [%]': 'higher_is_better',
     'In top-3 [%]': 'higher_is_better',
     'In top-5 [%]': 'higher_is_better',

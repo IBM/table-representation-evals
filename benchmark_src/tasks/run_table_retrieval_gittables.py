@@ -1,5 +1,3 @@
-from hydra.utils import get_original_cwd
-from omegaconf import DictConfig
 import json
 from pathlib import Path
 from tqdm import tqdm
@@ -9,6 +7,7 @@ import logging
 import multiprocessing
 import numpy as np
 import torch
+from omegaconf import DictConfig
 
 from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.table_embedding_interface import TableEmbeddingInterface
@@ -18,7 +17,7 @@ from benchmark_src.utils.resource_monitoring import monitor_resources, save_reso
 logger = logging.getLogger(__name__)
 
 def load_datalake_infos(cfg):
-    dataset_folder = Path(get_original_cwd()) / Path(cfg.cache_dir) / "datasets" / "table_retrieval" / "gitTables"
+    dataset_folder = Path(cfg.cache_dir) / "datasets" / "table_retrieval" / "gitTables"
     datalake_folders = [x for x in list(dataset_folder.iterdir()) if x.is_dir()]
 
     return datalake_folders
@@ -211,7 +210,7 @@ def main(cfg: DictConfig):
     # save performance metrics to disk
     result_utils.save_results(cfg=cfg, metrics=result_metrics)
 
-    with open("results_per_datalake.json", "w") as file:
+    with open(Path(cfg.output_dir) / "results_per_datalake.json", "w") as file:
             json.dump(results_per_datalake, file, indent=2)
 
     print(f"Finished run_table_retrieval_gittables with results: {result_metrics}")

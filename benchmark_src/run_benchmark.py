@@ -1,85 +1,82 @@
-import hydra 
-from omegaconf import DictConfig
-from pathlib import Path
 import logging
 import sys
 import traceback
-from hydra.utils import get_original_cwd
-from dotenv import load_dotenv
+from pathlib import Path
 
-from benchmark_src.utils.framework import register_resolvers, StreamToLogger
+from benchmark_src.utils.framework import StreamToLogger
 from benchmark_src.utils.cfg_utils import guard_cfg_no_none
 
 logger = logging.getLogger(__name__)
 
-@hydra.main(version_base=None, config_path="./config", config_name="config.yaml")
-def main(cfg: DictConfig):
-    # Redirect stderr to the root logger
-    root_logger = logging.getLogger()
-    sys.stderr = StreamToLogger(root_logger, logging.ERROR)
-    sys.stdout = StreamToLogger(root_logger, logging.INFO)
 
-    print("#"*100)
-    print("#"*100)
-    print("#"*100)
+def run_single(cfg):
+    """
+    Dispatch a single (approach, task, dataset) run.
+    cfg is an OmegaConf DictConfig with fields:
+      task, approach, dataset_name, output_dir, cache_dir, project_root, test_case_limit
+    Called by run_experiments.py for each job.
+    """
+    sys.stdout = StreamToLogger(logging.getLogger(), logging.INFO)
 
-    logger.info(f"Run id: {cfg.run_identifier}")
+    logger.info("#" * 80)
+    logger.info(
+        f"Task: {cfg.task.task_name}  |  Approach: {cfg.approach.approach_name}"
+        f"  |  Dataset: {cfg.dataset_name}"
+    )
 
-    load_dotenv()  # loads variables from .env 
+    cache_dir = Path(cfg.cache_dir)
+    cache_dir.mkdir(exist_ok=True)
+    (cache_dir / "datasets").mkdir(exist_ok=True)
+    (cache_dir / "models").mkdir(exist_ok=True)
 
     guard_cfg_no_none(cfg)
 
-    # create cache folder
-    cfg.cache_dir = Path(get_original_cwd()) / Path(cfg.cache_dir)
-    cfg.cache_dir.mkdir(exist_ok=True)
-    dataset_cache_dir = cfg.cache_dir / "datasets"
-    dataset_cache_dir.mkdir(exist_ok=True)
-    models_cache_dir = cfg.cache_dir / "models"
-    models_cache_dir.mkdir(exist_ok=True)
-    logger.info(f"Cache directory at {cfg.cache_dir}")    
+    output_dir = Path(cfg.output_dir)
 
+    if (output_dir / "results.json").is_file():
+        logger.info(f"Already have results.json at {output_dir} — skipping")
+        return
 
-    # check if current directory already contains a result file, if yes do not need to run again
-    current_directory = Path.cwd()
-    if (current_directory / "results.json").is_file():
-        logger.info(f'Already have a result file for this configuration in the given output directory.{current_directory / "results.json"}')
-    else:
-        try:
-            if cfg.task.task_name == "row_similarity_search":
-                from benchmark_src.tasks import run_row_similarity_benchmark
-                run_row_similarity_benchmark.main(cfg)
-            elif cfg.task.task_name == "predictive_ml":
-                from benchmark_src.tasks import run_predictive_ml_benchmark
-                run_predictive_ml_benchmark.main(cfg)
-            elif cfg.task.task_name == "more_similar_than":
-                from benchmark_src.tasks import run_more_similar_than_benchmark
-                run_more_similar_than_benchmark.main(cfg)
-            elif cfg.task.task_name == "clustering":
-                from benchmark_src.tasks import run_clustering_benchmark
-                run_clustering_benchmark.main(cfg)
-            elif cfg.task.task_name == "column_similarity_search":
-                from benchmark_src.tasks import run_column_similarity_benchmark
-                run_column_similarity_benchmark.main(cfg)
-            elif cfg.task.task_name == "table_retrieval":
-                from benchmark_src.tasks import run_table_retrieval_benchmark, run_table_retrieval_gittables
-                if cfg.dataset_name == "gitTables":
-                    run_table_retrieval_gittables.main(cfg)
-                else:
-                    run_table_retrieval_benchmark.main(cfg)
-            elif cfg.task.task_name == "table_shuffling":
-                from benchmark_src.tasks import run_table_shuffling_benchmark
-                run_table_shuffling_benchmark.main(cfg)
-            elif cfg.task.task_name == "cell_task":
-                from benchmark_src.tasks import run_cell_semantic_retrieval_benchmark
-                run_cell_semantic_retrieval_benchmark.main(cfg)
+    try:
+        if cfg.task.task_name == "row_similarity_search":
+            from benchmark_src.tasks import run_row_similarity_benchmark
+            run_row_similarity_benchmark.main(cfg)
+        elif cfg.task.task_name == "predictive_ml":
+            from benchmark_src.tasks import run_predictive_ml_benchmark
+            run_predictive_ml_benchmark.main(cfg)
+        elif cfg.task.task_name == "more_similar_than":
+            from benchmark_src.tasks import run_more_similar_than_benchmark
+            run_more_similar_than_benchmark.main(cfg)
+        elif cfg.task.task_name == "clustering":
+            from benchmark_src.tasks import run_clustering_benchmark
+            run_clustering_benchmark.main(cfg)
+        elif cfg.task.task_name == "column_similarity_search":
+            from benchmark_src.tasks import run_column_similarity_benchmark
+            run_column_similarity_benchmark.main(cfg)
+        elif cfg.task.task_name == "column_type_annotation":
+            from benchmark_src.tasks import run_column_type_annotation_benchmark
+            run_column_type_annotation_benchmark.main(cfg)
+        elif cfg.task.task_name == "table_retrieval":
+            from benchmark_src.tasks import run_table_retrieval_benchmark, run_table_retrieval_gittables
+            if cfg.dataset_name == "gitTables":
+                run_table_retrieval_gittables.main(cfg)
             else:
-                logger.error("Unknown task:", cfg.task)
-        except Exception as e:
-            traceback.print_exc()
-            logger.error("Error during benchmark run, please check traceback above.")
-            sys.exit(1)
-
-    
-if __name__ == "__main__":
-    register_resolvers()
-    main()
+                run_table_retrieval_benchmark.main(cfg)
+        elif cfg.task.task_name == "table_shuffling":
+            from benchmark_src.tasks import run_table_shuffling_benchmark
+            run_table_shuffling_benchmark.main(cfg)
+        elif cfg.task.task_name == "cell_task":
+            from benchmark_src.tasks import run_cell_semantic_retrieval_benchmark
+            run_cell_semantic_retrieval_benchmark.main(cfg)
+        elif cfg.task.task_name == "nl2column_mapping":
+            from benchmark_src.tasks import run_NL2column_mapping_benchmark
+            run_NL2column_mapping_benchmark.main(cfg)
+        elif cfg.task.task_name in ("cell_to_column_mapping", "nl2cell2column_mapping"):
+            from benchmark_src.tasks import run_NL2cell2column_mapping_benchmark
+            run_NL2cell2column_mapping_benchmark.main(cfg)
+        else:
+            logger.error(f"Unknown task: {cfg.task.task_name}")
+    except Exception as e:
+        traceback.print_exc()
+        logger.error("Error during benchmark run, please check traceback above.")
+        raise

@@ -47,6 +47,10 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         logger.debug(f"PyTorch sees device: {device}")
         logger.debug(f"Model is on device: {next(self.approach_instance.model.parameters()).device}")
-        column_embeddings = self.approach_instance.model.encode(list(all_columns.values()), show_progress_bar=True)
+        # show progress bar only if it's more than 50 columns:
+        show_progress_bar = False
+        if len(all_columns) > 50:
+            show_progress_bar = True
+        column_embeddings = self.approach_instance.model.encode(list(all_columns.values()), show_progress_bar=show_progress_bar)
         logger.debug("finished encoding")
         return column_embeddings, list(all_columns.keys())

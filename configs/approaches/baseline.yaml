@@ -1,0 +1,7 @@
+approach_name: baseline
+module_path: "approaches/benchmark_approaches_src/baseline"
+class_name: BaselineEmbedder
+
+supported_tasks:
+  predictive_ml:
+    run_task_based_on: custom_predictiveML_model

@@ -1,11 +1,10 @@
-from hydra.utils import get_original_cwd
-from omegaconf import DictConfig
 import json
 from pathlib import Path
 from tqdm import tqdm
 import pandas as pd
 import logging
 import multiprocessing
+from omegaconf import DictConfig
 
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -19,7 +18,7 @@ from benchmark_src.dataset_creation.create_variations import create_dataset_vari
 logger = logging.getLogger(__name__)
 
 def load_benchmark_data(cfg):
-    base_dataset_folder = Path(get_original_cwd()) / Path(cfg.cache_dir) / "datasets" / "more_similar_than" # need to append base_dataset_name later
+    base_dataset_folder = Path(cfg.cache_dir) / "datasets" / "more_similar_than" # need to append base_dataset_name later
 
     if "@" in cfg.dataset_name:
         dataset_info = str(cfg.dataset_name).split("@")
@@ -150,7 +149,7 @@ def main(cfg: DictConfig):
     # compute and save results
     results_df = pd.DataFrame(all_results).set_index('id')
     results_df.sort_index(inplace=True)
-    results_df.to_csv('results_per_datapoint.csv')
+    results_df.to_csv(Path(cfg.output_dir) / 'results_per_datapoint.csv')
     overall_accuracy = float(results_df['solved'].mean())
     accuracy_by_difficulty = {
         f"accuracy_{diff}": acc 
