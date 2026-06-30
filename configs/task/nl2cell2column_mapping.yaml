@@ -20,6 +20,6 @@ top_k_cells: 100
 # - "full_nl": Embed the entire natural language question
 # - "extracted_values": Embed extracted values from the query (requires extracted_values_from_NL field)
 # - "both": Run both modes and report metrics separately
-query_mode: both
+query_mode: extracted_values
 
 # Made with Bob

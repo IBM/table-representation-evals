@@ -75,8 +75,7 @@ def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
     bird_path_override = cfg.dataset.get("bird_path", None)
     bird_path = Path(bird_path_override) if bird_path_override else Path(cfg.cache_dir) / "datasets" / "bird"
 
-    # Get benchmark file from config, default to cell_value_matching_queries.json
-    benchmark_file = cfg.dataset.get("nl2cell2column_benchmark_file", "cell_value_matching_queries.json")
+    benchmark_file = cfg.dataset.get(f"{cfg.task.task_name}_benchmark_file", "cell_value_matching_queries.json")
     queries_file = bird_path / benchmark_file
     assert queries_file.exists(), f"Could not find queries file at {queries_file}"
 
@@ -379,8 +378,8 @@ def run_cell_to_column_mapping_benchmark(
     max_queries = cfg.task.get("max_queries", len(queries))
     queries = queries[:max_queries]
     
-    # Query mode: "full_nl" or "extracted_values" or "both"
-    query_mode = cfg.task.get("query_mode", "both")
+    # Query mode: "full_nl" or "extracted_values"
+    query_mode = cfg.task.get("query_mode", "extracted_values")
     
     # Top-K cells to retrieve
     top_k_cells = cfg.task.get("top_k_cells", 100)
@@ -434,92 +433,82 @@ def run_cell_to_column_mapping_benchmark(
         # Prepare ground truth
         gold_column_set = {f"{gc['table']}.{gc['column']}" for gc in gold_columns}
         
-        # Process based on query mode
-        modes_to_run = []
-        if query_mode == "both":
-            modes_to_run = ["full_nl", "extracted_values"]
-        else:
-            modes_to_run = [query_mode]
-        
-        for mode in modes_to_run:
-            # Skip extracted_values mode if no extracted values available
-            if mode == "extracted_values" and not extracted_values:
-                continue
-            
-            # Create query embedding
-            try:
-                if mode == "full_nl":
-                    query_embedding = embed_query_text(cell_embedding_component, question)
-                    mode_suffix = "_full_nl"
-                else:  # extracted_values
-                    query_embedding = embed_extracted_values(cell_embedding_component, extracted_values)
-                    mode_suffix = "_extracted"
-            except Exception as e:
-                logger.error(f"Error embedding query in mode {mode}: {e}")
-                continue
-            
-            # Search Qdrant for top-K nearest cells
-            hits = client.search(
-                collection_name=collection_name,
-                query_vector=query_embedding.tolist(),
-                limit=top_k_cells,
-                with_payload=True
-            )
-            
-            # Count which columns the retrieved cells belong to
-            column_counts = Counter()
-            for hit in hits:
-                table_column = hit.payload["table_column"]
-                column_counts[table_column] += 1
-            
-            # Rank columns by count (how many of their cells were retrieved)
-            ranked_columns = [col for col, count in column_counts.most_common()]
-            
-            # Compute metrics at different K values
-            k_values = [1, 3, 5, 10, 20]
-            metrics = {}
-            
-            for k in k_values:
-                top_k = ranked_columns[:k]
-                correct = sum(1 for col in top_k if col in gold_column_set)
-                
-                precision = correct / k if k > 0 else 0.0
-                recall = correct / len(gold_column_set) if gold_column_set else 0.0
-                
-                metrics[f"precision@{k}{mode_suffix}"] = precision
-                metrics[f"recall@{k}{mode_suffix}"] = recall
-            
-            # Compute MRR
-            mrr = 0.0
-            for rank, col in enumerate(ranked_columns, 1):
-                if col in gold_column_set:
-                    mrr = 1.0 / rank
-                    break
-            
-            # Compute MAP
-            average_precision = 0.0
-            num_relevant = 0
-            for rank, col in enumerate(ranked_columns, 1):
-                if col in gold_column_set:
-                    num_relevant += 1
-                    precision_at_rank = num_relevant / rank
-                    average_precision += precision_at_rank
-            
-            if len(gold_column_set) > 0:
-                average_precision /= len(gold_column_set)
-            
-            metrics[f"mrr{mode_suffix}"] = mrr
-            metrics[f"map{mode_suffix}"] = average_precision
-            
-            results.append({
-                "query_idx": query_idx,
-                "db_id": db_id,
-                "question": question,
-                "query_mode": mode,
-                "num_gold_columns": len(gold_column_set),
-                "num_retrieved_columns": len(ranked_columns),
-                **metrics
-            })
+        # Skip extracted_values mode if no extracted values available
+        if query_mode == "extracted_values" and not extracted_values:
+            continue
+
+        # Create query embedding
+        try:
+            if query_mode == "full_nl":
+                query_embedding = embed_query_text(cell_embedding_component, question)
+            else:  # extracted_values
+                query_embedding = embed_extracted_values(cell_embedding_component, extracted_values)
+        except Exception as e:
+            logger.error(f"Error embedding query in mode {query_mode}: {e}")
+            continue
+
+        # Search Qdrant for top-K nearest cells
+        hits = client.search(
+            collection_name=collection_name,
+            query_vector=query_embedding.tolist(),
+            limit=top_k_cells,
+            with_payload=True
+        )
+
+        # Count which columns the retrieved cells belong to
+        column_counts = Counter()
+        for hit in hits:
+            table_column = hit.payload["table_column"]
+            column_counts[table_column] += 1
+
+        # Rank columns by count (how many of their cells were retrieved)
+        ranked_columns = [col for col, count in column_counts.most_common()]
+
+        # Compute metrics at different K values
+        k_values = [1, 3, 5, 10, 20]
+        metrics = {}
+
+        for k in k_values:
+            top_k = ranked_columns[:k]
+            correct = sum(1 for col in top_k if col in gold_column_set)
+
+            precision = correct / k if k > 0 else 0.0
+            recall = correct / len(gold_column_set) if gold_column_set else 0.0
+
+            metrics[f"precision@{k}"] = precision
+            metrics[f"recall@{k}"] = recall
+
+        # Compute MRR
+        mrr = 0.0
+        for rank, col in enumerate(ranked_columns, 1):
+            if col in gold_column_set:
+                mrr = 1.0 / rank
+                break
+
+        # Compute MAP
+        average_precision = 0.0
+        num_relevant = 0
+        for rank, col in enumerate(ranked_columns, 1):
+            if col in gold_column_set:
+                num_relevant += 1
+                precision_at_rank = num_relevant / rank
+                average_precision += precision_at_rank
+
+        if len(gold_column_set) > 0:
+            average_precision /= len(gold_column_set)
+
+        metrics["mrr"] = mrr
+        metrics["map"] = average_precision
+
+        results.append({
+            "query_idx": query_idx,
+            "db_id": db_id,
+            "question": question,
+            "query_mode": query_mode,
+            "num_gold_columns": len(gold_column_set),
+            "num_retrieved_columns": len(ranked_columns),
+            **metrics
+        })
     
     return results
 
@@ -528,28 +517,19 @@ def compute_aggregate_metrics(results: List[Dict]) -> Dict[str, float]:
     """Compute aggregate metrics across all queries."""
     if not results:
         return {}
-    
+
     aggregate = {}
-    
-    # Group by query mode
-    by_mode = defaultdict(list)
-    for r in results:
-        mode = r.get("query_mode", "unknown")
-        by_mode[mode].append(r)
-    
-    # Compute metrics for each mode
-    for mode, mode_results in by_mode.items():
-        metric_keys = [k for k in mode_results[0].keys() 
-                       if k not in ["query_idx", "db_id", "question", "query_mode", 
-                                    "num_gold_columns", "num_retrieved_columns"]]
-        
-        for key in metric_keys:
-            values = [r[key] for r in mode_results if key in r]
-            if values:
-                aggregate[f"mean_{key}"] = statistics.mean(values)
-                if len(values) > 1:
-                    aggregate[f"std_{key}"] = statistics.stdev(values)
-    
+    metric_keys = [k for k in results[0].keys()
+                   if k not in ["query_idx", "db_id", "question", "query_mode",
+                                "num_gold_columns", "num_retrieved_columns"]]
+
+    for key in metric_keys:
+        values = [r[key] for r in results if key in r]
+        if values:
+            aggregate[f"mean_{key}"] = statistics.mean(values)
+            if len(values) > 1:
+                aggregate[f"std_{key}"] = statistics.stdev(values)
+
     return aggregate
 
 

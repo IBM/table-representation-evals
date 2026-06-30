@@ -47,6 +47,12 @@ def _build_jobs(run_cfg, project_root: Path, results_dir: str):
         _load_yaml(configs_dir / "global_datasets.yaml"), resolve=True
     )
 
+    # Global task_params: flat key-value overrides applied to every task in this run.
+    # Lower priority than per-approach task_params; do not affect the task-param slug.
+    global_task_params = (
+        OmegaConf.to_container(run_cfg.task_params) if "task_params" in run_cfg else {}
+    )
+
     jobs = []
     for approach_entry in run_cfg.approaches:
         approach_name = approach_entry.name
@@ -93,11 +99,22 @@ def _build_jobs(run_cfg, project_root: Path, results_dir: str):
                 if k in task_defaults:
                     task_defaults[k] = v
 
-            # Per-task run overrides (highest priority, override even the above)
+            # Global task_params from run config (applies to all tasks uniformly).
+            task_defaults.update(global_task_params)
+
+            # Per-task run overrides (highest priority, override even the above).
+            # Captured separately so they can drive the task-param slug in the output path.
+            run_task_params = {}
             if "task_params" in approach_entry and task_name in approach_entry.task_params:
-                task_defaults.update(
-                    OmegaConf.to_container(approach_entry.task_params[task_name])
-                )
+                run_task_params = OmegaConf.to_container(approach_entry.task_params[task_name])
+                task_defaults.update(run_task_params)
+
+            # Slug derived from run-level task_params overrides — inserted between task_name
+            # and dataset_name so task-level variations produce distinct output directories
+            # without polluting the approach-level param slug.
+            task_param_slug = ",".join(
+                f"{k}={str(v).replace('/', '_')}" for k, v in sorted(run_task_params.items())
+            )
 
             # Load task-level defaults (task_name, top_k, elo_metric, etc.)
             task_config_path = (
@@ -133,32 +150,22 @@ def _build_jobs(run_cfg, project_root: Path, results_dir: str):
             datasets = [d for d in datasets if d not in approach_exclusions]
 
             for dataset_name in datasets:
-                # param_slug is inserted between approach_name and task_name when present,
-                # matching the original create_run_path behavior.
+                # Build output path:
+                #   approach/[param_slug/]task_name/[task_param_slug/]dataset_name
+                base = project_root / results_dir / run_cfg.benchmark_output_dir / approach_name
                 if param_slug:
-                    output_dir = (
-                        project_root
-                        / results_dir
-                        / run_cfg.benchmark_output_dir
-                        / approach_name
-                        / param_slug
-                        / task_name
-                        / dataset_name
-                    )
-                else:
-                    output_dir = (
-                        project_root
-                        / results_dir
-                        / run_cfg.benchmark_output_dir
-                        / approach_name
-                        / task_name
-                        / dataset_name
-                    )
+                    base = base / param_slug
+                base = base / task_name
+                if task_param_slug:
+                    base = base / task_param_slug
+                output_dir = base / dataset_name
 
                 run_identifier = (
                     f"{run_cfg.benchmark_output_dir},{approach_name}"
                     + (f",{param_slug}" if param_slug else "")
-                    + f",task={task_name},dataset_name={dataset_name}"
+                    + f",task={task_name}"
+                    + (f",{task_param_slug}" if task_param_slug else "")
+                    + f",dataset_name={dataset_name}"
                 ).replace("/", "_")
 
                 cfg = OmegaConf.create(

@@ -4,14 +4,15 @@ approaches:
     params:
       embedding_model: all-MiniLM-L6-v2
     tasks:
-      - nl2cell2column_mapping
+      - nl2cell2column_fuzzy_mapping
     task_params:
-      nl2cell2column_mapping:
-        query_mode: both
-        max_unique_values_per_column: 1000
-        top_k_cells: 100
-        max_queries: null
-        nl2cell2column_benchmark_file: "fuzzy_cell_matching.json"
-    task_datasets:
-      nl2cell2column_mapping:
-        - bird
+      nl2cell2column_fuzzy_mapping:
+        query_mode: full_nl
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+    tasks:
+      - nl2cell2column_fuzzy_mapping
+    task_params:
+      nl2cell2column_fuzzy_mapping:
+        query_mode: extracted_values

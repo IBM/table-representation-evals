@@ -11,14 +11,9 @@ dataset:
   # If null (default), data is read from cache/datasets/bird/ (set up by SETUP_DATASETS).
   bird_path: null
 
-  # Benchmark file to use for NL2cell2column mapping (cell-to-column mapping task)
-  # Options:
-  #   - cell_value_matching_queries.json (default: extracted_values_from_NL matches exactly with matched_values)
-  #   - fuzzy_cell_matching.json (fuzzified cell values for semantic matching test)
-  #   - cell_values_overextracted_matching_queries.json (extracted_values_from_NL has more values than matched_values)
-  nl2cell2column_benchmark_file: "cell_value_matching_queries.json"
-  
-  # Benchmark file for NL2column mapping (concept mapping task)
-  nl2column_benchmark_file: "pure_concept_mapping_queries.json"
+  # Benchmark files, keyed by task name (looked up as {task_name}_benchmark_file in task code)
+  nl2column_mapping_benchmark_file: "pure_concept_mapping_queries.json"
+  nl2cell2column_mapping_benchmark_file: "cell_value_matching_queries.json"
+  nl2cell2column_fuzzy_mapping_benchmark_file: "fuzzy_cell_matching.json"
 
 # Made with Bob

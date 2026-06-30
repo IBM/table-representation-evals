@@ -67,7 +67,7 @@ def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
     bird_path = Path(bird_path_override) if bird_path_override else Path(cfg.cache_dir) / "datasets" / "bird"
 
     # Get benchmark file from config, default to pure_concept_mapping_queries.json
-    benchmark_file = cfg.dataset.get("nl2column_benchmark_file", "pure_concept_mapping_queries.json")
+    benchmark_file = cfg.dataset.get(f"{cfg.task.task_name}_benchmark_file", "pure_concept_mapping_queries.json")
     queries_file = bird_path / benchmark_file
     assert queries_file.exists(), f"Could not find queries file at {queries_file}"
 

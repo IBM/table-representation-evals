@@ -1,4 +1,6 @@
 benchmark_output_dir: nl2cell2column_experiments
+task_params:
+  max_queries: 100
 approaches:
   - name: sentence_transformer
     params:
@@ -7,11 +9,12 @@ approaches:
       - nl2cell2column_mapping
     task_params:
       nl2cell2column_mapping:
-        query_mode: both
-        max_unique_values_per_column: 1000
-        top_k_cells: 100
-        max_queries: 100
-        nl2cell2column_benchmark_file: "cell_value_matching_queries.json"
-    task_datasets:
+        query_mode: full_nl
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+    tasks:
+      - nl2cell2column_mapping
+    task_params:
       nl2cell2column_mapping:
-        - bird
+        query_mode: extracted_values
