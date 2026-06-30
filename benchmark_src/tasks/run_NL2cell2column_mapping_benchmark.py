@@ -20,7 +20,6 @@ Key Features:
 - Uses Qdrant for efficient ANN search over cell embeddings
 """
 
-from hydra.utils import get_original_cwd
 from omegaconf import DictConfig, OmegaConf
 import json
 from pathlib import Path
@@ -63,7 +62,7 @@ def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
     embedding_model_safe = embedding_model.replace("/", "_").replace(":", "_")
     cache_key = f"{approach_name}_{embedding_model_safe}_{dataset_name}"
     
-    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage" / f"qdrant_cell_to_column_{cache_key}"
+    qdrant_path = Path(cfg.cache_dir) / "qdrant_storage" / f"qdrant_cell_to_column_{cache_key}"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
@@ -73,17 +72,18 @@ def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
 
 def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
     """Load the BIRD benchmark data for cell-to-column mapping."""
-    bird_path = Path(cfg.dataset.bird_path).expanduser()
-    
+    bird_path_override = cfg.dataset.get("bird_path", None)
+    bird_path = Path(bird_path_override) if bird_path_override else Path(cfg.cache_dir) / "datasets" / "bird"
+
     # Get benchmark file from config, default to cell_value_matching_queries.json
     benchmark_file = cfg.dataset.get("nl2cell2column_benchmark_file", "cell_value_matching_queries.json")
     queries_file = bird_path / benchmark_file
     assert queries_file.exists(), f"Could not find queries file at {queries_file}"
-    
+
     with open(queries_file, "r") as f:
         queries = json.load(f)
-    
-    databases_path = bird_path / "bird" / "train" / "train_databases"
+
+    databases_path = bird_path / "train" / "train_databases"
     assert databases_path.exists(), f"Could not find databases at {databases_path}. Please unzip train_databases.zip"
     
     logger.info(f"Loaded {len(queries)} queries from {queries_file}")
@@ -561,18 +561,10 @@ def main(cfg: DictConfig):
     multiprocessing.set_start_method("spawn", force=True)
     
     # Load dataset config
-    dataset_config_path = Path(get_original_cwd()) / "benchmark_src" / "config" / "dataset" / f"{cfg.dataset_name}.yaml"
+    dataset_config_path = Path(cfg.project_root) / "configs" / "dataset" / f"{cfg.dataset_name}.yaml"
     dataset_cfg = OmegaConf.load(str(dataset_config_path))
     OmegaConf.set_struct(cfg, False)
     cfg.dataset = dataset_cfg.dataset
-    
-    # Apply dataset_overrides from experiment config if present
-    task_name = cfg.task.task_name
-    if task_name in cfg.benchmark_tasks and "dataset_overrides" in cfg.benchmark_tasks[task_name]:
-        dataset_overrides = cfg.benchmark_tasks[task_name].dataset_overrides
-        cfg.dataset = OmegaConf.merge(cfg.dataset, dataset_overrides)
-        logger.info(f"Applied dataset_overrides: {dataset_overrides}")
-    
     OmegaConf.set_struct(cfg, True)
     
     # Load benchmark data
