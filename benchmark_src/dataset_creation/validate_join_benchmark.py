@@ -9,6 +9,25 @@ import sys
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
+# Expected counts per dataset (total across all subdatasets).
+# These pin the exact files downloaded by create_join_benchmark.sh so every
+# user ends up with identical benchmark data.
+EXPECTED_COUNTS = {
+    "opendata":      (3102, 42),
+    "autojoin":      (137,  28),
+    "nextia":        (92,   338),   # testbedS (45, 171) + testbedM (47, 167)
+    "wikijoin_small": (659, 100),
+}
+
+# Sentinel paths created by create_join_benchmark.sh — used for the existence
+# check before validation runs.
+DATASET_SENTINEL_DIRS = {
+    "opendata":      "ContextAwareJoin/datasets/opendata",
+    "autojoin":      "ContextAwareJoin/datasets/autojoin/datalake",
+    "nextia":        "ContextAwareJoin/datasets/nextia/testbedS/datalake",
+    "wikijoin_small": "ContextAwareJoin/datasets/wikijoin/datalake",
+}
+
 # Add ContextAwareJoin to Python path
 context_aware_join_src = _PROJECT_ROOT / "ContextAwareJoin" / "src"
 
@@ -200,9 +219,12 @@ def remove_table_from_gt(table_name, gt_data):
             new_gt[key] = values
     return new_gt
 
-def run_validation(dataset_name: str):
+def run_validation(dataset_name: str) -> tuple[int, int]:
+    """Validate and cache benchmark data. Returns (total_paths, total_gt)."""
 
     valid_data = {}
+    total_paths = 0
+    total_gt = 0
 
     # first try to load gt
     test_cases = load_benchmark_data(dataset_name)
@@ -262,6 +284,8 @@ def run_validation(dataset_name: str):
 
         valid_data[testcase] = {"table_paths": table_paths, "gt_data": gt_data, "sub_dataset_name": sub_dataset_name}
         print(f"Saved to cache: {len(table_paths)} valid paths, {len(gt_data)} valid gt testcases")
+        total_paths += len(table_paths)
+        total_gt += len(gt_data)
 
     # save valid data to cache(load them instead of validating again in the task script)
     cache_folder = Path("cache/datasets/column_similarity_search") / dataset_name
@@ -269,21 +293,40 @@ def run_validation(dataset_name: str):
     with open(cache_folder / "valid_data.json", "w") as file:
         json.dump(valid_data, file, indent=2)
 
-    
+    return total_paths, total_gt
+
 
 if __name__ == "__main__":
-    # valentine has other dataformat for GT, so skipping it here
+    # valentine has a different GT format — handled separately, not validated here
     dataset_names = ["opendata", "autojoin", "nextia", "wikijoin_small"]
-    #dataset_names = ["wikijoin_small"]
+
+    # --- Existence check ---
+    missing = [
+        name for name in dataset_names
+        if not Path(DATASET_SENTINEL_DIRS[name]).exists()
+        or not any(Path(DATASET_SENTINEL_DIRS[name]).iterdir())
+    ]
+    if missing:
+        raise FileNotFoundError(
+            f"Dataset directories missing or empty: {missing}\n"
+            "Run benchmark_src/dataset_creation/create_join_benchmark.sh first."
+        )
+
+    # --- Validate and count ---
+    mismatches = []
     for dataset_name in dataset_names:
-        run_validation(dataset_name=dataset_name)
+        actual_paths, actual_gt = run_validation(dataset_name=dataset_name)
+        expected_paths, expected_gt = EXPECTED_COUNTS[dataset_name]
+        if actual_paths != expected_paths or actual_gt != expected_gt:
+            mismatches.append(
+                f"  {dataset_name}: expected ({expected_paths} paths, {expected_gt} gt) "
+                f"but got ({actual_paths} paths, {actual_gt} gt)"
+            )
 
-    # wikijoin has no loading issues, everything is fine (run again with full GT?)
+    if mismatches:
+        raise AssertionError(
+            "Reproducibility check failed — dataset counts do not match expected values:\n"
+            + "\n".join(mismatches)
+        )
 
-    # opendata has a lot of .df files that have just one column, but all gt data is present in the valid tables
-
-    # nextia has some dtype warnings due to mixed types and has a few (3) tables that could not be loaded robustly but that appear in the GT
-
-    # autojoin has two tables that could not be loaded which were in the GT
-
-    # valentine has other file format for GT, but all tables load fine so no issues..
+    print("All dataset counts match expected values — benchmark data is reproducible.")
