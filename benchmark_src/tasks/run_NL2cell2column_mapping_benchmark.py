@@ -615,7 +615,7 @@ def main(cfg: DictConfig):
     result_utils.save_results(cfg=cfg, metrics=aggregate_metrics)
     
     # Save detailed per-query results
-    with open("results_per_query.json", "w") as f:
+    with open(Path(cfg.output_dir) / "results_per_query.json", "w") as f:
         json.dump(all_results, f, indent=2)
     
     logger.info("Benchmark complete!")
