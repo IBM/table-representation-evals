@@ -314,7 +314,7 @@ def main(
         env_groups = _collect_env_groups(run_cfg, project_root / "configs")
         named_envs = [e for e in env_groups if e is not None]
 
-        if len(named_envs) > 1 or (len(named_envs) == 1 and None not in env_groups):
+        if len(named_envs) > 1:
             logger.info(
                 f"Multi-env run: dispatching subprocesses for envs: {named_envs}"
                 + (f" + current env (no conda_env)" if None in env_groups else "")
