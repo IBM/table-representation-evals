@@ -1,5 +1,3 @@
-# @package _global_
-
 # Dataset configuration for BIRD (BIg Bench for LaRge-scale Database Grounded Text-to-SQL Evaluation)
 # https://bird-bench.github.io/
 
@@ -14,6 +12,4 @@ dataset:
   # Benchmark files, keyed by task name (looked up as {task_name}_benchmark_file in task code)
   nl2column_mapping_benchmark_file: "pure_concept_mapping_queries.json"
   nl2cell2column_mapping_benchmark_file: "cell_value_matching_queries.json"
-  nl2cell2column_fuzzy_mapping_benchmark_file: "fuzzy_cell_matching.json"
-
-# Made with Bob
+  nl2cell2column_fuzzy_mapping_benchmark_file: "semantic_fuzzy_matching.json"
