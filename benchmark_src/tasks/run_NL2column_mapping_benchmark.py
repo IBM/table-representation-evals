@@ -22,7 +22,7 @@ import numpy as np
 import sqlite3
 from typing import List, Dict, Tuple
 import statistics
-from collections import defaultdict
+
 import gc
 import torch
 
@@ -31,7 +31,6 @@ from qdrant_client.models import VectorParams, Distance, PointStruct
 
 from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
-from benchmark_src.approach_interfaces.cell_embedding_interface import CellEmbeddingInterface
 from benchmark_src.utils import framework, result_utils, load_benchmark
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
 
@@ -121,23 +120,24 @@ def load_table_data(db_path: Path, table: str, limit: int = 1000) -> pd.DataFram
 
 
 def embed_query_text(
-    cell_embedding_component: CellEmbeddingInterface,
+    column_embedding_component: ColumnEmbeddingInterface,
     query_text: str
 ) -> np.ndarray:
     """
-    Embed a natural language query as if it were a cell value.
-    
-    We use cell embedding component to embed the NL query text so it can be
-    compared with column embeddings in the same embedding space.
+    Embed a natural language query using the column embedding component so the
+    query vector lives in the same space as the stored column embeddings.
     """
     query_df = pd.DataFrame({"query": [query_text]})
-    cell_embeddings = cell_embedding_component.create_cell_embeddings_for_table(query_df)
-    
-    if cell_embeddings is None:
+    column_embeddings, _ = column_embedding_component.create_column_embeddings_for_table(query_df)
+
+    if column_embeddings is None:
         raise ValueError("Failed to create query embedding")
-    
-    # Return the data row embedding (skip header at index 0)
-    return cell_embeddings[1, 0, :]
+
+    if hasattr(column_embeddings, 'cpu'):
+        column_embeddings = column_embeddings.cpu().numpy()
+
+    # The single column "query" is at index 0
+    return column_embeddings[0]
 
 
 def create_qdrant_collection_for_database(
@@ -242,7 +242,6 @@ def create_qdrant_collection_for_database(
 def run_nl2column_mapping_benchmark(
     cfg: DictConfig,
     column_embedding_component: ColumnEmbeddingInterface,
-    cell_embedding_component: CellEmbeddingInterface,
     databases_path: Path,
     queries: List[Dict]
 ) -> List[Dict]:
@@ -312,7 +311,7 @@ def run_nl2column_mapping_benchmark(
         
         # Embed the natural language query
         try:
-            query_embedding = embed_query_text(cell_embedding_component, question)
+            query_embedding = embed_query_text(column_embedding_component, question)
         except Exception as e:
             logger.error(f"Error embedding query: {e}")
             continue
@@ -427,16 +426,8 @@ def main(cfg: DictConfig):
         "ColumnEmbeddingComponent",
         ColumnEmbeddingInterface
     )
-    
-    # Load cell embedding component (for embedding the NL query)
-    cell_embedding_component = embedder._load_component(
-        "cell_embedding_component",
-        "CellEmbeddingComponent",
-        CellEmbeddingInterface
-    )
-    
-    # Setup models - column embedding needs a sample table
-    # Load a sample table from the first database for setup
+
+    # Setup model - column embedding needs a sample table
     sample_df = None
     if queries:
         first_db_id = queries[0]["db_id"]
@@ -446,32 +437,21 @@ def main(cfg: DictConfig):
             if schema:
                 first_table = next(iter(schema.keys()))
                 sample_df = load_table_data(first_db_path, first_table, limit=100)
-    
-    # If we couldn't load a sample, create a minimal dummy table
+
     if sample_df is None or sample_df.empty:
-        import pandas as pd
         sample_df = pd.DataFrame({"col1": ["sample"], "col2": [1]})
         logger.warning("Could not load sample table from database, using dummy table for setup")
-    
-    _, resource_metrics_setup_col = component_utils.run_model_setup(
+
+    _, resource_metrics_setup = component_utils.run_model_setup(
         component=column_embedding_component,
         input_table=sample_df,
         dataset_information=None
     )
     
-    _, resource_metrics_setup_cell = component_utils.run_model_setup(
-        component=cell_embedding_component,
-        dataset_information=None
-    )
-    
-    # Combine setup metrics (use the larger one)
-    resource_metrics_setup = resource_metrics_setup_col
-    
     # Run benchmark
     all_results, resource_metrics_task = run_nl2column_mapping_benchmark(
         cfg=cfg,
         column_embedding_component=column_embedding_component,
-        cell_embedding_component=cell_embedding_component,
         databases_path=databases_path,
         queries=queries
     )

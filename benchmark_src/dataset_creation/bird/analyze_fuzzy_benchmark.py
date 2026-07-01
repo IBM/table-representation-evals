@@ -1,18 +1,11 @@
 """
 Analyze and compare fuzzy cell matching benchmark files.
 
-Run on the old synthetic version:
-    python benchmark_src/dataset_creation/bird/analyze_fuzzy_benchmark.py \
-        benchmark_src/dataset_creation/bird/fuzzy_cell_matching.json
-
-Run on the new semantic version:
     python benchmark_src/dataset_creation/bird/analyze_fuzzy_benchmark.py \
         benchmark_src/dataset_creation/bird/semantic_fuzzy_matching.json
 
-Compare both:
-    python benchmark_src/dataset_creation/bird/analyze_fuzzy_benchmark.py \
-        benchmark_src/dataset_creation/bird/fuzzy_cell_matching.json \
-        benchmark_src/dataset_creation/bird/semantic_fuzzy_matching.json
+Pass two files to compare them side-by-side (e.g. to compare versions):
+    python benchmark_src/dataset_creation/bird/analyze_fuzzy_benchmark.py file1.json file2.json
 """
 
 import json

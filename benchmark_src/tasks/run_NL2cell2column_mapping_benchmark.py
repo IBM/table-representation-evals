@@ -1,23 +1,14 @@
 """
 Cell-to-Column Mapping Benchmark for Text2SQL
 
-This benchmark evaluates how well cell embeddings can identify relevant columns
-for SQL query generation from natural language questions. It uses the BIRD benchmark
-dataset with cell_value_matching_queries.json or fuzzy_cell_matching.json.
+Given a natural language query, uses cell embeddings to retrieve the database
+columns most relevant for answering it. Supports both exact matching
+(cell_value_matching_queries.json) and fuzzy/semantic matching
+(semantic_fuzzy_matching.json) benchmarks via cfg.dataset.{task_name}_benchmark_file.
 
-Task: Given a natural language query, use cell embeddings to retrieve the database
-columns that are relevant for answering the query.
-
-Two modes supported:
-1. Full NL Query: Embed the entire natural language question
-2. Extracted Values: Embed extracted values from the query (when available)
-
-Key Features:
-- Uses SQL DISTINCT to get unique values per column before sampling
-- ALWAYS includes matched values from benchmark queries in embeddings
-- Supports both exact matching (cell_value_matching_queries.json) and
-  fuzzy/semantic matching (fuzzy_cell_matching.json) benchmarks
-- Uses Qdrant for efficient ANN search over cell embeddings
+Uses SQL DISTINCT to index unique cell values per column; matched values from the
+benchmark are always included regardless of the sampling limit. ANN search is done
+via Qdrant with search_groups to avoid cardinality bias.
 """
 
 from omegaconf import DictConfig, OmegaConf
@@ -31,12 +22,12 @@ import numpy as np
 import sqlite3
 from typing import List, Dict, Tuple, Optional
 import statistics
-from collections import defaultdict, Counter
+from collections import defaultdict
 import gc
 import torch
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct
+from qdrant_client.models import VectorParams, Distance, PointStruct, GroupsResult, PayloadSchemaType
 
 from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.cell_embedding_interface import CellEmbeddingInterface
@@ -270,6 +261,11 @@ def create_qdrant_collection_for_database(
         collection_name=collection_name,
         vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
     )
+    client.create_payload_index(
+        collection_name=collection_name,
+        field_name="table_column",
+        field_schema=PayloadSchemaType.KEYWORD
+    )
     logger.info(f"Created Qdrant collection {collection_name} with vector size {embedding_dim}")
     
     # Embed and upload all cells
@@ -380,9 +376,9 @@ def run_cell_to_column_mapping_benchmark(
     
     # Query mode: "full_nl" or "extracted_values"
     query_mode = cfg.task.get("query_mode", "extracted_values")
-    
-    # Top-K cells to retrieve
-    top_k_cells = cfg.task.get("top_k_cells", 100)
+
+    # Top-K columns to retrieve via search_groups
+    top_k_columns = cfg.task.get("top_k_columns", 50)
     
     for query_idx, query in enumerate(tqdm(queries, desc="Processing queries")):
         db_id = query["db_id"]
@@ -401,19 +397,24 @@ def run_cell_to_column_mapping_benchmark(
                 continue
             
             collection_name = f"bird_{db_id}"
-            
-            # Check if collection already exists (simple check, no COMPLETED marker)
-            if client.collection_exists(collection_name=collection_name):
-                logger.info(f"Collection {collection_name} already exists, reusing it")
+            completed_file_path = qdrant_path / "collection" / collection_name / "COMPLETED"
+
+            if client.collection_exists(collection_name=collection_name) and completed_file_path.exists():
+                logger.info(f"Collection {collection_name} already exists and is complete")
             else:
+                # Delete if exists but incomplete (interrupted previous run)
+                if client.collection_exists(collection_name=collection_name):
+                    client.delete_collection(collection_name=collection_name)
+                    logger.info(f"Deleted incomplete collection {collection_name}")
+
                 # Create new collection
                 logger.info(f"Creating cell embeddings for database {db_id}")
                 schema = load_database_schema(db_path)
-                
+
                 # Collect matched values for this database from all queries
                 matched_values_by_column = collect_matched_values_for_database(queries, db_id)
                 logger.info(f"Collected matched values for {len(matched_values_by_column)} columns in {db_id}")
-                
+
                 num_cells = create_qdrant_collection_for_database(
                     client=client,
                     collection_name=collection_name,
@@ -423,8 +424,10 @@ def run_cell_to_column_mapping_benchmark(
                     matched_values_by_column=matched_values_by_column,
                     max_unique_values_per_column=cfg.task.get("max_unique_values_per_column", 1000)
                 )
-                
-                logger.info(f"Completed embedding {num_cells} cells for collection {collection_name}")
+
+                completed_file_path.parent.mkdir(parents=True, exist_ok=True)
+                completed_file_path.write_text(f"Embedded {num_cells} cells")
+                logger.info(f"Marked collection {collection_name} as complete ({num_cells} cells)")
             
             db_collections[db_id] = collection_name
         
@@ -447,22 +450,23 @@ def run_cell_to_column_mapping_benchmark(
             logger.error(f"Error embedding query in mode {query_mode}: {e}")
             continue
 
-        # Search Qdrant for top-K nearest cells
-        hits = client.search(
+        # Search Qdrant for the best-matching cell per column (group by table_column).
+        # This eliminates cardinality bias: each column is represented by its single
+        # best hit regardless of how many unique values it has in the index.
+        groups_result: GroupsResult = client.search_groups(
             collection_name=collection_name,
             query_vector=query_embedding.tolist(),
-            limit=top_k_cells,
+            group_by="table_column",
+            limit=top_k_columns,
+            group_size=1,
             with_payload=True
         )
 
-        # Count which columns the retrieved cells belong to
-        column_counts = Counter()
-        for hit in hits:
-            table_column = hit.payload["table_column"]
-            column_counts[table_column] += 1
-
-        # Rank columns by count (how many of their cells were retrieved)
-        ranked_columns = [col for col, count in column_counts.most_common()]
+        # Rank columns by the score of their best-matching cell (descending)
+        ranked_columns = [
+            group.id
+            for group in sorted(groups_result.groups, key=lambda g: g.hits[0].score, reverse=True)
+        ]
 
         # Compute metrics at different K values
         k_values = [1, 3, 5, 10, 20]
