@@ -1,4 +1,5 @@
 approach_name: tabpfn
+conda_env: benchmark_env
 module_path: approaches/benchmark_approaches_src/tabpfn
 class_name: TabPFNEmbedder
 

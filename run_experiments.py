@@ -13,13 +13,24 @@ Output layout:
   results/<benchmark_output_dir>/<approach>/[<param_slug>/]<task>/<dataset>/
   where <param_slug> is derived from run-level params overrides (omitted when empty).
 
-Usage:
+Multi-env runs:
+  When approaches in a run config declare different conda_env values (set in each
+  configs/approaches/<name>.yaml), the orchestrator automatically dispatches one
+  subprocess per env via `conda run -n <env>`. No manual env switching needed:
+
+    python run_experiments.py schema_linking   # handles all envs automatically
+
+Usage (recommended — works from any env):
+    bash run.sh <run_config_name>
+    bash run.sh <run_config_name> --results-dir results_testing
+    bash run.sh <run_config_name> --stop-on-error
+
+Direct usage (must be in benchmark_env):
     python run_experiments.py <run_config_name>
-    python run_experiments.py <run_config_name> --results-dir results_testing
-    python run_experiments.py <run_config_name> --stop-on-error
 """
 
 import logging
+import subprocess
 import sys
 from pathlib import Path
 from typing import Annotated, Optional
@@ -37,15 +48,38 @@ def _load_yaml(path: Path):
     return OmegaConf.load(path)
 
 
-def _build_jobs(run_cfg, project_root: Path, results_dir: str):
+def _collect_env_groups(run_cfg, configs_dir: Path) -> dict:
     """
-    Expand a run config into a flat list of (cfg, output_dir) job dicts.
+    Read each approach config and group approach names by their conda_env.
+    Returns {env_name: [approach_name, ...], None: [approach_name, ...]}
+    where None means no conda_env declared (run in current env).
+    """
+    groups: dict = {}
+    for entry in run_cfg.approaches:
+        acfg = OmegaConf.to_container(
+            _load_yaml(configs_dir / "approaches" / f"{entry.name}.yaml"), resolve=True
+        )
+        env = acfg.get("conda_env")
+        groups.setdefault(env, [])
+        if entry.name not in groups[env]:
+            groups[env].append(entry.name)
+    return groups
+
+
+def _build_jobs(run_cfg, project_root: Path, results_dir: str, conda_env_filter: Optional[str] = None):
+    """
+    Expand a run config into a flat list of job cfgs.
     Each job corresponds to one (approach, task, dataset) triple.
+
+    conda_env_filter: when set, only include approaches whose conda_env matches.
     """
     configs_dir = project_root / "configs"
     global_datasets = OmegaConf.to_container(
         _load_yaml(configs_dir / "global_datasets.yaml"), resolve=True
     )
+
+    # Global task whitelist — applies to all approaches unless overridden per-approach.
+    global_task_whitelist = list(run_cfg.tasks) if "tasks" in run_cfg else None
 
     # Global task_params: flat key-value overrides applied to every task in this run.
     # Lower priority than per-approach task_params; do not affect the task-param slug.
@@ -62,6 +96,10 @@ def _build_jobs(run_cfg, project_root: Path, results_dir: str):
             resolve=True,
         )
 
+        # Filter by conda_env when running as a dispatched subprocess.
+        if conda_env_filter is not None and approach_cfg.get("conda_env") != conda_env_filter:
+            continue
+
         # Run-level param overrides — these also drive the output path so that two entries
         # for the same approach with different params produce distinct directories without
         # any manual label: e.g. embedding_model=all-MiniLM-L6-v2 vs embedding_model=granite-r2,
@@ -77,11 +115,11 @@ def _build_jobs(run_cfg, project_root: Path, results_dir: str):
             f"{k}={str(v).replace('/', '_')}" for k, v in sorted(run_params.items())
         )
 
-        # Determine which tasks to run (optional whitelist in run config)
+        # Task whitelist: per-approach entry overrides the run-level global whitelist.
         task_whitelist = (
             list(approach_entry.tasks)
             if "tasks" in approach_entry and approach_entry.tasks
-            else None
+            else global_task_whitelist
         )
 
         supported_tasks = approach_cfg.get("supported_tasks", {})
@@ -226,11 +264,22 @@ def _run_job(cfg, project_root: Path):
         file_handler.close()
 
 
+def _gather(results_dir: str, run_cfg):
+    results_folder = Path(results_dir) / run_cfg.benchmark_output_dir
+    logger.info(f"Gathering results from {results_folder}")
+    try:
+        from benchmark_src.results_processing import gather_results
+        gather_results.run(str(results_folder))
+    except Exception:
+        logger.exception("Results gathering failed")
+
+
 def main(
     run_config: Annotated[str, typer.Argument(help="Name of run config in configs/runs/ (without .yaml)")],
     results_dir: Annotated[str, typer.Option(help="Top-level results directory")] = "results",
     stop_on_error: Annotated[bool, typer.Option("--stop-on-error", help="Stop immediately on the first job failure instead of continuing")] = False,
     log_level: Annotated[Optional[str], typer.Option(help="Logging verbosity override (DEBUG, INFO, WARNING, ERROR); run config log_level is used when omitted")] = None,
+    conda_env: Annotated[Optional[str], typer.Option("--conda-env", help="Only run approaches with this conda_env (set automatically by multi-env dispatch; rarely needed manually)", hidden=True)] = None,
 ):
     project_root = Path(__file__).parent.resolve()
 
@@ -257,9 +306,69 @@ def main(
     from dotenv import load_dotenv
     load_dotenv()
 
-    jobs = _build_jobs(run_cfg, project_root, results_dir)
+    # ── Multi-env dispatch ────────────────────────────────────────────────────
+    # When this is the top-level invocation (not a subprocess), check if the run
+    # config spans multiple conda envs. If so, dispatch one subprocess per env
+    # via `conda run` so the user never has to switch envs manually.
+    if conda_env is None:
+        env_groups = _collect_env_groups(run_cfg, project_root / "configs")
+        named_envs = [e for e in env_groups if e is not None]
 
-    logger.info(f"Run config: {run_config}  |  Jobs: {len(jobs)}")
+        if len(named_envs) > 1 or (len(named_envs) == 1 and None not in env_groups):
+            logger.info(
+                f"Multi-env run: dispatching subprocesses for envs: {named_envs}"
+                + (f" + current env (no conda_env)" if None in env_groups else "")
+            )
+            failed_envs = []
+
+            for env_name in named_envs:
+                logger.info(
+                    f"--- Activating env '{env_name}' "
+                    f"({env_groups[env_name]}) ---"
+                )
+                cmd = [
+                    "conda", "run", "-n", env_name, "--no-capture-output",
+                    "python", str(project_root / "run_experiments.py"),
+                    run_config,
+                    "--conda-env", env_name,
+                    "--results-dir", results_dir,
+                ]
+                if stop_on_error:
+                    cmd.append("--stop-on-error")
+                if log_level:
+                    cmd.extend(["--log-level", log_level])
+
+                result = subprocess.run(cmd, cwd=str(project_root))
+                if result.returncode != 0:
+                    failed_envs.append(env_name)
+                    logger.error(f"Env '{env_name}' exited with code {result.returncode}")
+                    if stop_on_error:
+                        raise typer.Exit(1)
+
+            # Run any approaches with no conda_env declared inline in the current env
+            if None in env_groups:
+                logger.info(f"Running {env_groups[None]} inline (no conda_env declared)")
+                _run_inline(run_cfg, project_root, results_dir, stop_on_error, conda_env_filter="__none__")
+
+            _gather(results_dir, run_cfg)
+
+            if failed_envs:
+                logger.error(f"Failed envs: {failed_envs}")
+                raise typer.Exit(1)
+            return
+
+    # ── Single-env execution (inline or dispatched subprocess) ────────────────
+    # Map the "__none__" sentinel back to None so the filter works correctly.
+    env_filter = None if conda_env == "__none__" else conda_env
+    _run_inline(run_cfg, project_root, results_dir, stop_on_error, conda_env_filter=env_filter)
+    _gather(results_dir, run_cfg)
+
+
+def _run_inline(run_cfg, project_root: Path, results_dir: str, stop_on_error: bool, conda_env_filter: Optional[str] = None):
+    """Build and execute all jobs for the given conda_env_filter inline."""
+    jobs = _build_jobs(run_cfg, project_root, results_dir, conda_env_filter=conda_env_filter)
+
+    logger.info(f"Jobs: {len(jobs)}" + (f" (env filter: {conda_env_filter})" if conda_env_filter else ""))
     for i, cfg in enumerate(jobs):
         logger.info(
             f"  [{i+1}/{len(jobs)}] {cfg.approach.approach_name}/"
@@ -275,15 +384,6 @@ def main(
             if stop_on_error:
                 logger.error("Stopping after first failure (--stop-on-error)")
                 break
-
-    # Aggregate results
-    results_folder = Path(results_dir) / run_cfg.benchmark_output_dir
-    logger.info(f"Gathering results from {results_folder}")
-    try:
-        from benchmark_src.results_processing import gather_results
-        gather_results.run(str(results_folder))
-    except Exception:
-        logger.exception("Results gathering failed")
 
     if failed:
         logger.error(f"{failed}/{len(jobs)} jobs failed")

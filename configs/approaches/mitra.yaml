@@ -1,4 +1,5 @@
 approach_name: mitra
+conda_env: benchmark_env
 module_path: "approaches/benchmark_approaches_src/mitra"
 class_name: MITRAApproach
 

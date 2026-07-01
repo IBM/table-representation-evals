@@ -1,46 +1,27 @@
-benchmark_output_dir: test_schema_linking_experiments
-task_params:
-  max_queries: 100
+benchmark_output_dir: schema_linking_experiments
+
+# Run only the three schema linking tasks for all approaches below.
+# Remove this to run all tasks each approach supports.
+tasks:
+  - nl2column_mapping
+  - nl2cell2column_mapping
+  - nl2cell2column_fuzzy_mapping
+
 approaches:
-  # NL2Column mapping (concept-based, no cell values)
   - name: sentence_transformer
     params:
       embedding_model: all-MiniLM-L6-v2
-    tasks:
-      - nl2column_mapping
+      table_row_limit: 100
 
-  # NL2Cell2Column mapping — exact benchmark, both query modes
   - name: sentence_transformer
     params:
-      embedding_model: all-MiniLM-L6-v2
-    tasks:
-      - nl2cell2column_mapping
-    task_params:
-      nl2cell2column_mapping:
-        query_mode: full_nl
-  - name: sentence_transformer
-    params:
-      embedding_model: all-MiniLM-L6-v2
-    tasks:
-      - nl2cell2column_mapping
-    task_params:
-      nl2cell2column_mapping:
-        query_mode: extracted_values
+      embedding_model: ibm-granite/granite-embedding-english-r2
+      table_row_limit: 100
 
-  # NL2Cell2Column mapping — fuzzy benchmark, both query modes
-  - name: sentence_transformer
+  - name: sap_rpt_oss
+
+  - name: GritLM
     params:
-      embedding_model: all-MiniLM-L6-v2
-    tasks:
-      - nl2cell2column_fuzzy_mapping
-    task_params:
-      nl2cell2column_fuzzy_mapping:
-        query_mode: full_nl
-  - name: sentence_transformer
-    params:
-      embedding_model: all-MiniLM-L6-v2
-    tasks:
-      - nl2cell2column_fuzzy_mapping
-    task_params:
-      nl2cell2column_fuzzy_mapping:
-        query_mode: extracted_values
+      embedding_model: GritLM/GritLM-7B
+
+  - name: hytrel

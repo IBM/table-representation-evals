@@ -1,4 +1,5 @@
 approach_name: sentence_transformer
+conda_env: benchmark_env
 module_path: "approaches/benchmark_approaches_src/sentence_transformer"
 class_name: SentenceTransformerEmbedder
 

@@ -1,4 +1,5 @@
 approach_name: tabula_8b
+conda_env: benchmark_env
 module_path: "approaches/benchmark_approaches_src/tabula_8b"
 class_name: TabuLA8BEmbedder
 

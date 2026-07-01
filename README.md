@@ -4,48 +4,19 @@ A comprehensive benchmark suite for evaluating tabular embeddings across four re
 
 ## Section 1: Benchmark Tasks
 
-### 1) Tasks on Row Level
-
-#### Row Similarity Search
-**Description:** Given an input table and a row, find the most similar row from the input table to the given row.
-
-**Approaches:** Implement the `row_embedding_component` to provide row embeddings, or implement `row_similarity_search_component` to return a ranked list directly. Set `run_similarity_search_based_on` in the approach's `supported_tasks` config accordingly.
-
-#### Triplet-Based Evaluation (More Similar Than)
-**Description:** Given a triplet of rows (anchor, positive, negative), evaluate whether the anchor is more similar to the positive than to the negative row.
-
-**Approaches:** Implement the `row_embedding_component`.
-
-#### Tabular Prediction
-**Description:** Use row embeddings as features for downstream supervised tasks (classification or regression).
-
-**Approaches:** Implement the `row_embedding_component` for embedding-based prediction, or implement `predictive_ml_component` to run the approach's own ML model.
-
-### 2) Tasks on Column Level
-
-#### Column Similarity Search
-**Description:** Given a query column, retrieve and rank the most semantically similar columns from a data lake.
-
-**Approaches:** Implement the `column_embedding_component`.
-
-#### Column Type Annotation
-**Description:** Given a table column, predict its semantic type from a fixed label vocabulary.
-
-**Approaches:** Implement the `column_embedding_component`.
-
-### 3) Tasks on Cell Level
-
-#### Cell Level Semantic Retrieval
-**Description:** Given a query cell, retrieve the top-k most semantically similar cells across a collection of tables.
-
-**Approaches:** Implement the `cell_embedding_component`.
-
-### 4) Tasks on Table Level
-
-#### Table Retrieval
-**Description:** Given a query table, retrieve and rank the most semantically similar tables from a collection.
-
-**Approaches:** Implement the `table_embedding_component`.
+| Task | Level | Description | Interface | Metric |
+|---|---|---|---|---|
+| Row Similarity Search | Row | Find the most similar row in a table to a given query row | `row_embedding` or `row_similarity_search` | Top-1 [%] |
+| Row Triplet Test | Row | Determine whether an anchor row is more similar to a positive than to a negative example | `row_embedding` | Accuracy |
+| Tabular Prediction | Row | Use row embeddings as features for classification or regression | `row_embedding` or `predictive_ml` | ROC-AUC / RMSE |
+| Column Similarity Search | Column | Retrieve semantically similar columns from a data lake | `column_embedding` | MRR |
+| Column Type Annotation | Column | Predict the semantic type of a column from a fixed label vocabulary | `column_embedding` | Macro-F1 |
+| NL→Column Mapping | Column | Match natural language query concepts to database columns | `column_embedding` | Recall@k |
+| Cell Semantic Retrieval | Cell | Retrieve the most semantically similar cells across a table collection | `cell_embedding` | — |
+| NL→Cell→Column Mapping | Cell | Map NL-extracted values to database cells and identify relevant columns (exact match) | `cell_embedding` | Recall@k |
+| NL→Cell→Column Fuzzy Mapping | Cell | Map NL-extracted values to database cells and identify relevant columns (fuzzy/semantic match) | `cell_embedding` | Recall@k |
+| Table Retrieval | Table | Retrieve semantically similar tables from a collection | `table_embedding` | Recall@1 |
+| Table Shuffling Triplet Test | Table | Determine whether an anchor table is more similar to a positive than to a structurally varied negative | `table_embedding` | Triplet Accuracy |
 
 ---
 
@@ -80,11 +51,12 @@ A comprehensive benchmark suite for evaluating tabular embeddings across four re
 
 1. Copy `approaches/benchmark_approaches_src/<approach_name>/` (the template folder) to a new folder and rename the class in `approach.py`.
 
-2. Create `configs/approaches/<your_approach>.yaml` declaring `approach_name`, `module_path`, `class_name`, any hyperparameters, and a `supported_tasks` block listing which tasks your approach supports and their task-specific defaults:
+2. Create `configs/approaches/<your_approach>.yaml` declaring `approach_name`, `module_path`, `class_name`, `conda_env`, any hyperparameters, and a `supported_tasks` block listing which tasks your approach supports and their task-specific defaults:
    ```yaml
    approach_name: my_approach
    module_path: "approaches/benchmark_approaches_src/my_approach"
    class_name: MyApproach
+   conda_env: benchmark_env      # conda environment that has your approach's dependencies
    my_param: some_value
 
    supported_tasks:
@@ -104,24 +76,25 @@ A comprehensive benchmark suite for evaluating tabular embeddings across four re
 
 ## Section 4: How to Run the Benchmark
 
-Always set `PYTHONPATH` first (the shell scripts below do this automatically):
-```bash
-export PYTHONPATH=$(pwd):$PYTHONPATH
-```
-
 For a full reference on all configuration options, see [configs/README.md](configs/README.md).
 
 ### Run configs
 
-Create or edit a file under `configs/runs/<name>.yaml`:
+Create or edit a file under `configs/runs/<name>.yaml`. You can freely mix approaches from
+different conda environments in one file — the orchestrator handles env switching automatically.
+
 ```yaml
 benchmark_output_dir: my_results
+
+# Optional: restrict all approaches below to these tasks only
+tasks: [row_similarity_search, predictive_ml]
+
 approaches:
   - name: my_approach
     params:
       my_param: some_value
-    tasks: [row_similarity_search, predictive_ml]   # optional whitelist; omit to run all supported
-    task_datasets:                                   # optional: override the global dataset list
+    tasks: [row_similarity_search]  # overrides the run-level tasks for this entry only
+    task_datasets:                  # optional: override the global dataset list
       row_similarity_search: [Amazon-Google]
 ```
 
@@ -132,16 +105,19 @@ automatically differentiated by a slug derived from the params (e.g.
 ### Running
 
 ```bash
-# Run all jobs defined in the run config
-conda activate benchmark_env
-python run_experiments.py <run_config_name>
+# Run all jobs defined in the run config (works from any conda env)
+bash run.sh <run_config_name>
 
 # Stop on the first failure instead of continuing
-python run_experiments.py <run_config_name> --stop-on-error
+bash run.sh <run_config_name> --stop-on-error
 
 # Write results to a custom directory
-python run_experiments.py <run_config_name> --results-dir results_testing
+bash run.sh <run_config_name> --results-dir results_testing
 ```
+
+`run.sh` activates `benchmark_env` and sets `PYTHONPATH` automatically. When the run config
+includes approaches from multiple conda envs (set via `conda_env` in each approach config),
+the orchestrator dispatches them as subprocesses in sequence — no manual env switching needed.
 
 Results are written to `results/<benchmark_output_dir>/<approach>/<params>/<task>/<dataset>/results.json`. A run is skipped if `results.json` already exists — delete it to force a re-run.
 
@@ -155,7 +131,7 @@ Runs one small dataset per task type and fails on any error.
 
 ### Aggregating results
 
-Results are automatically aggregated at the end of every `run_experiments.py` run. To re-run manually:
+Results are automatically aggregated at the end of every `run.sh` run. To re-run manually:
 ```bash
 python benchmark_src/results_processing/gather_results.py results/<benchmark_output_dir>
 ```
@@ -166,28 +142,25 @@ python benchmark_src/results_processing/gather_results.py results/<benchmark_out
 
 ```
 ├── configs/
-│   ├── global_datasets.yaml              # dataset registry per task
+│   ├── global_datasets.yaml              # canonical dataset list per task
 │   ├── approaches/
-│   │   └── <approach>.yaml               # approach params + supported_tasks
-│   └── runs/
-│       └── <run>.yaml                    # what to run: approaches + param overrides
+│   │   └── <approach>.yaml               # approach params, conda_env, supported_tasks
+│   ├── runs/
+│   │   └── <run>.yaml                    # what to run: approaches + param overrides
+│   ├── task/                             # task-level defaults (top_k, metrics, etc.)
+│   └── dataset/                          # dataset-specific settings for creation scripts
 ├── approaches/
 │   └── benchmark_approaches_src/
 │       └── <approach>/
 │           ├── approach.py               # main approach class
 │           └── <task>_component.py       # one file per supported capability
-├── configs/
-│   ├── approaches/                       # per-approach params + supported_tasks
-│   ├── runs/                             # run configs (what to run + overrides)
-│   ├── task/                             # task-level defaults (top_k, metrics, etc.)
-│   ├── dataset/                          # dataset-specific settings for creation scripts
-│   └── global_datasets.yaml             # canonical dataset list per task
 ├── benchmark_src/
 │   ├── approach_interfaces/              # ABCs for all component types
 │   ├── tasks/                            # one run_*_benchmark.py per task
 │   ├── utils/                            # metrics, result aggregation, etc.
 │   └── results_processing/              # gather_results.py, ranking, plots
-├── run_experiments.py                    # main orchestrator entry point
+├── run.sh                                # entry point — activates benchmark_env, dispatches multi-env runs
+├── run_experiments.py                    # orchestrator (called by run.sh)
 ├── run_test_before_commit.sh
 └── run_paper_experiments.sh
 ```
