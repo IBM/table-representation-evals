@@ -1,7 +1,8 @@
-# Task configuration for NL2Cell2Column Mapping benchmark
+# Task configuration for NL2Cell2Column Fuzzy Mapping benchmark
 # Uses cell embeddings to identify relevant columns for text-to-SQL queries
+# This is for fuzzy/semantic matching (non-exact cell value matches)
 
-task_name: nl2cell2column_mapping
+task_name: nl2cell2column_fuzzy_mapping
 
 # Maximum number of queries to process (for testing/debugging)
 # Set to null or remove to process all queries

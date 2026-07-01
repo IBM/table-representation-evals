@@ -1,26 +1,16 @@
 """
 Cell-to-Column Mapping Benchmark for Text2SQL
 
-This benchmark evaluates how well cell embeddings can identify relevant columns
-for SQL query generation from natural language questions. It uses the BIRD benchmark
-dataset with cell_value_matching_queries.json or fuzzy_cell_matching.json.
+Given a natural language query, uses cell embeddings to retrieve the database
+columns most relevant for answering it. Supports both exact matching
+(cell_value_matching_queries.json) and fuzzy/semantic matching
+(semantic_fuzzy_matching.json) benchmarks via cfg.dataset.{task_name}_benchmark_file.
 
-Task: Given a natural language query, use cell embeddings to retrieve the database
-columns that are relevant for answering the query.
-
-Two modes supported:
-1. Full NL Query: Embed the entire natural language question
-2. Extracted Values: Embed extracted values from the query (when available)
-
-Key Features:
-- Uses SQL DISTINCT to get unique values per column before sampling
-- ALWAYS includes matched values from benchmark queries in embeddings
-- Supports both exact matching (cell_value_matching_queries.json) and
-  fuzzy/semantic matching (fuzzy_cell_matching.json) benchmarks
-- Uses Qdrant for efficient ANN search over cell embeddings
+Uses SQL DISTINCT to index unique cell values per column; matched values from the
+benchmark are always included regardless of the sampling limit. ANN search is done
+via Qdrant with search_groups to avoid cardinality bias.
 """
 
-from hydra.utils import get_original_cwd
 from omegaconf import DictConfig, OmegaConf
 import json
 from pathlib import Path
@@ -32,12 +22,12 @@ import numpy as np
 import sqlite3
 from typing import List, Dict, Tuple, Optional
 import statistics
-from collections import defaultdict, Counter
+from collections import defaultdict
 import gc
 import torch
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct
+from qdrant_client.models import VectorParams, Distance, PointStruct, GroupsResult, PayloadSchemaType
 
 from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.cell_embedding_interface import CellEmbeddingInterface
@@ -48,27 +38,42 @@ logger = logging.getLogger(__name__)
 
 
 def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
-    """Initialize Qdrant client with persistent storage."""
-    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage" / f"qdrant_cell_to_column_{cfg.run_identifier}"
+    """
+    Initialize Qdrant client with persistent storage.
+    
+    Cache key is based on approach, embedding model, and dataset to enable reuse across experiments.
+    This allows fuzzy matching to reuse embeddings from exact matching runs on the same dataset.
+    """
+    # Create a stable cache identifier based on approach, model, and dataset
+    approach_name = cfg.approach.approach_name
+    embedding_model = cfg.approach.get("embedding_model", "default")
+    dataset_name = cfg.dataset_name
+    
+    # Sanitize names for filesystem (replace / and : with _)
+    embedding_model_safe = embedding_model.replace("/", "_").replace(":", "_")
+    cache_key = f"{approach_name}_{embedding_model_safe}_{dataset_name}"
+    
+    qdrant_path = Path(cfg.cache_dir) / "qdrant_storage" / f"qdrant_cell_to_column_{cache_key}"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
+    logger.info(f"Cache key: {cache_key} (enables reuse across exact/fuzzy matching experiments)")
     return client, qdrant_path
 
 
 def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
     """Load the BIRD benchmark data for cell-to-column mapping."""
-    bird_path = Path(cfg.dataset.bird_path).expanduser()
-    
-    # Get benchmark file from config, default to cell_value_matching_queries.json
-    benchmark_file = cfg.dataset.get("nl2cell2column_benchmark_file", "cell_value_matching_queries.json")
+    bird_path_override = cfg.dataset.get("bird_path", None)
+    bird_path = Path(bird_path_override) if bird_path_override else Path(cfg.cache_dir) / "datasets" / "bird"
+
+    benchmark_file = cfg.dataset.get(f"{cfg.task.task_name}_benchmark_file", "cell_value_matching_queries.json")
     queries_file = bird_path / benchmark_file
     assert queries_file.exists(), f"Could not find queries file at {queries_file}"
-    
+
     with open(queries_file, "r") as f:
         queries = json.load(f)
-    
-    databases_path = bird_path / "bird" / "train" / "train_databases"
+
+    databases_path = bird_path / "train" / "train_databases"
     assert databases_path.exists(), f"Could not find databases at {databases_path}. Please unzip train_databases.zip"
     
     logger.info(f"Loaded {len(queries)} queries from {queries_file}")
@@ -256,6 +261,11 @@ def create_qdrant_collection_for_database(
         collection_name=collection_name,
         vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
     )
+    client.create_payload_index(
+        collection_name=collection_name,
+        field_name="table_column",
+        field_schema=PayloadSchemaType.KEYWORD
+    )
     logger.info(f"Created Qdrant collection {collection_name} with vector size {embedding_dim}")
     
     # Embed and upload all cells
@@ -364,11 +374,11 @@ def run_cell_to_column_mapping_benchmark(
     max_queries = cfg.task.get("max_queries", len(queries))
     queries = queries[:max_queries]
     
-    # Query mode: "full_nl" or "extracted_values" or "both"
-    query_mode = cfg.task.get("query_mode", "both")
-    
-    # Top-K cells to retrieve
-    top_k_cells = cfg.task.get("top_k_cells", 100)
+    # Query mode: "full_nl" or "extracted_values"
+    query_mode = cfg.task.get("query_mode", "extracted_values")
+
+    # Top-K columns to retrieve via search_groups
+    top_k_columns = cfg.task.get("top_k_columns", 50)
     
     for query_idx, query in enumerate(tqdm(queries, desc="Processing queries")):
         db_id = query["db_id"]
@@ -388,24 +398,23 @@ def run_cell_to_column_mapping_benchmark(
             
             collection_name = f"bird_{db_id}"
             completed_file_path = qdrant_path / "collection" / collection_name / "COMPLETED"
-            
-            # Check if collection already exists and is complete
+
             if client.collection_exists(collection_name=collection_name) and completed_file_path.exists():
                 logger.info(f"Collection {collection_name} already exists and is complete")
             else:
-                # Delete if exists but incomplete
+                # Delete if exists but incomplete (interrupted previous run)
                 if client.collection_exists(collection_name=collection_name):
                     client.delete_collection(collection_name=collection_name)
                     logger.info(f"Deleted incomplete collection {collection_name}")
-                
+
                 # Create new collection
                 logger.info(f"Creating cell embeddings for database {db_id}")
                 schema = load_database_schema(db_path)
-                
+
                 # Collect matched values for this database from all queries
                 matched_values_by_column = collect_matched_values_for_database(queries, db_id)
                 logger.info(f"Collected matched values for {len(matched_values_by_column)} columns in {db_id}")
-                
+
                 num_cells = create_qdrant_collection_for_database(
                     client=client,
                     collection_name=collection_name,
@@ -415,11 +424,10 @@ def run_cell_to_column_mapping_benchmark(
                     matched_values_by_column=matched_values_by_column,
                     max_unique_values_per_column=cfg.task.get("max_unique_values_per_column", 1000)
                 )
-                
-                # Mark as complete
+
                 completed_file_path.parent.mkdir(parents=True, exist_ok=True)
                 completed_file_path.write_text(f"Embedded {num_cells} cells")
-                logger.info(f"Marked collection {collection_name} as complete")
+                logger.info(f"Marked collection {collection_name} as complete ({num_cells} cells)")
             
             db_collections[db_id] = collection_name
         
@@ -428,92 +436,83 @@ def run_cell_to_column_mapping_benchmark(
         # Prepare ground truth
         gold_column_set = {f"{gc['table']}.{gc['column']}" for gc in gold_columns}
         
-        # Process based on query mode
-        modes_to_run = []
-        if query_mode == "both":
-            modes_to_run = ["full_nl", "extracted_values"]
-        else:
-            modes_to_run = [query_mode]
-        
-        for mode in modes_to_run:
-            # Skip extracted_values mode if no extracted values available
-            if mode == "extracted_values" and not extracted_values:
-                continue
-            
-            # Create query embedding
-            try:
-                if mode == "full_nl":
-                    query_embedding = embed_query_text(cell_embedding_component, question)
-                    mode_suffix = "_full_nl"
-                else:  # extracted_values
-                    query_embedding = embed_extracted_values(cell_embedding_component, extracted_values)
-                    mode_suffix = "_extracted"
-            except Exception as e:
-                logger.error(f"Error embedding query in mode {mode}: {e}")
-                continue
-            
-            # Search Qdrant for top-K nearest cells
-            hits = client.search(
-                collection_name=collection_name,
-                query_vector=query_embedding.tolist(),
-                limit=top_k_cells,
-                with_payload=True
-            )
-            
-            # Count which columns the retrieved cells belong to
-            column_counts = Counter()
-            for hit in hits:
-                table_column = hit.payload["table_column"]
-                column_counts[table_column] += 1
-            
-            # Rank columns by count (how many of their cells were retrieved)
-            ranked_columns = [col for col, count in column_counts.most_common()]
-            
-            # Compute metrics at different K values
-            k_values = [1, 3, 5, 10, 20]
-            metrics = {}
-            
-            for k in k_values:
-                top_k = ranked_columns[:k]
-                correct = sum(1 for col in top_k if col in gold_column_set)
-                
-                precision = correct / k if k > 0 else 0.0
-                recall = correct / len(gold_column_set) if gold_column_set else 0.0
-                
-                metrics[f"precision@{k}{mode_suffix}"] = precision
-                metrics[f"recall@{k}{mode_suffix}"] = recall
-            
-            # Compute MRR
-            mrr = 0.0
-            for rank, col in enumerate(ranked_columns, 1):
-                if col in gold_column_set:
-                    mrr = 1.0 / rank
-                    break
-            
-            # Compute MAP
-            average_precision = 0.0
-            num_relevant = 0
-            for rank, col in enumerate(ranked_columns, 1):
-                if col in gold_column_set:
-                    num_relevant += 1
-                    precision_at_rank = num_relevant / rank
-                    average_precision += precision_at_rank
-            
-            if len(gold_column_set) > 0:
-                average_precision /= len(gold_column_set)
-            
-            metrics[f"mrr{mode_suffix}"] = mrr
-            metrics[f"map{mode_suffix}"] = average_precision
-            
-            results.append({
-                "query_idx": query_idx,
-                "db_id": db_id,
-                "question": question,
-                "query_mode": mode,
-                "num_gold_columns": len(gold_column_set),
-                "num_retrieved_columns": len(ranked_columns),
-                **metrics
-            })
+        # Skip extracted_values mode if no extracted values available
+        if query_mode == "extracted_values" and not extracted_values:
+            continue
+
+        # Create query embedding
+        try:
+            if query_mode == "full_nl":
+                query_embedding = embed_query_text(cell_embedding_component, question)
+            else:  # extracted_values
+                query_embedding = embed_extracted_values(cell_embedding_component, extracted_values)
+        except Exception as e:
+            logger.error(f"Error embedding query in mode {query_mode}: {e}")
+            continue
+
+        # Search Qdrant for the best-matching cell per column (group by table_column).
+        # This eliminates cardinality bias: each column is represented by its single
+        # best hit regardless of how many unique values it has in the index.
+        groups_result: GroupsResult = client.search_groups(
+            collection_name=collection_name,
+            query_vector=query_embedding.tolist(),
+            group_by="table_column",
+            limit=top_k_columns,
+            group_size=1,
+            with_payload=True
+        )
+
+        # Rank columns by the score of their best-matching cell (descending)
+        ranked_columns = [
+            group.id
+            for group in sorted(groups_result.groups, key=lambda g: g.hits[0].score, reverse=True)
+        ]
+
+        # Compute metrics at different K values
+        k_values = [1, 3, 5, 10, 20]
+        metrics = {}
+
+        for k in k_values:
+            top_k = ranked_columns[:k]
+            correct = sum(1 for col in top_k if col in gold_column_set)
+
+            precision = correct / k if k > 0 else 0.0
+            recall = correct / len(gold_column_set) if gold_column_set else 0.0
+
+            metrics[f"precision@{k}"] = precision
+            metrics[f"recall@{k}"] = recall
+
+        # Compute MRR
+        mrr = 0.0
+        for rank, col in enumerate(ranked_columns, 1):
+            if col in gold_column_set:
+                mrr = 1.0 / rank
+                break
+
+        # Compute MAP
+        average_precision = 0.0
+        num_relevant = 0
+        for rank, col in enumerate(ranked_columns, 1):
+            if col in gold_column_set:
+                num_relevant += 1
+                precision_at_rank = num_relevant / rank
+                average_precision += precision_at_rank
+
+        if len(gold_column_set) > 0:
+            average_precision /= len(gold_column_set)
+
+        metrics["mrr"] = mrr
+        metrics["map"] = average_precision
+
+        results.append({
+            "query_idx": query_idx,
+            "db_id": db_id,
+            "question": question,
+            "query_mode": query_mode,
+            "num_gold_columns": len(gold_column_set),
+            "num_retrieved_columns": len(ranked_columns),
+            **metrics
+        })
     
     return results
 
@@ -522,28 +521,19 @@ def compute_aggregate_metrics(results: List[Dict]) -> Dict[str, float]:
     """Compute aggregate metrics across all queries."""
     if not results:
         return {}
-    
+
     aggregate = {}
-    
-    # Group by query mode
-    by_mode = defaultdict(list)
-    for r in results:
-        mode = r.get("query_mode", "unknown")
-        by_mode[mode].append(r)
-    
-    # Compute metrics for each mode
-    for mode, mode_results in by_mode.items():
-        metric_keys = [k for k in mode_results[0].keys() 
-                       if k not in ["query_idx", "db_id", "question", "query_mode", 
-                                    "num_gold_columns", "num_retrieved_columns"]]
-        
-        for key in metric_keys:
-            values = [r[key] for r in mode_results if key in r]
-            if values:
-                aggregate[f"mean_{key}"] = statistics.mean(values)
-                if len(values) > 1:
-                    aggregate[f"std_{key}"] = statistics.stdev(values)
-    
+    metric_keys = [k for k in results[0].keys()
+                   if k not in ["query_idx", "db_id", "question", "query_mode",
+                                "num_gold_columns", "num_retrieved_columns"]]
+
+    for key in metric_keys:
+        values = [r[key] for r in results if key in r]
+        if values:
+            aggregate[f"mean_{key}"] = statistics.mean(values)
+            if len(values) > 1:
+                aggregate[f"std_{key}"] = statistics.stdev(values)
+
     return aggregate
 
 
@@ -555,7 +545,7 @@ def main(cfg: DictConfig):
     multiprocessing.set_start_method("spawn", force=True)
     
     # Load dataset config
-    dataset_config_path = Path(get_original_cwd()) / "benchmark_src" / "config" / "dataset" / f"{cfg.dataset_name}.yaml"
+    dataset_config_path = Path(cfg.project_root) / "configs" / "dataset" / f"{cfg.dataset_name}.yaml"
     dataset_cfg = OmegaConf.load(str(dataset_config_path))
     OmegaConf.set_struct(cfg, False)
     cfg.dataset = dataset_cfg.dataset
@@ -609,7 +599,7 @@ def main(cfg: DictConfig):
     result_utils.save_results(cfg=cfg, metrics=aggregate_metrics)
     
     # Save detailed per-query results
-    with open("results_per_query.json", "w") as f:
+    with open(Path(cfg.output_dir) / "results_per_query.json", "w") as f:
         json.dump(all_results, f, indent=2)
     
     logger.info("Benchmark complete!")

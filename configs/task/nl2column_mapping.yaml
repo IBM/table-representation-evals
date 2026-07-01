@@ -16,4 +16,3 @@ max_rows_per_table: 1000
 # Should be large enough to cover all relevant columns
 top_k_columns: 50
 
-# Made with Bob

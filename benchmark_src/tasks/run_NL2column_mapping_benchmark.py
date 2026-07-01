@@ -11,7 +11,6 @@ columns that are relevant for answering the query (concept-based, no cell values
 Uses Qdrant for efficient ANN search over column embeddings.
 """
 
-from hydra.utils import get_original_cwd
 from omegaconf import DictConfig, OmegaConf
 import json
 from pathlib import Path
@@ -23,7 +22,7 @@ import numpy as np
 import sqlite3
 from typing import List, Dict, Tuple
 import statistics
-from collections import defaultdict
+
 import gc
 import torch
 
@@ -32,7 +31,6 @@ from qdrant_client.models import VectorParams, Distance, PointStruct
 
 from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.column_embedding_interface import ColumnEmbeddingInterface
-from benchmark_src.approach_interfaces.cell_embedding_interface import CellEmbeddingInterface
 from benchmark_src.utils import framework, result_utils, load_benchmark
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
 
@@ -40,27 +38,42 @@ logger = logging.getLogger(__name__)
 
 
 def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
-    """Initialize Qdrant client with persistent storage."""
-    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage" / f"qdrant_nl2column_{cfg.run_identifier}"
+    """
+    Initialize Qdrant client with persistent storage.
+    
+    Cache key is based on approach, embedding model, and dataset to enable reuse across experiments.
+    """
+    # Create a stable cache identifier based on approach, model, and dataset
+    approach_name = cfg.approach.approach_name
+    embedding_model = cfg.approach.get("embedding_model", "default")
+    dataset_name = cfg.dataset_name
+    
+    # Sanitize names for filesystem (replace / and : with _)
+    embedding_model_safe = embedding_model.replace("/", "_").replace(":", "_")
+    cache_key = f"{approach_name}_{embedding_model_safe}_{dataset_name}"
+    
+    qdrant_path = Path(cfg.cache_dir) / "qdrant_storage" / f"qdrant_nl2column_{cache_key}"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
+    logger.info(f"Cache key: {cache_key} (enables reuse across experiments)")
     return client, qdrant_path
 
 
 def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
     """Load the BIRD benchmark data for NL-to-column mapping."""
-    bird_path = Path(cfg.dataset.bird_path).expanduser()
-    
+    bird_path_override = cfg.dataset.get("bird_path", None)
+    bird_path = Path(bird_path_override) if bird_path_override else Path(cfg.cache_dir) / "datasets" / "bird"
+
     # Get benchmark file from config, default to pure_concept_mapping_queries.json
-    benchmark_file = cfg.dataset.get("nl2column_benchmark_file", "pure_concept_mapping_queries.json")
+    benchmark_file = cfg.dataset.get(f"{cfg.task.task_name}_benchmark_file", "pure_concept_mapping_queries.json")
     queries_file = bird_path / benchmark_file
     assert queries_file.exists(), f"Could not find queries file at {queries_file}"
-    
+
     with open(queries_file, "r") as f:
         queries = json.load(f)
-    
-    databases_path = bird_path / "bird" / "train" / "train_databases"
+
+    databases_path = bird_path / "train" / "train_databases"
     assert databases_path.exists(), f"Could not find databases at {databases_path}. Please unzip train_databases.zip"
     
     logger.info(f"Loaded {len(queries)} queries from {queries_file}")
@@ -107,23 +120,24 @@ def load_table_data(db_path: Path, table: str, limit: int = 1000) -> pd.DataFram
 
 
 def embed_query_text(
-    cell_embedding_component: CellEmbeddingInterface,
+    column_embedding_component: ColumnEmbeddingInterface,
     query_text: str
 ) -> np.ndarray:
     """
-    Embed a natural language query as if it were a cell value.
-    
-    We use cell embedding component to embed the NL query text so it can be
-    compared with column embeddings in the same embedding space.
+    Embed a natural language query using the column embedding component so the
+    query vector lives in the same space as the stored column embeddings.
     """
     query_df = pd.DataFrame({"query": [query_text]})
-    cell_embeddings = cell_embedding_component.create_cell_embeddings_for_table(query_df)
-    
-    if cell_embeddings is None:
+    column_embeddings, _ = column_embedding_component.create_column_embeddings_for_table(query_df)
+
+    if column_embeddings is None:
         raise ValueError("Failed to create query embedding")
-    
-    # Return the data row embedding (skip header at index 0)
-    return cell_embeddings[1, 0, :]
+
+    if hasattr(column_embeddings, 'cpu'):
+        column_embeddings = column_embeddings.cpu().numpy()
+
+    # The single column "query" is at index 0
+    return column_embeddings[0]
 
 
 def create_qdrant_collection_for_database(
@@ -228,7 +242,6 @@ def create_qdrant_collection_for_database(
 def run_nl2column_mapping_benchmark(
     cfg: DictConfig,
     column_embedding_component: ColumnEmbeddingInterface,
-    cell_embedding_component: CellEmbeddingInterface,
     databases_path: Path,
     queries: List[Dict]
 ) -> List[Dict]:
@@ -298,7 +311,7 @@ def run_nl2column_mapping_benchmark(
         
         # Embed the natural language query
         try:
-            query_embedding = embed_query_text(cell_embedding_component, question)
+            query_embedding = embed_query_text(column_embedding_component, question)
         except Exception as e:
             logger.error(f"Error embedding query: {e}")
             continue
@@ -394,7 +407,7 @@ def main(cfg: DictConfig):
     multiprocessing.set_start_method("spawn", force=True)
     
     # Load dataset config
-    dataset_config_path = Path(get_original_cwd()) / "benchmark_src" / "config" / "dataset" / f"{cfg.dataset_name}.yaml"
+    dataset_config_path = Path(cfg.project_root) / "configs" / "dataset" / f"{cfg.dataset_name}.yaml"
     dataset_cfg = OmegaConf.load(str(dataset_config_path))
     OmegaConf.set_struct(cfg, False)
     cfg.dataset = dataset_cfg.dataset
@@ -413,33 +426,32 @@ def main(cfg: DictConfig):
         "ColumnEmbeddingComponent",
         ColumnEmbeddingInterface
     )
-    
-    # Load cell embedding component (for embedding the NL query)
-    cell_embedding_component = embedder._load_component(
-        "cell_embedding_component",
-        "CellEmbeddingComponent",
-        CellEmbeddingInterface
-    )
-    
-    # Setup models
-    _, resource_metrics_setup_col = component_utils.run_model_setup(
+
+    # Setup model - column embedding needs a sample table
+    sample_df = None
+    if queries:
+        first_db_id = queries[0]["db_id"]
+        first_db_path = databases_path / first_db_id / f"{first_db_id}.sqlite"
+        if first_db_path.exists():
+            schema = load_database_schema(first_db_path)
+            if schema:
+                first_table = next(iter(schema.keys()))
+                sample_df = load_table_data(first_db_path, first_table, limit=100)
+
+    if sample_df is None or sample_df.empty:
+        sample_df = pd.DataFrame({"col1": ["sample"], "col2": [1]})
+        logger.warning("Could not load sample table from database, using dummy table for setup")
+
+    _, resource_metrics_setup = component_utils.run_model_setup(
         component=column_embedding_component,
+        input_table=sample_df,
         dataset_information=None
     )
-    
-    _, resource_metrics_setup_cell = component_utils.run_model_setup(
-        component=cell_embedding_component,
-        dataset_information=None
-    )
-    
-    # Combine setup metrics (use the larger one)
-    resource_metrics_setup = resource_metrics_setup_col
     
     # Run benchmark
     all_results, resource_metrics_task = run_nl2column_mapping_benchmark(
         cfg=cfg,
         column_embedding_component=column_embedding_component,
-        cell_embedding_component=cell_embedding_component,
         databases_path=databases_path,
         queries=queries
     )
@@ -464,7 +476,7 @@ def main(cfg: DictConfig):
     result_utils.save_results(cfg=cfg, metrics=aggregate_metrics)
     
     # Save detailed per-query results
-    with open("results_per_query.json", "w") as f:
+    with open(Path(cfg.output_dir) / "results_per_query.json", "w") as f:
         json.dump(all_results, f, indent=2)
     
     logger.info("Benchmark complete!")

@@ -146,9 +146,11 @@ if [ "$SETUP_DATASETS" = true ]; then
 
         mkdir -p ./cache/datasets/bird
 
-        # Copy JSON files from dataset_creation/bird to data/bird
-        echo "Copying JSON files..."
-        cp ./benchmark_src/dataset_creation/bird/*.json ./cache/datasets/bird/
+        # Copy benchmark JSON files from dataset_creation/bird to cache
+        echo "Copying benchmark JSON files..."
+        cp ./benchmark_src/dataset_creation/bird/pure_concept_mapping_queries.json ./cache/datasets/bird/
+        cp ./benchmark_src/dataset_creation/bird/cell_value_matching_queries.json ./cache/datasets/bird/
+        cp ./benchmark_src/dataset_creation/bird/semantic_fuzzy_matching.json ./cache/datasets/bird/
 
         # Download and extract train.zip only if train/ not yet available.
         # If train/ already exists (e.g. previous run extracted it before failing),
