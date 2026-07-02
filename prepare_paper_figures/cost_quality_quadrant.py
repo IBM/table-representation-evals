@@ -83,11 +83,11 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
 
     for _, row in merged.iterrows():
         ax.scatter(row['time'], row['avg_quality'], color=row['color'],
-                   s=120, edgecolors='white', linewidth=0.8, zorder=5)
+                   s=240, edgecolors='white', linewidth=1, zorder=5)
         ax.annotate(row['chart_name'],
                     (row['time'], row['avg_quality']),
                     textcoords='offset points', xytext=(8, 6),
-                    fontsize=11, color=row['color'],
+                    fontsize=18, color=row['color'],
                     path_effects=[pe.withStroke(linewidth=2, foreground='white')])
 
     ax.set_xlabel('Execution Time (s)', fontsize=14)
