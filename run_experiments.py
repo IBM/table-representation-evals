@@ -224,17 +224,13 @@ def _build_jobs(run_cfg, project_root: Path, results_dir: str, conda_env_filter:
     return jobs
 
 
-def _run_job(cfg, project_root: Path):
+def _run_job(cfg, project_root: Path, planned_index: int, num_planned: int):
     """Run a single (approach, task, dataset) job with per-run file logging."""
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Skip if already completed
     if (output_dir / "results.json").is_file():
-        logger.info(
-            f"Skipping {cfg.approach.approach_name}/{cfg.task.task_name}/{cfg.dataset_name}"
-            f" — results.json already exists"
-        )
         return
 
     # Per-run log file
@@ -246,9 +242,12 @@ def _run_job(cfg, project_root: Path):
     root_logger.addHandler(file_handler)
 
     try:
+        logger.info("=" * 80)
         logger.info(
-            f"Starting {cfg.approach.approach_name}/{cfg.task.task_name}/{cfg.dataset_name}"
+            f"Starting [{planned_index}/{num_planned}] "
+            f"{cfg.approach.approach_name}/{cfg.task.task_name}/{cfg.dataset_name}"
         )
+        logger.info("=" * 80)
         from benchmark_src.run_benchmark import run_single
         run_single(cfg)
         logger.info(
@@ -369,16 +368,28 @@ def _run_inline(run_cfg, project_root: Path, results_dir: str, stop_on_error: bo
     jobs = _build_jobs(run_cfg, project_root, results_dir, conda_env_filter=conda_env_filter)
 
     logger.info(f"Jobs: {len(jobs)}" + (f" (env filter: {conda_env_filter})" if conda_env_filter else ""))
-    for i, cfg in enumerate(jobs):
+    already_done_flags = [(Path(cfg.output_dir) / "results.json").is_file() for cfg in jobs]
+    num_planned = sum(not done for done in already_done_flags)
+    for i, (cfg, already_done) in enumerate(zip(jobs, already_done_flags)):
+        status = "skip" if already_done else "planned"
         logger.info(
-            f"  [{i+1}/{len(jobs)}] {cfg.approach.approach_name}/"
+            f"  [{i+1}/{len(jobs)}] - {status} - {cfg.approach.approach_name}/"
             f"{cfg.task.task_name}/{cfg.dataset_name}"
         )
+    logger.info("-" * 80)
+    logger.info(
+        f"{num_planned}/{len(jobs)} planned to run "
+        f"({len(jobs) - num_planned} skipped)"
+    )
+    logger.info("-" * 80)
 
     failed = 0
-    for cfg in jobs:
+    planned_index = 0
+    for cfg, already_done in zip(jobs, already_done_flags):
+        if not already_done:
+            planned_index += 1
         try:
-            _run_job(cfg, project_root)
+            _run_job(cfg, project_root, planned_index, num_planned)
         except Exception:
             failed += 1
             if stop_on_error:
