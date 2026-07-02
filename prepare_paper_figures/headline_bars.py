@@ -71,7 +71,7 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
 
     panels = [
         ('Table Retrieval\n(MRR@10)', r_df, 'Retrieval'),
-        ('Table Shuffling\n(Triplet Accuracy)', s_df, 'Shuffling'),
+        ('Table Shuffling\n(Triplet Accuracy, v0 variation)', s_df, 'Shuffling'),
         ('Table Type Detection\n(XGBoost macro-F1)', t_df, 'TTD'),
     ]
 
@@ -84,7 +84,7 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
 
     panel_labels = [
         'Table Retrieval\n(MRR@10)',
-        'Table Shuffling\n(Triplet Accuracy)',
+        'Table Shuffling\n(Triplet Accuracy, v0 variation)',
         'Table Type Detection\n(XGBoost macro-F1)',
     ]
 
