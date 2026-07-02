@@ -181,7 +181,6 @@ benchmark_output_dir: schema_linking_experiments
 tasks:
   - nl2column_mapping
   - nl2cell2column_mapping
-  - nl2cell2column_fuzzy_mapping
 
 approaches:
   - name: sentence_transformer

@@ -1,0 +1,12 @@
+# Dataset configuration for BIRD concept-level column mapping queries.
+# Covers queries where the relevant column can be identified from schema/column names alone,
+# without needing to match cell values.
+# https://bird-bench.github.io/
+
+dataset_name: bird_column_schema
+
+dataset:
+  # Optional: set to an absolute path if you already have BIRD data elsewhere.
+  # If null (default), data is read from cache/datasets/bird/.
+  bird_path: null
+  benchmark_file: "pure_concept_mapping_queries.json"

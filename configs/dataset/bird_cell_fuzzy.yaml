@@ -1,0 +1,14 @@
+# Dataset configuration for BIRD fuzzy/semantic cell value matching queries.
+# Covers queries where the NL value differs from the database value (synonyms, typos,
+# abbreviations, date format differences), requiring semantic bridging by the embeddings.
+# https://bird-bench.github.io/
+
+dataset_name: bird_cell_fuzzy
+
+dataset:
+  # Optional: set to an absolute path if you already have BIRD data elsewhere.
+  # If null (default), data is read from cache/datasets/bird/.
+  bird_path: null
+  benchmark_file: "semantic_fuzzy_matching.json"
+  # Shared with bird_cell_exact: both index the same BIRD databases.
+  qdrant_cache_key: "bird_cell"

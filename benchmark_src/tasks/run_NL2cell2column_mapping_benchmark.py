@@ -27,7 +27,7 @@ import gc
 import torch
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct, GroupsResult, PayloadSchemaType
+from qdrant_client.models import VectorParams, Distance, PointStruct, GroupsResult
 
 from benchmark_src.tasks import component_utils
 from benchmark_src.approach_interfaces.cell_embedding_interface import CellEmbeddingInterface
@@ -38,26 +38,20 @@ logger = logging.getLogger(__name__)
 
 
 def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
-    """
-    Initialize Qdrant client with persistent storage.
-    
-    Cache key is based on approach, embedding model, and dataset to enable reuse across experiments.
-    This allows fuzzy matching to reuse embeddings from exact matching runs on the same dataset.
-    """
-    # Create a stable cache identifier based on approach, model, and dataset
+    """Initialize Qdrant client with persistent storage."""
     approach_name = cfg.approach.approach_name
     embedding_model = cfg.approach.get("embedding_model", "default")
-    dataset_name = cfg.dataset_name
-    
-    # Sanitize names for filesystem (replace / and : with _)
+    # Use qdrant_cache_key from dataset config when set, so datasets that index the same
+    # underlying databases (e.g. bird_cell_exact and bird_cell_fuzzy) share one Qdrant store.
+    qdrant_dataset = cfg.dataset.get("qdrant_cache_key", cfg.dataset_name)
+
     embedding_model_safe = embedding_model.replace("/", "_").replace(":", "_")
-    cache_key = f"{approach_name}_{embedding_model_safe}_{dataset_name}"
-    
+    cache_key = f"{approach_name}_{embedding_model_safe}_{qdrant_dataset}"
+
     qdrant_path = Path(cfg.cache_dir) / "qdrant_storage" / f"qdrant_cell_to_column_{cache_key}"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
-    logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
-    logger.info(f"Cache key: {cache_key} (enables reuse across exact/fuzzy matching experiments)")
+    logger.info(f"Initialized Qdrant client at {qdrant_path}")
     return client, qdrant_path
 
 
@@ -66,12 +60,13 @@ def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
     bird_path_override = cfg.dataset.get("bird_path", None)
     bird_path = Path(bird_path_override) if bird_path_override else Path(cfg.cache_dir) / "datasets" / "bird"
 
-    benchmark_file = cfg.dataset.get(f"{cfg.task.task_name}_benchmark_file", "cell_value_matching_queries.json")
+    benchmark_file = cfg.dataset.get("benchmark_file", "cell_value_matching_queries.json")
     queries_file = bird_path / benchmark_file
     assert queries_file.exists(), f"Could not find queries file at {queries_file}"
 
     with open(queries_file, "r") as f:
         queries = json.load(f)
+    queries.sort(key=lambda q: q["db_id"])
 
     databases_path = bird_path / "train" / "train_databases"
     assert databases_path.exists(), f"Could not find databases at {databases_path}. Please unzip train_databases.zip"
@@ -247,68 +242,58 @@ def create_qdrant_collection_for_database(
     Returns:
         Number of cells embedded
     """
-    # Get embedding dimension from a sample
-    first_table = next(iter(schema.keys()))
-    sample_df = load_table_data(db_path, first_table, limit=1)
-    if sample_df.empty:
-        raise ValueError(f"Could not load sample data from {first_table}")
-    
-    sample_embeddings = cell_embedding_component.create_cell_embeddings_for_table(sample_df)
-    embedding_dim = sample_embeddings.shape[2]
-    
-    # Create collection
-    client.create_collection(
-        collection_name=collection_name,
-        vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
-    )
-    client.create_payload_index(
-        collection_name=collection_name,
-        field_name="table_column",
-        field_schema=PayloadSchemaType.KEYWORD
-    )
-    logger.info(f"Created Qdrant collection {collection_name} with vector size {embedding_dim}")
-    
     # Embed and upload all cells
     points = []
     current_id = 0
     total_cells = 0
-    
+    collection_created = False
+
     for table, columns in tqdm(schema.items(), desc=f"Embedding tables for {collection_name}"):
         for col_name in columns:
             table_column = f"{table}.{col_name}"
-            
+
             try:
                 # Get unique values from the database using SQL
                 unique_values = get_unique_column_values(
                     db_path, table, col_name, limit=max_unique_values_per_column
                 )
-                
+
                 if not unique_values:
                     continue
-                
+
                 # Get matched values for this column from the benchmark
                 matched_values = matched_values_by_column.get(table_column, set())
-                
+
                 # Combine unique values with matched values, ensuring matched values are included
                 all_values = set(unique_values)
                 all_values.update(matched_values)
-                
+
                 # Convert to list for embedding
                 values_to_embed = list(all_values)
-                
+
                 if not values_to_embed:
                     continue
-                
+
                 # Create a DataFrame with these values
                 values_df = pd.DataFrame({col_name: values_to_embed})
-                
+
                 # Create cell embeddings for this column
                 # Shape: [rows+1, 1, embedding_dim]
                 cell_embeddings = cell_embedding_component.create_cell_embeddings_for_table(values_df)
-                
+
                 if cell_embeddings is None:
                     logger.warning(f"No embeddings returned for {table_column}")
                     continue
+
+                # Create the Qdrant collection on the first successful embedding
+                if not collection_created:
+                    embedding_dim = cell_embeddings.shape[2]
+                    client.create_collection(
+                        collection_name=collection_name,
+                        vectors_config=VectorParams(size=embedding_dim, distance=Distance.COSINE)
+                    )
+                    logger.info(f"Created Qdrant collection {collection_name} with vector size {embedding_dim}")
+                    collection_created = True
                 
                 # Store each cell embedding in Qdrant with metadata
                 for row_idx, value in enumerate(values_to_embed):

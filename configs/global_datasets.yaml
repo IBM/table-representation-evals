@@ -45,19 +45,14 @@ cell_task_datasets:
 ###### NL2Column Mapping (Concept Mapping)
 ####################################
 nl2column_mapping_datasets:
-  - bird
+  - bird_column_schema
 
 ####################################
 ###### NL2Cell2Column Mapping (Cell Value Matching)
 ####################################
 nl2cell2column_mapping_datasets:
-  - bird
-
-####################################
-###### NL2Cell2Column Fuzzy Mapping (Fuzzy/Semantic Matching)
-####################################
-nl2cell2column_fuzzy_mapping_datasets:
-  - bird
+  - bird_cell_exact
+  - bird_cell_fuzzy
 
 ####################################
 ###### Table Retrieval
@@ -145,3 +140,6 @@ predictive_ml_datasets:
   - houses  # 20640 rows, 8 columns, [0/8] categorical
   - superconductivity  # 21263 rows, 81 columns, [0/81] categorical
   - physiochemical_protein  # 45730 rows, 9 columns, [0/9] categorical
+
+column_type_annotation_datasets:
+  - sotab

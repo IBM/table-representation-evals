@@ -35,7 +35,7 @@ supported_tasks:
   table_retrieval: {}
   nl2column_mapping: {}
   nl2cell2column_mapping: {}
-  nl2cell2column_fuzzy_mapping: {}
+  column_type_annotation: {}
   predictive_ml:
     run_task_based_on: row_embeddings
     exclude_datasets:  # OOM on A100 80GB VRAM

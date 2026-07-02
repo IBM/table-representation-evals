@@ -71,7 +71,7 @@ def run_single(cfg):
         elif cfg.task.task_name == "nl2column_mapping":
             from benchmark_src.tasks import run_NL2column_mapping_benchmark
             run_NL2column_mapping_benchmark.main(cfg)
-        elif cfg.task.task_name in ("cell_to_column_mapping", "nl2cell2column_mapping", "nl2cell2column_fuzzy_mapping"):
+        elif cfg.task.task_name in ("cell_to_column_mapping", "nl2cell2column_mapping"):
             from benchmark_src.tasks import run_NL2cell2column_mapping_benchmark
             run_NL2cell2column_mapping_benchmark.main(cfg)
         else:

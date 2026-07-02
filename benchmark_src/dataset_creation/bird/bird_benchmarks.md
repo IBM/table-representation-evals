@@ -1,6 +1,6 @@
 # BIRD Schema Linking Benchmarks
 
-Three benchmark files derived from the BIRD training set (9,428 queries), each targeting a different schema linking capability. All files use the same JSON format and are consumed by the `nl2column_mapping`, `nl2cell2column_mapping`, and `nl2cell2column_fuzzy_mapping` tasks.
+Three benchmark files derived from the BIRD training set (9,428 queries), each targeting a different schema linking capability. All files use the same JSON format and are consumed by the `nl2column_mapping` and `nl2cell2column_mapping` tasks.
 
 ## Benchmark files
 
@@ -93,4 +93,9 @@ python benchmark_src/dataset_creation/bird/analyze_fuzzy_benchmark.py \
 
 ## Config
 
-Benchmark files are referenced in `configs/dataset/bird.yaml` and resolved at runtime via `cfg.dataset.{task_name}_benchmark_file`.
+Each query set has its own dataset config under `configs/dataset/`:
+- `bird_column_schema.yaml` → `pure_concept_mapping_queries.json`
+- `bird_cell_exact.yaml` → `cell_value_matching_queries.json`
+- `bird_cell_fuzzy.yaml` → `semantic_fuzzy_matching.json`
+
+`bird_cell_exact` and `bird_cell_fuzzy` share the same Qdrant cell index via `qdrant_cache_key: bird_cell`, so cell embeddings are only built once when running both datasets.

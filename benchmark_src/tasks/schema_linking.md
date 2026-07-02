@@ -2,13 +2,15 @@
 
 Three tasks for evaluating schema linking on BIRD, all using the same task runner (`run_NL2*_mapping_benchmark.py`).
 
-## Tasks
+## Tasks and datasets
 
-| Task | Evaluates | Benchmark file |
-|---|---|---|
-| `nl2column_mapping` | Column embeddings — concept-level NL→column matching (no cell values) | `pure_concept_mapping_queries.json` |
-| `nl2cell2column_mapping` | Cell embeddings — exact value matching (NL extracted values → DB cells → columns) | `cell_value_matching_queries.json` |
-| `nl2cell2column_fuzzy_mapping` | Cell embeddings — fuzzy/semantic value matching | `semantic_fuzzy_matching.json` |
+| Task | Dataset | Benchmark file | Queries |
+|---|---|---|---|
+| `nl2column_mapping` | `bird_column_schema` | `pure_concept_mapping_queries.json` | 2,974 |
+| `nl2cell2column_mapping` | `bird_cell_exact` | `cell_value_matching_queries.json` | 1,317 |
+| `nl2cell2column_mapping` | `bird_cell_fuzzy` | `semantic_fuzzy_matching.json` | 195 |
+
+`nl2cell2column_mapping` runs on two datasets. `bird_cell_exact` covers queries where the NL value matches the DB value verbatim; `bird_cell_fuzzy` covers cases with synonyms, typos, abbreviations, and date format differences. Both datasets share the same Qdrant cell index (configured via `qdrant_cache_key` in the dataset configs), so cell embeddings are only built once.
 
 ## Running
 

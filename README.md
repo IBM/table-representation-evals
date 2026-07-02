@@ -13,8 +13,7 @@ A comprehensive benchmark suite for evaluating tabular embeddings across four re
 | Column Type Annotation | Column | Predict the semantic type of a column from a fixed label vocabulary | `column_embedding` | Macro-F1 |
 | NL→Column Mapping | Column | Match natural language query concepts to database columns | `column_embedding` | Recall@k |
 | Cell Semantic Retrieval | Cell | Retrieve the most semantically similar cells across a table collection | `cell_embedding` | — |
-| NL→Cell→Column Mapping | Cell | Map NL-extracted values to database cells and identify relevant columns (exact match) | `cell_embedding` | Recall@k |
-| NL→Cell→Column Fuzzy Mapping | Cell | Map NL-extracted values to database cells and identify relevant columns (fuzzy/semantic match) | `cell_embedding` | Recall@k |
+| NL→Cell→Column Mapping | Cell | Map NL-extracted values to database cells and identify relevant columns | `cell_embedding` | Recall@k |
 | Table Retrieval | Table | Retrieve semantically similar tables from a collection | `table_embedding` | Recall@1 |
 | Table Shuffling Triplet Test | Table | Determine whether an anchor table is more similar to a positive than to a structurally varied negative | `table_embedding` | Triplet Accuracy |
 

@@ -21,4 +21,3 @@ supported_tasks:
   table_shuffling: {}
   nl2column_mapping: {}
   nl2cell2column_mapping: {}
-  nl2cell2column_fuzzy_mapping: {}
