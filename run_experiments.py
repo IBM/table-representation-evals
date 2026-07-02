@@ -263,6 +263,36 @@ def _run_job(cfg, project_root: Path, planned_index: int, num_planned: int):
         file_handler.close()
 
 
+def _print_job_overview(run_cfg, project_root: Path, results_dir: str, env_groups: dict):
+    """Print one combined [x/z] planned/skip list across all envs, before any subprocess
+    is dispatched. Numbering spans all envs; each env's jobs are set off by a '---' rule."""
+    all_jobs = _build_jobs(run_cfg, project_root, results_dir, conda_env_filter=None)
+    total = len(all_jobs)
+
+    logger.info("=" * 80)
+    logger.info(f"Full job overview across all envs: {total} jobs")
+    idx = 0
+    num_planned = 0
+    for env_name in env_groups:
+        label = env_name if env_name is not None else "(no conda_env declared)"
+        logger.info("-" * 80)
+        logger.info(f"  env: {label}")
+        for cfg in all_jobs:
+            if cfg.approach.get("conda_env") != env_name:
+                continue
+            idx += 1
+            already_done = (Path(cfg.output_dir) / "results.json").is_file()
+            status = "skip" if already_done else "planned"
+            num_planned += not already_done
+            logger.info(
+                f"  [{idx}/{total}] - {status} - {cfg.approach.approach_name}/"
+                f"{cfg.task.task_name}/{cfg.dataset_name}"
+            )
+    logger.info("-" * 80)
+    logger.info(f"{num_planned}/{total} planned to run ({total - num_planned} skipped)")
+    logger.info("=" * 80)
+
+
 def _gather(results_dir: str, run_cfg):
     results_folder = Path(results_dir) / run_cfg.benchmark_output_dir
     logger.info(f"Gathering results from {results_folder}")
@@ -318,6 +348,7 @@ def main(
                 f"Multi-env run: dispatching subprocesses for envs: {named_envs}"
                 + (f" + current env (no conda_env)" if None in env_groups else "")
             )
+            _print_job_overview(run_cfg, project_root, results_dir, env_groups)
             failed_envs = []
 
             for env_name in named_envs:
