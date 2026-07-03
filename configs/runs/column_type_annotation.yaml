@@ -1,0 +1,25 @@
+benchmark_output_dir: cta_experiments
+
+tasks:
+  - column_type_annotation
+
+approaches:
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+      table_row_limit: 100
+
+  - name: sentence_transformer
+    params:
+      embedding_model: ibm-granite/granite-embedding-english-r2
+      table_row_limit: 100
+
+  - name: sap_rpt_oss
+
+  - name: GritLM
+    params:
+      embedding_model: GritLM/GritLM-7B
+
+  - name: hytrel
+
+  - name: tabicl
