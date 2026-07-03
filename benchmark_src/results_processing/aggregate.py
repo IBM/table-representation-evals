@@ -9,45 +9,21 @@ from benchmark_src.results_processing import results_helper, ranking
 
 logger = logging.getLogger(__name__)
 
-def aggregate_results(df: pd.DataFrame, grouping_columns: list, rename: bool=False) -> pd.DataFrame:
+def prepare_results_for_reporting(df: pd.DataFrame, grouping_columns: list) -> pd.DataFrame:
     """
-    Aggregate experimental results by one or more grouping columns.
+    Each (approach, configuration, task, dataset) is expected to have exactly one
+    results.json (one job in the output directory structure). Warn and keep only
+    the first if that's ever violated, and rename columns for display.
     """
-    grouped_data = df.groupby(grouping_columns)
+    duplicate_mask = df.duplicated(subset=grouping_columns, keep=False)
+    if duplicate_mask.any():
+        logger.warning(
+            f"Found multiple results.json files for the same approach/configuration/task/dataset, "
+            f"keeping only the first of each:\n{df.loc[duplicate_mask, grouping_columns]}"
+        )
+        df = df.drop_duplicates(subset=grouping_columns, keep='first')
 
-    aggregations = {}
-    for col in df.columns:
-        if col not in grouping_columns:
-            if pd.api.types.is_numeric_dtype(df[col]):
-                aggregations[col] = ['mean', 'std'] 
-            elif col == 'run':
-                aggregations['run'] = 'count'
-            else:
-                logger.debug(f"Not aggregating: ", col, df[col].dtype)
-
-    # Apply the aggregations
-    aggregated_df = grouped_data.agg(aggregations)
-    # Flatten the multi-level column index
-    aggregated_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in aggregated_df.columns]
-    
-    
-    # Count rows per group
-    aggregated_df['_rows_count'] = grouped_data.size().values
-        
-    final_output_df = aggregated_df.reset_index()
-
-    if rename:
-        # TODO: only rename before writing to disk, not here
-        # Rename columns 
-        rename_dict = {
-            'approach': 'Approach',
-            'configuration': 'Configuration',
-            'run_count': '# Runs'
-        }
-
-        final_output_df = final_output_df.rename(columns=rename_dict)
-
-    return final_output_df
+    return df.rename(columns={'approach': 'Approach', 'configuration': 'Configuration'})
 
 
 def gather_results(results_folder: Path, detailed_results_folder: Path):
@@ -62,13 +38,11 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
         # get configuration name based on folder names
         _, _, configuration_name = results_helper.get_setup_infos(results_file)
         current_result_subfolder = results_file.parent
-        run_name = results_file.parent.parent.parent.parent.parent.name
-        
+
         with open(results_file, "r") as f:
             result_dict = json.load(f)
 
         result_dict["configuration"] = configuration_name
-        result_dict["run"] = run_name
 
         # need resource file from the folder of the results file
         new_metrics_file = current_result_subfolder / "resource_metrics_task.json"
@@ -197,17 +171,16 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
 
     gathered_results_df.to_csv(results_folder/"all_results.csv", index=False)
 
-    # aggregate the results if there were multiple runs for the same configuration
     grouping_columns = ["approach", "configuration", "task", "dataset"]
-    aggregated_results_df = aggregate_results(gathered_results_df, grouping_columns, rename=True)
-    aggregated_results_df.to_csv(results_folder/"all_results_aggregated.csv", index=False)
+    results_df = prepare_results_for_reporting(gathered_results_df, grouping_columns)
+    results_df.to_csv(results_folder/"all_results_aggregated.csv", index=False)
 
     # create an excel sheet for each individual task with one sheet per dataset
-    create_excel_files_per_dataset(aggregated_results_df, results_folder=detailed_results_folder)
+    create_excel_files_per_dataset(results_df, results_folder=detailed_results_folder)
 
     ###########################################################################
     # compute elo scores per approach/configuration across all datasets
     ###########################################################################
-    elo_df, elo_overall_df = ranking.compute_elo_scores(aggregated_results_df)
+    elo_df, elo_overall_df = ranking.compute_elo_scores(results_df)
     elo_df.to_csv(results_folder/"elo_scores_per_task.csv", index=False)
     elo_overall_df.to_csv(results_folder/"elo_scores_overall.csv", index=False)

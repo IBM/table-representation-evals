@@ -12,6 +12,7 @@ Config layers:
 Output layout:
   results/<benchmark_output_dir>/<approach>/[<param_slug>/]<task>/<dataset>/
   where <param_slug> is derived from run-level params overrides (omitted when empty).
+  Each job's fully-resolved cfg is written to config.yaml in its output directory.
 
 Multi-env runs:
   When approaches in a run config declare different conda_env values (set in each
@@ -229,6 +230,10 @@ def _run_job(cfg, project_root: Path, planned_index: int, num_planned: int):
     """Run a single (approach, task, dataset) job with per-run file logging."""
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write the fully-resolved job config alongside the results, so every run's
+    # exact parameters stay inspectable without cross-referencing the run config.
+    OmegaConf.save(cfg, output_dir / "config.yaml")
 
     # Skip if already completed
     if (output_dir / "results.json").is_file():

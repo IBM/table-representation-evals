@@ -39,24 +39,32 @@ def sanitize_sheet_name(name: str) -> tuple[str, str | None]:
     return sheet_name, hash_suffix
 
 
-def create_excel_files_per_dataset(averaged_data_df: pd.DataFrame, results_folder, mean_decimals=4, std_decimals=4, tolerance=1e-9):
+def create_excel_files_per_dataset(averaged_data_df: pd.DataFrame, results_folder, mean_decimals=4):
     """
-    Writes the averaged results to Excel files, creating one file per task
-    and one sheet per dataset within each file. Includes standard deviation
-    in brackets behind each mean value.
+    Writes the results to Excel files, creating one file per task and one
+    sheet per dataset within each file.
 
         Args:
-            averaged_data_df (pd.DataFrame): DataFrame containing the averaged results.
+            averaged_data_df (pd.DataFrame): DataFrame containing the results (one row per approach/configuration/dataset).
             results_folder (str): Directory to save the Excel files
-            mean_decimals (int): Number of decimal places for mean values
-            std_decimals (int): Number of decimal places for standard deviation values
-            tolerance (float): The threshold below which a standard deviation is considered "nearly zero"
+            mean_decimals (int): Number of decimal places for metric values
     """
     unique_tasks = averaged_data_df['task'].unique()
 
     for task in unique_tasks:
         # Filter data for the current task
         task_df = averaged_data_df[averaged_data_df['task'] == task].copy()
+
+        # Drop _std columns (each approach/configuration/dataset has exactly one result,
+        # so std is always undefined) and present the _mean columns as plain metric values.
+        std_cols = [col for col in task_df.columns if col.endswith('_std')]
+        task_df = task_df.drop(columns=std_cols)
+        task_df = task_df.rename(columns={
+            col: col[:-len('_mean')] for col in task_df.columns if col.endswith('_mean')
+        })
+        for col in task_df.columns:
+            if pd.api.types.is_float_dtype(task_df[col]):
+                task_df[col] = task_df[col].round(mean_decimals)
 
         # create folder per task
         task_folder = results_folder / results_helper.to_slug(task)
@@ -73,26 +81,6 @@ def create_excel_files_per_dataset(averaged_data_df: pd.DataFrame, results_folde
             for dataset in unique_datasets:
                 dataset_df = task_df[task_df['dataset'] == dataset].copy()
                 dataset_df = dataset_df.dropna(axis=1, how="all")
-
-                std_cols = [col for col in dataset_df.columns if col.endswith('_std')]
-                dataset_df['Deterministic runs?'] = None
-                condition = dataset_df['# Runs'] > 1
-                dataset_df.loc[condition, 'Deterministic runs?'] = (dataset_df.loc[condition, std_cols].abs() < tolerance).all(axis=1)
-
-                # Combine mean and std columns
-                for col in dataset_df.columns:
-                    if col.endswith('_mean'):
-                        std_col = col.replace('_mean', '_std')
-                        if std_col in dataset_df.columns:
-                            new_col_name = col.replace('_mean', ' mean (std)')
-                            dataset_df[new_col_name] = (
-                                dataset_df[col].round(mean_decimals).astype(str) +
-                                ' (' +
-                                dataset_df[std_col].round(std_decimals).astype(str) +
-                                ')'
-                            )
-                            dataset_df = dataset_df.drop(columns=[std_col, col])
-
                 dataset_df = dataset_df.drop(columns=["task", "dataset"])
 
                 # Sanitize sheet name

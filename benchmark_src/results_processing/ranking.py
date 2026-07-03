@@ -145,7 +145,7 @@ def yield_matches(dataset_df: pd.DataFrame, metric: str, higher_is_better: bool,
 def build_task_metrics_map(df: pd.DataFrame) -> Dict[str, List[Tuple[str, bool]]]:
     performance_cols = results_helper.performance_cols  # dict metric -> 'higher_is_better'|'lower_is_better'
 
-    # Build mapping task -> list of (metric_mean_col, higher_is_better)
+    # Build mapping task -> list of (metric_col, higher_is_better)
     task_metrics: Dict[str, List[Tuple[str, bool]]] = {}
     for task in df['task'].unique():
         task_cfg = cfg_utils.load_task_config(task)
@@ -159,7 +159,7 @@ def build_task_metrics_map(df: pd.DataFrame) -> Dict[str, List[Tuple[str, bool]]
             if m not in performance_cols:
                 raise ValueError(f"ELO metric '{m}' for task '{task}' not found in performance columns")
             higher = performance_cols[m] == 'higher_is_better'
-            metric_infos.append((f"{m}_mean", higher))
+            metric_infos.append((m, higher))
         if metric_infos:
             task_metrics[task] = metric_infos
 
