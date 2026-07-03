@@ -59,5 +59,5 @@ class SentenceTransformerEmbedder(BaseTabularEmbeddingApproach):
         Load the trained model and set it as a class variable to access later
         """
         model = SentenceTransformer(self.embedding_model_name)
-        print(f"Loaded model!")
+        logger.info(f"Loaded model on device: {model.device}")
         self.model = model

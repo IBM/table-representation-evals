@@ -60,7 +60,7 @@ class CellEmbeddingComponent(CellEmbeddingInterface):
                        Row 0 contains header embeddings, rows 1+ contain data cell embeddings
         """
         num_rows, num_cols = input_table.shape
-        logger.info(f"Creating cell embeddings for table of shape {num_rows}x{num_cols}")
+        logger.debug(f"Creating cell embeddings for table of shape {num_rows}x{num_cols}")
         
         # Preprocess the input table
         input_table_clean = self.approach_instance.preprocessing(input_table)
@@ -70,15 +70,12 @@ class CellEmbeddingComponent(CellEmbeddingInterface):
         data_cell_embeddings = self.approach_instance._extract_embeddings_from_model(
             input_table_clean, aggregate_tokens=False
         )
-        logger.info(f"Cell embeddings shape: {data_cell_embeddings.shape}")
-        
         # Create header embeddings (one per column)
         header_embeddings = self._create_header_embeddings(input_table_clean)
-        
+
         # Combine header and data embeddings: [1 + num_rows, num_cols, embedding_dim]
         cell_embeddings = np.vstack([header_embeddings[np.newaxis, :, :], data_cell_embeddings])
-        
-        logger.info(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
+        logger.debug(f"Cell embeddings shape: {cell_embeddings.shape}")
         return cell_embeddings
 
 # Made with Bob

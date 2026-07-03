@@ -132,9 +132,9 @@ class SAP_RPT_OSS_Embedder(BaseTabularEmbeddingApproach):
         self.load_trained_model()
         input_table_clean = self.preprocessing(input_table)
         
-        logger.info(f"Processing {len(input_table_clean)} rows for embedding generation")
+        logger.debug(f"Processing {len(input_table_clean)} rows for embedding generation")
         embeddings = self._extract_embeddings_from_model(input_table_clean, train_size=train_size, train_labels=train_labels)
-        logger.info(f"Generated embeddings with shape: {embeddings.shape}")
+        logger.debug(f"Generated embeddings with shape: {embeddings.shape}")
         return embeddings
     
     def _extract_embeddings_from_model(self, input_table: pd.DataFrame, aggregate_tokens: bool = True,

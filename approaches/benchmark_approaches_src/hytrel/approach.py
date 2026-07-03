@@ -353,13 +353,13 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         # If train_size is provided, return only test portion
         if train_size is not None:
-            logger.info(f"Extracting test embeddings: train_size={train_size}, total_rows={num_rows}")
+            logger.debug(f"Extracting test embeddings: train_size={train_size}, total_rows={num_rows}")
             row_embeddings = row_embeddings[train_size:]
-            logger.info(f"Returning test row embeddings with shape: {row_embeddings.shape}")
-        
+            logger.debug(f"Returning test row embeddings with shape: {row_embeddings.shape}")
+
         # Convert to numpy
         row_embeddings = row_embeddings.cpu().numpy()
-        logger.info(f"Generated row embeddings with shape: {row_embeddings.shape}")
+        logger.debug(f"Generated row embeddings with shape: {row_embeddings.shape}")
         return row_embeddings
 
     def get_column_embeddings(self, input_table: pd.DataFrame) -> tuple:
@@ -383,7 +383,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         # Use target hyperedge embeddings for columns: indices 1..num_cols (index 0 is table)
         column_embeddings = target_embeddings[1:num_cols + 1].cpu().numpy()
 
-        logger.info(f"Generated column embeddings with shape: {column_embeddings.shape}")
+        logger.debug(f"Generated column embeddings with shape: {column_embeddings.shape}")
         return column_embeddings, column_names
 
     def get_table_embedding(self, input_table: pd.DataFrame) -> np.ndarray:
@@ -455,7 +455,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         # Convert to numpy
         cell_embeddings = cell_embeddings.cpu().numpy()
-        logger.info(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
+        logger.debug(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
         return cell_embeddings
 
     def _get_embeddings(self, input_table: pd.DataFrame) -> tuple:

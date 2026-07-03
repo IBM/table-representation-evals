@@ -69,7 +69,7 @@ class GritLMEmbedder(BaseTabularEmbeddingApproach):
         for name, module in model.named_modules():
             if "Attention" in type(module).__name__:
                 if hasattr(module, "flash"):
-                    logger.info(f"{name} uses FlashAttention: {module.flash}")
+                    logger.debug(f"{name} uses FlashAttention: {module.flash}")
                     uses_flash_attention = True
         if not uses_flash_attention:
             logger.info(f"No flash attention is used")
