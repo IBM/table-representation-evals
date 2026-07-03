@@ -31,6 +31,7 @@ import retrieval_rowlimit_bars
 import shuffling_variation_heatmap
 import shuffling_ecb_bars
 import shuffling_row_col_scatter
+import shuffling_silhouette_bars
 import cost_quality_quadrant
 import serialization_deltas
 
@@ -274,6 +275,9 @@ if __name__ == "__main__":
 
         # P9: Row vs column perturbation scatter
         shuffling_row_col_scatter.create_scatter(df, plots_folder)
+
+        # P15: Silhouette score bars (v0, avg over datasets)
+        shuffling_silhouette_bars.create_plot(df, plots_folder)
 
     # ======================================================================
     # TASK 3 — Table Type Detection
