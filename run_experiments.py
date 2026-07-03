@@ -29,6 +29,7 @@ Direct usage (must be in benchmark_env):
     python run_experiments.py <run_config_name>
 """
 
+import json
 import logging
 import subprocess
 import sys
@@ -242,10 +243,12 @@ def _run_job(cfg, project_root: Path, planned_index: int, num_planned: int):
     root_logger.addHandler(file_handler)
 
     try:
+        env_label = cfg.approach.get("conda_env") or "(none)"
         logger.info("=" * 80)
         logger.info(
-            f"Starting [{planned_index}/{num_planned}] "
-            f"{cfg.approach.approach_name}/{cfg.task.task_name}/{cfg.dataset_name}"
+            f"Starting [{planned_index}/{num_planned}] | Task: {cfg.task.task_name} | "
+            f"Approach: {cfg.approach.approach_name} | Env: {env_label} | "
+            f"Dataset: {cfg.dataset_name}"
         )
         logger.info("=" * 80)
         from benchmark_src.run_benchmark import run_single
@@ -263,9 +266,11 @@ def _run_job(cfg, project_root: Path, planned_index: int, num_planned: int):
         file_handler.close()
 
 
-def _print_job_overview(run_cfg, project_root: Path, results_dir: str, env_groups: dict):
+def _print_job_overview(run_cfg, project_root: Path, results_dir: str, env_groups: dict) -> dict:
     """Print one combined [x/z] planned/skip list across all envs, before any subprocess
-    is dispatched. Numbering spans all envs; each env's jobs are set off by a '---' rule."""
+    is dispatched. Numbering spans all envs; each env's jobs are set off by a '---' rule.
+    Returns {env_name: num_planned} so callers can hand out global [x/z] numbering to the
+    per-env subprocesses that run after this."""
     all_jobs = _build_jobs(run_cfg, project_root, results_dir, conda_env_filter=None)
     total = len(all_jobs)
 
@@ -273,10 +278,12 @@ def _print_job_overview(run_cfg, project_root: Path, results_dir: str, env_group
     logger.info(f"Full job overview across all envs: {total} jobs")
     idx = 0
     num_planned = 0
+    planned_per_env = {}
     for env_name in env_groups:
         label = env_name if env_name is not None else "(no conda_env declared)"
         logger.info("-" * 80)
         logger.info(f"  env: {label}")
+        env_planned = 0
         for cfg in all_jobs:
             if cfg.approach.get("conda_env") != env_name:
                 continue
@@ -284,13 +291,103 @@ def _print_job_overview(run_cfg, project_root: Path, results_dir: str, env_group
             already_done = (Path(cfg.output_dir) / "results.json").is_file()
             status = "skip" if already_done else "planned"
             num_planned += not already_done
+            env_planned += not already_done
             logger.info(
                 f"  [{idx}/{total}] - {status} - {cfg.approach.approach_name}/"
                 f"{cfg.task.task_name}/{cfg.dataset_name}"
             )
+        planned_per_env[env_name] = env_planned
     logger.info("-" * 80)
     logger.info(f"{num_planned}/{total} planned to run ({total - num_planned} skipped)")
     logger.info("=" * 80)
+    return planned_per_env
+
+
+def _print_final_summary(run_cfg, project_root: Path, results_dir: str):
+    """Rescan every job in the run config for results.json and report success/failure
+    counts plus which jobs are missing output. Rescanning (rather than tracking failures
+    live) sidesteps needing to relay state back from the dispatched per-env subprocesses,
+    and correctly counts jobs that were already complete before this run as successes."""
+    all_jobs = _build_jobs(run_cfg, project_root, results_dir, conda_env_filter=None)
+    total = len(all_jobs)
+    failed_jobs = [
+        cfg for cfg in all_jobs if not (Path(cfg.output_dir) / "results.json").is_file()
+    ]
+    succeeded = total - len(failed_jobs)
+
+    logger.info("=" * 80)
+    logger.info(f"{succeeded}/{total} jobs ran successfully, {len(failed_jobs)} failed")
+    for cfg in failed_jobs:
+        env_label = cfg.approach.get("conda_env") or "(none)"
+        logger.info(
+            f"  FAILED: Task: {cfg.task.task_name} | Approach: {cfg.approach.approach_name} | "
+            f"Env: {env_label} | Dataset: {cfg.dataset_name}"
+        )
+    logger.info("=" * 80)
+
+
+def _primary_metric_keys(task_name: str, project_root: Path) -> list:
+    """The result.json key(s) to read for a task's headline metric, from its elo_metric
+    field in configs/task/<name>.yaml (the same field ranking.py uses for Elo scoring)."""
+    task_config_path = project_root / "configs" / "task" / f"{task_name}.yaml"
+    if not task_config_path.exists():
+        return []
+    elo_metric = OmegaConf.select(_load_yaml(task_config_path), "elo_metric")
+    if elo_metric is None:
+        return []
+    return [elo_metric] if isinstance(elo_metric, str) else list(elo_metric)
+
+
+def _print_results_table(run_cfg, project_root: Path, results_dir: str):
+    """Print this run's own results, grouped by task and sorted, as one short labeled
+    line per (approach, dataset), read directly from each job's results.json
+    (deliberately independent of the aggregated CSV / ranking pipeline in
+    results_processing/). Only successful jobs are listed here; failures are already
+    reported by _print_final_summary."""
+    all_jobs = _build_jobs(run_cfg, project_root, results_dir, conda_env_filter=None)
+    results_root = project_root / results_dir / run_cfg.benchmark_output_dir
+
+    jobs_by_task = {}
+    for cfg in all_jobs:
+        results_path = Path(cfg.output_dir) / "results.json"
+        if not results_path.is_file():
+            continue
+
+        task_name = cfg.task.task_name
+        rel_parts = Path(cfg.output_dir).relative_to(results_root).parts
+        approach_label = "/".join(rel_parts[: rel_parts.index(task_name)])
+
+        with open(results_path) as f:
+            data = json.load(f)
+        value = None
+        metric_key = None
+        for key in _primary_metric_keys(task_name, project_root):
+            if key in data:
+                metric_key, value = key, data[key]
+                break
+
+        jobs_by_task.setdefault(task_name, []).append((approach_label, cfg.dataset_name, metric_key, value))
+
+    logger.info("=" * 80)
+    logger.info("Results for this run (primary metric per task):")
+    for task_name in sorted(jobs_by_task):
+        rows = sorted(jobs_by_task[task_name], key=lambda row: (row[0], row[1]))
+        metric_keys = {metric_key for _, _, metric_key, _ in rows if metric_key is not None}
+        header_metric = metric_keys.pop() if len(metric_keys) == 1 else None
+
+        logger.info("-" * 80)
+        logger.info(f"Task: {task_name}" + (f" ({header_metric})" if header_metric else ""))
+
+        rows_by_approach = {}
+        for approach_label, dataset_name, metric_key, value in rows:
+            rows_by_approach.setdefault(approach_label, []).append((dataset_name, metric_key, value))
+
+        for approach_label, dataset_rows in rows_by_approach.items():
+            logger.info(f"  {approach_label}")
+            for dataset_name, metric_key, value in dataset_rows:
+                value_str = f"{value:.3f}" if value is not None else "n/a"
+                logger.info(f"    {dataset_name}: {value_str}")
+    logger.info("-" * 80)
 
 
 def _gather(results_dir: str, run_cfg):
@@ -309,6 +406,8 @@ def main(
     stop_on_error: Annotated[bool, typer.Option("--stop-on-error", help="Stop immediately on the first job failure instead of continuing")] = False,
     log_level: Annotated[Optional[str], typer.Option(help="Logging verbosity override (DEBUG, INFO, WARNING, ERROR); run config log_level is used when omitted")] = None,
     conda_env: Annotated[Optional[str], typer.Option("--conda-env", help="Only run approaches with this conda_env (set automatically by multi-env dispatch; rarely needed manually)", hidden=True)] = None,
+    planned_offset: Annotated[int, typer.Option("--planned-offset", help="Starting offset into the global [x/z] planned-job count (set automatically by multi-env dispatch)", hidden=True)] = 0,
+    total_planned: Annotated[Optional[int], typer.Option("--total-planned", help="Total planned jobs across all envs, for the [x/z] count (set automatically by multi-env dispatch)", hidden=True)] = None,
 ):
     project_root = Path(__file__).parent.resolve()
 
@@ -335,6 +434,9 @@ def main(
     from dotenv import load_dotenv
     load_dotenv()
 
+    results_folder = project_root / results_dir / run_cfg.benchmark_output_dir
+    logger.info(f"Results will be saved to: {results_folder}")
+
     # ── Multi-env dispatch ────────────────────────────────────────────────────
     # When this is the top-level invocation (not a subprocess), check if the run
     # config spans multiple conda envs. If so, dispatch one subprocess per env
@@ -348,7 +450,9 @@ def main(
                 f"Multi-env run: dispatching subprocesses for envs: {named_envs}"
                 + (f" + current env (no conda_env)" if None in env_groups else "")
             )
-            _print_job_overview(run_cfg, project_root, results_dir, env_groups)
+            planned_per_env = _print_job_overview(run_cfg, project_root, results_dir, env_groups)
+            total_planned_all_envs = sum(planned_per_env.values())
+            offset = 0
             failed_envs = []
 
             for env_name in named_envs:
@@ -362,6 +466,8 @@ def main(
                     run_config,
                     "--conda-env", env_name,
                     "--results-dir", results_dir,
+                    "--planned-offset", str(offset),
+                    "--total-planned", str(total_planned_all_envs),
                 ]
                 if stop_on_error:
                     cmd.append("--stop-on-error")
@@ -375,12 +481,20 @@ def main(
                     if stop_on_error:
                         raise typer.Exit(1)
 
+                offset += planned_per_env[env_name]
+
             # Run any approaches with no conda_env declared inline in the current env
             if None in env_groups:
                 logger.info(f"Running {env_groups[None]} inline (no conda_env declared)")
-                _run_inline(run_cfg, project_root, results_dir, stop_on_error, conda_env_filter="__none__")
+                _run_inline(
+                    run_cfg, project_root, results_dir, stop_on_error,
+                    conda_env_filter="__none__",
+                    planned_offset=offset, total_planned=total_planned_all_envs,
+                )
 
             _gather(results_dir, run_cfg)
+            _print_final_summary(run_cfg, project_root, results_dir)
+            _print_results_table(run_cfg, project_root, results_dir)
 
             if failed_envs:
                 logger.error(f"Failed envs: {failed_envs}")
@@ -390,37 +504,59 @@ def main(
     # ── Single-env execution (inline or dispatched subprocess) ────────────────
     # Map the "__none__" sentinel back to None so the filter works correctly.
     env_filter = None if conda_env == "__none__" else conda_env
-    _run_inline(run_cfg, project_root, results_dir, stop_on_error, conda_env_filter=env_filter)
+    _run_inline(
+        run_cfg, project_root, results_dir, stop_on_error, conda_env_filter=env_filter,
+        planned_offset=planned_offset, total_planned=total_planned,
+    )
     _gather(results_dir, run_cfg)
 
+    # Only print the full cross-env summary when this is a genuine single-env run, not
+    # a per-env subprocess dispatched by the multi-env branch above (which prints its own
+    # summary once, after all envs have finished).
+    if conda_env is None:
+        _print_final_summary(run_cfg, project_root, results_dir)
+        _print_results_table(run_cfg, project_root, results_dir)
 
-def _run_inline(run_cfg, project_root: Path, results_dir: str, stop_on_error: bool, conda_env_filter: Optional[str] = None):
-    """Build and execute all jobs for the given conda_env_filter inline."""
+
+def _run_inline(
+    run_cfg, project_root: Path, results_dir: str, stop_on_error: bool,
+    conda_env_filter: Optional[str] = None,
+    planned_offset: int = 0, total_planned: Optional[int] = None,
+):
+    """Build and execute all jobs for the given conda_env_filter inline.
+
+    planned_offset/total_planned let the [x/z] count in each job's "Starting" log span
+    all envs in a multi-env run, rather than resetting per dispatched subprocess."""
     jobs = _build_jobs(run_cfg, project_root, results_dir, conda_env_filter=conda_env_filter)
-
-    logger.info(f"Jobs: {len(jobs)}" + (f" (env filter: {conda_env_filter})" if conda_env_filter else ""))
     already_done_flags = [(Path(cfg.output_dir) / "results.json").is_file() for cfg in jobs]
     num_planned = sum(not done for done in already_done_flags)
-    for i, (cfg, already_done) in enumerate(zip(jobs, already_done_flags)):
-        status = "skip" if already_done else "planned"
+
+    # If total_planned wasn't supplied, this is a single-env run with no upfront
+    # cross-env overview (see _print_job_overview) — print the local list here instead.
+    if total_planned is None:
+        logger.info(f"Jobs: {len(jobs)}" + (f" (env filter: {conda_env_filter})" if conda_env_filter else ""))
+        for i, (cfg, already_done) in enumerate(zip(jobs, already_done_flags)):
+            status = "skip" if already_done else "planned"
+            logger.info(
+                f"  [{i+1}/{len(jobs)}] - {status} - {cfg.approach.approach_name}/"
+                f"{cfg.task.task_name}/{cfg.dataset_name}"
+            )
+        logger.info("-" * 80)
         logger.info(
-            f"  [{i+1}/{len(jobs)}] - {status} - {cfg.approach.approach_name}/"
-            f"{cfg.task.task_name}/{cfg.dataset_name}"
+            f"{num_planned}/{len(jobs)} planned to run "
+            f"({len(jobs) - num_planned} skipped)"
         )
-    logger.info("-" * 80)
-    logger.info(
-        f"{num_planned}/{len(jobs)} planned to run "
-        f"({len(jobs) - num_planned} skipped)"
-    )
-    logger.info("-" * 80)
+        logger.info("-" * 80)
+
+    global_total = total_planned if total_planned is not None else num_planned
 
     failed = 0
-    planned_index = 0
+    planned_index = planned_offset
     for cfg, already_done in zip(jobs, already_done_flags):
         if not already_done:
             planned_index += 1
         try:
-            _run_job(cfg, project_root, planned_index, num_planned)
+            _run_job(cfg, project_root, planned_index, global_total)
         except Exception:
             failed += 1
             if stop_on_error:
