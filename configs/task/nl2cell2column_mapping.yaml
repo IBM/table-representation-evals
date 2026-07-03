@@ -3,6 +3,8 @@
 
 task_name: nl2cell2column_mapping
 
+elo_metric: "mean_mrr"
+
 # Maximum number of queries to process (for testing/debugging)
 # Set to null or remove to process all queries
 max_queries: null
