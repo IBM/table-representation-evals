@@ -94,7 +94,8 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
 
         f.write('\\hline\n')
         f.write('\\end{tabular*}\n')
-        f.write('\\caption{Table Shuffling: size ablation (hi-pos/hi-neg). '
+        f.write('\\caption{Table Shuffling: perturbation-type breakdown \\textbf{and} size ablation '
+                '(hi-pos/hi-neg). '
                 'Averaged over fetaqa, tabfact, ottqa, spider-train. '
                 'CKAN and ECB excluded (no tables pass SMALL window filter).}\n')
         f.write('\\label{tab:shuffling_size}\n')
