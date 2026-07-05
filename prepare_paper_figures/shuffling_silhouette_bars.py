@@ -19,8 +19,13 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
     avg = v0.groupby('chart_name').agg(
         sil_mean=(metric, 'mean'),
         sil_std=(metric, 'std'),
+        sil_count=(metric, 'count'),
         color=('color', 'first'),
     ).reset_index().dropna(subset=['sil_mean'])
+
+    # Use SEM (std / sqrt(n)) for error bars: quantifies uncertainty of the mean
+    # across datasets, not the spread of individual dataset scores
+    avg['sil_sem'] = avg['sil_std'] / np.sqrt(avg['sil_count'])
 
     # Sort by silhouette
     avg = avg.sort_values('sil_mean', ascending=True)
@@ -29,7 +34,7 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
 
     bars = ax.bar(
         avg['chart_name'], avg['sil_mean'],
-        yerr=avg['sil_std'],
+        yerr=avg['sil_sem'],
         color=avg['color'], edgecolor='white', linewidth=0.5,
         capsize=4, width=0.6,
     )
@@ -39,6 +44,16 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
         offset = 0.02 if val >= 0 else -0.08
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + offset,
                 f'{val:.3f}', ha='center', va='bottom', fontsize=9, rotation=90)
+
+    # Overlay per-dataset scatter points to show cross-dataset spread
+    chart_order = {name: i for i, name in enumerate(avg['chart_name'])}
+    for _, row in v0.iterrows():
+        name = row['chart_name']
+        if name in chart_order and pd.notna(row[metric]):
+            x_jitter = np.random.uniform(-0.15, 0.15)
+            ax.scatter(chart_order[name] + x_jitter, row[metric],
+                       color=row['color'], alpha=0.5, s=25, zorder=3,
+                       edgecolors='white', linewidth=0.3)
 
     ax.axhline(y=0, color='black', linewidth=0.8)
     ax.set_ylabel('Silhouette Score', fontsize=16)

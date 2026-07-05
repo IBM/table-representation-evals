@@ -14,7 +14,13 @@ def _to_text(table: pd.DataFrame, max_rows: int = -1) -> str:
     parts = headers[:]
     df = table if max_rows == -1 else table.head(max_rows)
     for _, row in df.iterrows():
-        parts.extend(str(v) for v in row.tolist())
+        for v in row.tolist():
+            # NaN → '' to avoid injecting "nan" tokens into the hash vector.
+            # Without this, pd.read_csv type inference combined with column
+            # shuffling can produce different token sets for anchor vs. pos
+            # when empty cells are parsed as NaN in numeric columns but as
+            # empty strings in string columns.
+            parts.append(str(v) if pd.notna(v) else '')
     return " ".join(parts)
 
 
