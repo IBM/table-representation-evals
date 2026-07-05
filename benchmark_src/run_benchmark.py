@@ -61,10 +61,11 @@ def main(cfg: DictConfig):
                 from benchmark_src.tasks import run_column_similarity_benchmark
                 run_column_similarity_benchmark.main(cfg)
             elif cfg.task.task_name == "table_retrieval":
-                from benchmark_src.tasks import run_table_retrieval_benchmark, run_table_retrieval_gittables
                 if cfg.dataset_name == "gitTables":
+                    from benchmark_src.tasks import run_table_retrieval_gittables
                     run_table_retrieval_gittables.main(cfg)
                 else:
+                    from benchmark_src.tasks import run_table_retrieval_benchmark
                     run_table_retrieval_benchmark.main(cfg)
             elif cfg.task.task_name == "table_shuffling":
                 from benchmark_src.tasks import run_table_shuffling_benchmark

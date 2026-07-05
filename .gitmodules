@@ -7,3 +7,6 @@
 [submodule "approaches/benchmark_approaches_src/contexttab/contexttab_src"]
 	path = approaches/benchmark_approaches_src/contexttab/contexttab_src
 	url = https://github.com/SAP-samples/contexttab.git
+[submodule "approaches/benchmark_approaches_src/tabert/tabert_src"]
+	path = approaches/benchmark_approaches_src/tabert/tabert_src
+	url = https://github.com/facebookresearch/TaBERT.git

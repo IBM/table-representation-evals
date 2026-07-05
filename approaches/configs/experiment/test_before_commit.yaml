@@ -1,18 +1,10 @@
 # @package _global_
 defaults:
-  - override /approach: sentence_transformer # must be how you named the config file for your approach
+  - /experiment_datasets/global_datasets
+  - override /approach: tabert
 
 hydra:
-  verbose: False # set to True for debug outprints, set to False for Info prints only
-  sweeper:
-    params:
-      # if you add multiple parameters (seperated by , ), all combinations are run (hydra multirun)
-      approach.embedding_model: all-MiniLM-L6-v2 # , BAAI/bge-base-en-v1.5, ibm-granite/granite-embedding-30m-english # here you can add custom hyperpameters of the approach
-      approach.table_row_limit: 100
-  sweep:
-      dir: results_testing
-      subdir: ${benchmark_output_dir}/${approach.approach_name}/${create_run_path:${hydra:job.override_dirname}}
-
+  verbose: True
 
 benchmark_output_dir: just_testing # how to call the folder inside /results (benchmark is not re-run if results exist for this configuration in the given folder)
 
@@ -36,7 +28,7 @@ benchmark_tasks:
   ####################################
   column_similarity_search: 
     datasets:   
-      - valentine
+      #- valentine
       - opendata
     task_parameters:
       run_similarity_search_based_on: "column_embeddings" # needs to be either "row_embeddings" or "custom_function"
@@ -59,3 +51,22 @@ benchmark_tasks:
       - healthcare_insurance_expenses  # 1338 rows, 6 columns, [3/6] categorical
     task_parameters:
       run_task_based_on: "row_embeddings" # needs to be either "row_embeddings" or "custom_function"
+  
+  cell_task: 
+    datasets:   ${experiment_datasets.cell_task_datasets} 
+
+  table_retrieval:
+    datasets:
+      # - gitTables  # requires run_table_retrieval_gittables.py which does not exist
+      - fetaqa
+      # - tabfact
+      # - ottqa
+      # - spider-train
+      # - spider-validation
+      # - spider-test
+      # - bird-validation
+
+    task_parameters:
+      force_embed_corpus: False
+  
+

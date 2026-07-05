@@ -20,7 +20,8 @@ def table_2d_to_df(table_2d):
         return pd.DataFrame()
 
     header = list(table_2d[0])
-    rows = table_2d[1:]
+    n_cols = len(header)
+    rows = [row[:n_cols] for row in table_2d[1:]]
 
     df = pd.DataFrame(rows, columns=header)
 
