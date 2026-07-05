@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.patches import Patch
 from pathlib import Path
 import config_helpers as h
 
@@ -30,17 +31,25 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
 
     fig, ax = plt.subplots(figsize=(max(8, len(approaches) * 1.2), 5))
 
-    for rl, label, hatch in [(0, 'Schema only (rl=0)', '//'), (100, 'Schema + 100 rows', '')]:
-        rl_data = agg[agg['row_limit'] == rl].set_index('chart_name')
-        values = [rl_data.loc[a, metric_col] if a in rl_data.index else 0 for a in approaches]
-        offset = 0 if rl == 0 else bar_width
-        color = '#5a9' if rl == 100 else '#d95f02'
-        bars = ax.bar(x + offset, values, bar_width, label=label, color=color, hatch=hatch)
+    # Each approach gets its own color; hatch differentiates schema-only vs schema+100
+    for i, approach in enumerate(approaches):
+        approach_df = filtered[filtered['chart_name'] == approach]
+        color = approach_df['color'].iloc[0] if len(approach_df) > 0 else '#333333'
 
-        for bar, v in zip(bars, values):
-            if v > 0:
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                        f'{v:.3f}', ha='center', va='bottom', fontsize=11, rotation=90)
+        for rl, offset, hatch in [(0, 0, '//'), (100, bar_width, '')]:
+            rl_data = agg[(agg['chart_name'] == approach) & (agg['row_limit'] == rl)]
+            if len(rl_data) == 0:
+                continue
+            value = rl_data[metric_col].iloc[0]
+            bar = ax.bar(x[i] + offset, value, bar_width,
+                         color=color, hatch=hatch,
+                         edgecolor='black', linewidth=0.3)
+
+            if value > 0:
+                ax.text(bar[0].get_x() + bar[0].get_width() / 2,
+                        bar[0].get_height() + 0.01,
+                        f'{value:.3f}', ha='center', va='bottom',
+                        fontsize=11, rotation=90)
 
     ax.set_ylabel('MRR@10', fontsize=16)
 
@@ -48,7 +57,15 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
     ax.set_xticklabels(approaches, rotation=20, ha='right', fontsize=11)
     ax.set_ylim(0, 1.05)
     ax.tick_params(labelsize=13)
-    ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.35), ncol=2, fontsize=11)
+
+    # Legend inside plot (top-right): gray exemplars for the two conditions
+    legend_elements = [
+        Patch(facecolor='lightgray', hatch='//', edgecolor='black', linewidth=0.3,
+              label='Schema only (rl=0)'),
+        Patch(facecolor='lightgray', edgecolor='black', linewidth=0.3,
+              label='Schema + 100 rows'),
+    ]
+    ax.legend(handles=legend_elements, loc='upper right', fontsize=11)
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'retrieval_rowlimit_bars.pdf', bbox_inches='tight')
