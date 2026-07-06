@@ -7,6 +7,9 @@ from pathlib import Path
 import config_helpers as h
 
 
+SPIDER_DATASETS = {'spider-train', 'spider-test', 'spider-validation'}
+
+
 def create_barplot(df: pd.DataFrame, plots_folder: Path):
     filtered = df.copy()
     filtered = h.filter_by_row_limit(filtered, 100)
@@ -19,16 +22,42 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
         print(f"WARNING: {metric_col} not found")
         return
 
+    # Merge spider splits into one "spider" aggregate (weighted by query count)
+    filtered['dataset'] = filtered['dataset'].apply(
+        lambda d: 'spider' if d in SPIDER_DATASETS else d
+    )
+
+    def weighted_mean(group):
+        w = group['total_queries_mean'].fillna(0)
+        if w.sum() == 0:
+            return group[metric_col].mean()
+        return (group[metric_col] * w).sum() / w.sum()
+
+    grouped = filtered.groupby(['chart_name', 'dataset'])
+    records = []
+    for (approach, ds), grp in grouped:
+        records.append({
+            'chart_name': approach,
+            'dataset': ds,
+            metric_col: weighted_mean(grp),
+        })
+    agg = pd.DataFrame(records)
+
     approaches = sorted(filtered['chart_name'].unique())
     datasets = sorted(filtered['dataset'].unique())
+    # Put spider before tabfact
+    if 'spider' in datasets:
+        datasets.remove('spider')
+        tabfact_idx = datasets.index('tabfact')
+        datasets.insert(tabfact_idx, 'spider')
 
-    # Aggregate to mean per (approach, dataset)
-    agg = filtered.groupby(['chart_name', 'dataset'])[metric_col].mean().reset_index()
+    # Wider inter-group gaps to visually separate dataset clusters
+    n_approaches = len(approaches)
+    bar_width = 0.70 / n_approaches
+    gap_factor = 1.3
+    x = np.arange(len(datasets)) * gap_factor
 
-    x = np.arange(len(datasets))
-    bar_width = 0.8 / len(approaches)
-
-    fig, ax = plt.subplots(figsize=(max(10, len(datasets) * 1.8), 5))
+    fig, ax = plt.subplots(figsize=(max(10, len(datasets) * 2.0), 5.2 * 0.7))
 
     for i, approach in enumerate(approaches):
         approach_data = agg[agg['chart_name'] == approach].set_index('dataset')
@@ -37,21 +66,17 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
 
         values = [approach_data.loc[d, metric_col] if d in approach_data.index else 0
                   for d in datasets]
-        bars = ax.bar(x + i * bar_width, values, bar_width, label=approach, color=color)
+        ax.bar(x + i * bar_width, values, bar_width, label=approach, color=color)
 
-        for bar, v in zip(bars, values):
-            if v > 0:
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                        f'{v:.3f}', ha='center', va='bottom', fontsize=11, rotation=90)
+    ax.set_ylabel('MRR@10', fontsize=18)
 
-    ax.set_ylabel('MRR@10', fontsize=16)
-    ax.set_xlabel('Dataset', fontsize=14)
-
-    ax.set_xticks(x + bar_width * (len(approaches) - 1) / 2)
-    ax.set_xticklabels(datasets, rotation=30, ha='right', fontsize=13)
-    ax.set_ylim(0, 1.05)
-    ax.tick_params(labelsize=13)
-    ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4), ncol=4, fontsize=11)
+    ax.set_xticks(x + bar_width * (n_approaches - 1) / 2)
+    ax.set_xticklabels(datasets, rotation=0, ha='center', fontsize=15)
+    ax.set_ylim(0, 0.98)
+    ax.tick_params(labelsize=15)
+    ax.yaxis.grid(True, linestyle='--', alpha=0.4)
+    ax.set_axisbelow(True)
+    ax.legend(loc='upper right', fontsize=13, ncol=1)
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'retrieval_per_dataset_bars.pdf', bbox_inches='tight')

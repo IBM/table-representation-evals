@@ -29,9 +29,10 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
     x = np.arange(len(approaches))
     bar_width = 0.35
 
-    fig, ax = plt.subplots(figsize=(max(8, len(approaches) * 1.2), 5))
+    fig, ax = plt.subplots(figsize=(max(8, len(approaches) * 1.2), 3.8 * 0.9))
 
     # Each approach gets its own color; hatch differentiates schema-only vs schema+100
+    all_values = []
     for i, approach in enumerate(approaches):
         approach_df = filtered[filtered['chart_name'] == approach]
         color = approach_df['color'].iloc[0] if len(approach_df) > 0 else '#333333'
@@ -41,28 +42,30 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
             if len(rl_data) == 0:
                 continue
             value = rl_data[metric_col].iloc[0]
+            all_values.append(value)
             bar = ax.bar(x[i] + offset, value, bar_width,
                          color=color, hatch=hatch,
-                         edgecolor='black', linewidth=0.3)
+                         edgecolor='white', linewidth=0.5)
 
             if value > 0:
                 ax.text(bar[0].get_x() + bar[0].get_width() / 2,
                         bar[0].get_height() + 0.01,
                         f'{value:.3f}', ha='center', va='bottom',
-                        fontsize=11, rotation=90)
+                        fontsize=9, rotation=90)
 
-    ax.set_ylabel('MRR@10', fontsize=16)
+    ax.set_ylabel('MRR@10', fontsize=14)
 
     ax.set_xticks(x + bar_width / 2)
-    ax.set_xticklabels(approaches, rotation=20, ha='right', fontsize=11)
-    ax.set_ylim(0, 1.05)
+    labels = [a.replace(' (md)', '\n(md)') for a in approaches]
+    ax.set_xticklabels(labels, rotation=0, ha='center', fontsize=10)
+    ax.set_ylim(0, 0.88)
     ax.tick_params(labelsize=13)
 
     # Legend inside plot (top-right): gray exemplars for the two conditions
     legend_elements = [
-        Patch(facecolor='lightgray', hatch='//', edgecolor='black', linewidth=0.3,
+        Patch(facecolor='lightgray', hatch='//', edgecolor='white', linewidth=0.5,
               label='Schema only (rl=0)'),
-        Patch(facecolor='lightgray', edgecolor='black', linewidth=0.3,
+        Patch(facecolor='lightgray', edgecolor='white', linewidth=0.5,
               label='Schema + 100 rows'),
     ]
     ax.legend(handles=legend_elements, loc='upper right', fontsize=11)

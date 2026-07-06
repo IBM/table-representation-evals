@@ -15,13 +15,10 @@ import triplet_row_results_table, triplet_row_bar_plot_original
 import table_retrieval_tables as old_table_retrieval_tables
 
 # ---- new paper modules ----
-import retrieval_main_table
 import retrieval_md_vs_csv_table
 import shuffling_main_table
-import shuffling_perturbation_table
 import shuffling_magnitude_table
 import shuffling_size_table
-import shuffling_ecb_table
 import ttd_classifier_table
 import ttd_classifier_bars
 import headline_bars
@@ -29,7 +26,6 @@ import retrieval_per_dataset_bars
 import retrieval_recall_line
 import retrieval_rowlimit_bars
 import shuffling_variation_heatmap
-import shuffling_ecb_bars
 import shuffling_row_col_scatter
 import shuffling_silhouette_bars
 import cost_quality_quadrant
@@ -227,9 +223,6 @@ if __name__ == "__main__":
         df = all_results_df[all_results_df['task'] == "table_retrieval"].copy()
         df = df.dropna(axis=1, how="all")
 
-        # T4: Main retrieval table (rl=100, md, MRR@10 per dataset)
-        retrieval_main_table.create_table(df, plots_folder)
-
         # T7: Markdown vs CSV (rl=100, transformers only)
         retrieval_md_vs_csv_table.create_table(df, plots_folder)
 
@@ -252,26 +245,14 @@ if __name__ == "__main__":
         # T8: Shuffling main accuracy table (v0)
         shuffling_main_table.create_accuracy_table(df, plots_folder)
 
-        # T8-BCS: Shuffling BCS table (v0)
-        shuffling_main_table.create_bcs_table(df, plots_folder)
-
-        # T9: Perturbation-type breakdown (v0/v3/v6, avg datasets)
-        shuffling_perturbation_table.create_table(df, plots_folder)
-
         # T10: Magnitude grid (v0/v1/v2, perturbation=both, avg datasets)
         shuffling_magnitude_table.create_table(df, plots_folder)
 
         # T11: Size ablation (v9-v14, exclude CKAN/ECB)
         shuffling_size_table.create_table(df, plots_folder)
 
-        # T12: ECB vs others (v0)
-        shuffling_ecb_table.create_table(df, plots_folder)
-
         # P6: Variation heatmap
         shuffling_variation_heatmap.create_heatmap(df, plots_folder)
-
-        # P7: ECB spotlight bars
-        shuffling_ecb_bars.create_barplot(df, plots_folder)
 
         # P9: Row vs column perturbation scatter
         shuffling_row_col_scatter.create_scatter(df, plots_folder)

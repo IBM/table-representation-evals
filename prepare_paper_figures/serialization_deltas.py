@@ -63,21 +63,15 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
         for tl in task_labels:
             row = combined[(combined['approach'] == approach) & (combined['task'] == tl)]
             vals.append(row['delta'].iloc[0] if len(row) > 0 else 0)
-        bars = ax.bar(x + i * bar_width, vals, bar_width,
-                      label=approach, color=colors.get(approach, '#333'))
-
-        for bar, v in zip(bars, vals):
-            y_pos = bar.get_height() + 0.002 if v >= 0 else bar.get_height() - 0.015
-            ax.text(bar.get_x() + bar.get_width() / 2, y_pos,
-                    f'{v:+.4f}', ha='center', va='bottom' if v >= 0 else 'top',
-                    fontsize=13, rotation=45)
+        ax.bar(x + i * bar_width, vals, bar_width,
+               label=approach, color=colors.get(approach, '#333'))
 
     ax.axhline(0, color='black', linewidth=0.8)
     ax.set_xticks(x + bar_width)
     ax.set_xticklabels(task_labels, fontsize=15)
     ax.set_ylabel(r'$\Delta$ (csv $-$ markdown)', fontsize=16)
 
-    ax.legend(loc='upper right', fontsize=13)
+    ax.legend(loc='lower right', fontsize=13)
     ax.grid(axis='y', alpha=0.3)
     ax.tick_params(labelsize=15)
 

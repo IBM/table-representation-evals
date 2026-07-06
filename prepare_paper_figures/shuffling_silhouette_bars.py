@@ -13,6 +13,11 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
     shuf['base_ds'], shuf['variation'] = zip(*shuf['dataset'].apply(h.parse_variation))
 
     v0 = shuf[shuf['variation'] == 'v0']
+    # Keep only markdown serialization (exclude CSV) and row_limit=100
+    v0 = v0[
+        ~v0['Configuration'].str.contains('csv', na=False) &
+        v0['Configuration'].str.contains('table_row_limit=100', na=False)
+    ]
     metric = 'Triplet Silhouette Score_mean'
 
     # Average over datasets
@@ -38,22 +43,6 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
         color=avg['color'], edgecolor='white', linewidth=0.5,
         capsize=4, width=0.6,
     )
-
-    # Annotate bars — match headline_bars style: rotated 90°, above bar
-    for bar, val in zip(bars, avg['sil_mean']):
-        offset = 0.02 if val >= 0 else -0.08
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + offset,
-                f'{val:.3f}', ha='center', va='bottom', fontsize=9, rotation=90)
-
-    # Overlay per-dataset scatter points to show cross-dataset spread
-    chart_order = {name: i for i, name in enumerate(avg['chart_name'])}
-    for _, row in v0.iterrows():
-        name = row['chart_name']
-        if name in chart_order and pd.notna(row[metric]):
-            x_jitter = np.random.uniform(-0.15, 0.15)
-            ax.scatter(chart_order[name] + x_jitter, row[metric],
-                       color=row['color'], alpha=0.5, s=25, zorder=3,
-                       edgecolors='white', linewidth=0.3)
 
     ax.axhline(y=0, color='black', linewidth=0.8)
     ax.set_ylabel('Silhouette Score', fontsize=16)

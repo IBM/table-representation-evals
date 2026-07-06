@@ -7,12 +7,17 @@ import config_helpers as h
 
 
 def create_barplot(df: pd.DataFrame, plots_folder: Path):
-    classifiers = ['XGBoost', 'MLP', 'KNeighbors']
+    # Exclude CSV variants — keep markdown + approaches without serialization
+    md_mask = df['chart_name'].str.endswith('(md)')
+    no_serial_mask = ~df['chart_name'].str.contains(r'\(', regex=True, na=False)
+    filtered = df[md_mask | no_serial_mask].copy()
+
+    classifiers = ['KNeighbors', 'MLP', 'XGBoost']
     f1_label = 'f1_macro (↑)'
 
     data = {}
     colors = {}
-    for _, row in df.iterrows():
+    for _, row in filtered.iterrows():
         name = row['chart_name']
         colors[name] = row.get('color', '#333333')
         data[name] = {}
@@ -30,7 +35,7 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
     n_approaches = len(approaches)
     n_classifiers = len(classifiers)
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(10, 5.2 * 0.65))
 
     group_width = 0.75
     bar_width = group_width / n_approaches
@@ -42,21 +47,17 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
         xs = x_centers + offset
         color = colors.get(approach, '#333333')
 
-        bars = ax.bar(xs, vals, bar_width, color=color, edgecolor='white',
-                      linewidth=0.5, label=approach)
-
-        for bar, v in zip(bars, vals):
-            if not np.isnan(v) and v > 0:
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                        f'{v:.3f}', ha='center', va='bottom', fontsize=11,
-                        rotation=90)
+        ax.bar(xs, vals, bar_width, color=color, edgecolor='white',
+               linewidth=0.5, label=approach)
 
     ax.set_xticks(x_centers)
-    ax.set_xticklabels(classifiers, fontsize=13)
+    ax.set_xticklabels(classifiers, fontsize=15, rotation=0, ha='center')
     ax.set_ylim(0, 1.05)
-    ax.set_ylabel('macro-F1', fontsize=16)
-    ax.tick_params(labelsize=13)
-    ax.legend(fontsize=11, ncol=2, loc='lower right')
+    ax.set_ylabel('macro-F1', fontsize=18)
+    ax.tick_params(labelsize=15)
+    ax.yaxis.grid(True, linestyle='--', alpha=0.4)
+    ax.set_axisbelow(True)
+    ax.legend(fontsize=13, loc='lower right')
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'ttd_classifier_bars.pdf', bbox_inches='tight')

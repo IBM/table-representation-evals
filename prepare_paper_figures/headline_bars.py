@@ -76,7 +76,7 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
     ]
 
     # 3 bar panels + 1 narrow legend panel
-    fig, axes = plt.subplots(1, 4, figsize=(17, 4.2), layout='constrained',
+    fig, axes = plt.subplots(1, 4, figsize=(17, 4.2 * 0.9), layout='constrained',
                              gridspec_kw={'width_ratios': [3, 3, 3, 0.7], 'wspace': 0.08})
 
     panel_axes = axes[:3]
