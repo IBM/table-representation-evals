@@ -1,3 +1,4 @@
+import logging
 import random
 import pandas as pd
 import numpy as np
@@ -8,6 +9,8 @@ import itertools
 
 from benchmark_src.results_processing import results_helper
 from benchmark_src.utils import cfg_utils
+
+logger = logging.getLogger(__name__)
 
 INITIAL_RATING = 1500.0
 
@@ -174,18 +177,18 @@ def get_elo_scores_for_task(
 ) -> pd.DataFrame:
 
     if task not in task_metrics:
-        print(f"No ELO metrics defined for task {task}")
+        logger.debug(f"No ELO metrics defined for task {task}")
         return pd.DataFrame()
 
     metrics_for_task = task_metrics[task]
 
-    print(f"Computing ELO for task {task} using metrics: {metrics_for_task}")
+    logger.debug(f"Computing ELO for task {task} using metrics: {metrics_for_task}")
 
     task_df = df[df["task"] == task]
 
     combos = task_df[["Approach", "Configuration"]].drop_duplicates()
     if len(combos) < 2:
-        print(f"Not enough approach/config combos for task {task}")
+        logger.debug(f"Not enough approach/config combos for task {task}")
         return pd.DataFrame()
 
     per_dataset_records = []
@@ -208,7 +211,7 @@ def get_elo_scores_for_task(
         for metric_col, higher_is_better in metrics_for_task:
 
             if metric_col not in dataset_df.columns:
-                print(f"Metric {metric_col} missing in dataset {dataset}, skipping metric")
+                logger.debug(f"Metric {metric_col} missing in dataset {dataset}, skipping metric")
                 continue
 
             # if task is "predicitive_ml", make a temporary copy and write the value from the column "approach_" + metric_col without the first part before _ into the metric col
@@ -236,7 +239,7 @@ def get_elo_scores_for_task(
             )
 
         if not matches:
-            print(f"No valid matches for dataset {dataset}, using initial ratings")
+            logger.debug(f"No valid matches for dataset {dataset}, using initial ratings")
         else:
             # dataset_hash = int(
             #     hashlib.md5(f"{task}-{dataset}".encode()).hexdigest(), 16
@@ -299,23 +302,21 @@ def compute_elo_scores(df: pd.DataFrame, seed: int = 123, k_factor: float = 32.0
     if df.empty:
         return pd.DataFrame(), pd.DataFrame()
     
-    print("%%%%%%%%%%%%%%%%%%%%%%%%")
-    print("Overview of all results:")
     overview = df.groupby(['task', 'Approach', 'Configuration'])['dataset'].nunique().reset_index(name='num_datasets')
-    print(overview)
+    logger.debug(f"Overview of all results:\n{overview}")
 
     task_metrics = build_task_metrics_map(df)
 
-    print(f"Build task metrics: {task_metrics}")
+    logger.debug(f"Build task metrics: {task_metrics}")
 
     per_task_records = []
 
     for task in sorted(df['task'].unique()):
-        print(f"Computing ELO scores for task: {task}")
+        logger.debug(f"Computing ELO scores for task: {task}")
         grouped = get_elo_scores_for_task(task, df, task_metrics, seed=seed, k_factor=k_factor)
         # if df is empty, skip
         if grouped.empty:
-            print(f"  No ELO scores computed for task {task} (insufficient data?)")
+            logger.debug(f"No ELO scores computed for task {task} (insufficient data?)")
             continue
 
         for _, row in grouped.iterrows():
@@ -364,9 +365,7 @@ def compute_elo_scores(df: pd.DataFrame, seed: int = 123, k_factor: float = 32.0
         ascending=False
     ).reset_index(drop=True)
 
-    print("%%%%%%%%%%%%%%%%%%%%%%%%")
-    print("Overview ELO Scores:")
-    print(overall_df)
+    logger.debug(f"Overview ELO Scores:\n{overall_df}")
 
     return per_task_df, overall_df
 ## %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
