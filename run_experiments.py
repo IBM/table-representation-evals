@@ -34,6 +34,7 @@ import json
 import logging
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -413,6 +414,7 @@ def main(
     conda_env: Annotated[Optional[str], typer.Option("--conda-env", help="Only run approaches with this conda_env (set automatically by multi-env dispatch; rarely needed manually)", hidden=True)] = None,
     planned_offset: Annotated[int, typer.Option("--planned-offset", help="Starting offset into the global [x/z] planned-job count (set automatically by multi-env dispatch)", hidden=True)] = 0,
     total_planned: Annotated[Optional[int], typer.Option("--total-planned", help="Total planned jobs across all envs, for the [x/z] count (set automatically by multi-env dispatch)", hidden=True)] = None,
+    run_timestamp: Annotated[Optional[str], typer.Option("--run-timestamp", help="Shared timestamp for this run's orchestrator log files (set automatically by multi-env dispatch)", hidden=True)] = None,
 ):
     project_root = Path(__file__).parent.resolve()
 
@@ -423,14 +425,25 @@ def main(
         raise typer.Exit(1)
 
     run_cfg = _load_yaml(run_config_path)
+    run_timestamp = run_timestamp or datetime.now().strftime("%Y%m%d-%H%M%S")
 
     # CLI --log-level > run config log_level > INFO
     effective_level = log_level or OmegaConf.select(run_cfg, "log_level") or "INFO"
+
+    # Orchestrator-level log file (distinct from each job's own run.log): survives even if
+    # the terminal/tmux session is lost. Each dispatched per-env subprocess is a separate
+    # OS process, so it gets its own file here rather than a single merged log; all files
+    # for one invocation share run_timestamp so they're easy to find together.
+    logs_dir = project_root / results_dir / run_cfg.benchmark_output_dir / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_file = logs_dir / f"{run_timestamp}_{conda_env or 'top'}.log"
+
     logging.basicConfig(
         level=getattr(logging, effective_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
+        handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler(log_file)],
     )
+    logger.info(f"Logging this run's orchestrator output to: {log_file}")
 
     # Redirect stderr to root logger so approach code that prints to stderr is captured
     root_logger = logging.getLogger()
@@ -473,6 +486,7 @@ def main(
                     "--results-dir", results_dir,
                     "--planned-offset", str(offset),
                     "--total-planned", str(total_planned_all_envs),
+                    "--run-timestamp", run_timestamp,
                 ]
                 if stop_on_error:
                     cmd.append("--stop-on-error")
