@@ -1,0 +1,330 @@
+######################################################
+# Build all result tables and plots for the paper
+######################################################
+from pathlib import Path
+import pandas as pd
+
+import ranking_table
+import row_sim_plot_aggregated, row_sim_linechart_topk, row_sim_results_table, quadrant_chart_row
+import col_sim_results_table, col_sim_bar_plot_per_dataset
+import tabular_prediction_result_tables, tabular_prediction_barchart_binary, tabular_prediction_barchart_multiclass, tabular_prediction_barchart_regression, tablular_prediction_elo_table
+import cell_bar_plot, cell_bar_plot_stacked, cell_results_table, quadrant_chart_cell
+import triplet_row_results_table, triplet_row_bar_plot_original
+import table_retrieval_tables
+
+color_mapping = {
+    ("GritLM", "embedding_model=GritLM_GritLM-7B"): "#2c3e50",
+    ("GritLM", "embedding_model=GritLM_GritLM-7B,table_row_limit=0"): "#2c3e50",
+    ("baseline", "baseline"): "#bdc3c7",
+    ("hytrel", "hytrel"): "#2980b9",
+    ("hytrel", "table_row_limit=0"): "#2980b9",
+    ("sap_rpt_oss", "bagging=8,max_context_size=8192,predML_based_on=custom_predictiveML_model"): "#16a085",
+    ("sap_rpt_oss", "bagging=8,max_context_size=8192,predML_based_on=row_embeddings"): "#16a085",
+    ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2,table_row_limit=0"): "#f1c40f",
+    ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2"): "#f1c40f",
+    ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2"): "#8e44ad",
+    ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=0"): "#8e44ad",
+    ("tabicl", "n_estimators=32,predML_based_on=custom_predictiveML_model"): "#f39c12",
+    ("tabicl", "n_estimators=32,predML_based_on=row_embeddings"): "#f39c12",
+    ("tabpfn", "predML_based_on=custom_predictiveML_model"): "#7f8c8d",
+    ("tabpfn", "predML_based_on=row_embeddings"): "#7f8c8d",
+    ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"): "#c0392b",
+    ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=custom_predictiveML_model"): "#c0392b",
+    ("tabula_8b", "batch_size=8,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=32,predML_based_on=custom_predictiveML_model"): "#c0392b",
+}
+
+name_mapping = {
+    ("GritLM", "embedding_model=GritLM_GritLM-7B"): "GritLM",
+    ("GritLM", "embedding_model=GritLM_GritLM-7B,table_row_limit=0"): "GritLM",
+    ("baseline", "baseline"): "Baseline",
+    ("hytrel", "hytrel"): "HyTrel",
+    ("hytrel", "table_row_limit=0"): "HyTrel",
+    ("sap_rpt_oss", "bagging=8,max_context_size=8192,predML_based_on=custom_predictiveML_model"): "SAP-RPT-1",
+    ("sap_rpt_oss", "bagging=8,max_context_size=8192,predML_based_on=row_embeddings"): "SAP-RPT-1*",
+    ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2"): "MiniLM",
+    ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2,table_row_limit=0"): "MiniLM",
+    ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2"): "IBM Granite R2",
+    ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=0"): "IBM Granite R2",
+    ("tabicl", "n_estimators=32,predML_based_on=custom_predictiveML_model"): "TabICL v2",
+    ("tabicl", "n_estimators=32,predML_based_on=row_embeddings"): "TabICL v2*",
+    ("tabpfn", "predML_based_on=custom_predictiveML_model"): "TabPFN v2.5",
+    ("tabpfn", "predML_based_on=row_embeddings"): "TabPFN v2.5*",
+    ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"): "TabuLa-8B*",
+    ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=custom_predictiveML_model"): "TabuLa-8B",
+    ("tabula_8b", "batch_size=8,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=32,predML_based_on=custom_predictiveML_model"): "TabuLa-8B_updated",
+}
+
+
+# #############################################
+# # Old names
+# #############################################
+# color_mapping = {
+#     ("GritLM", "embedding_model=GritLM_GritLM-7B,table_row_limit=100"): "#2c3e50",
+#     ("baseline", "baseline"): "#bdc3c7",
+#     ("hytrel", "hytrel"): "#2980b9",
+#     ("sap_rpt_oss", "bagging=1,max_context_size=2048,predML_based_on=custom_predictiveML_model"): "#16a085",
+#     ("sap_rpt_oss", "bagging=1,max_context_size=2048,predML_based_on=row_embeddings"): "#16a085",
+#     ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2,table_row_limit=100"): "#f1c40f",
+#     ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=100"): "#8e44ad",
+#     ("tabicl", "n_estimators=32,predML_based_on=custom_predictiveML_model"): "#f39c12",
+#     ("tabicl", "n_estimators=32,predML_based_on=row_embeddings"): "#f39c12",
+#     ("tabpfn", "device=cuda,predML_based_on=custom_predictiveML_model"): "#7f8c8d",
+#     ("tabpfn", "device=cuda,predML_based_on=row_embeddings"): "#7f8c8d",
+#     ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"): "#c0392b",
+#     ("tabula_8b", "batch_size=16,device=cuda,max_length=512,predML_based_on=custom_predictiveML_model"): "#c0392b",
+# }
+
+# name_mapping = {
+#     ("GritLM", "embedding_model=GritLM_GritLM-7B,table_row_limit=100"): "GritLM",
+#     ("baseline", "baseline"): "Baseline",
+#     ("hytrel", "hytrel"): "HyTrel",
+#     ("sap_rpt_oss", "bagging=1,max_context_size=2048,predML_based_on=custom_predictiveML_model"): "SAP-RPT-1",
+#     ("sap_rpt_oss", "bagging=1,max_context_size=2048,predML_based_on=row_embeddings"): "SAP-RPT-1_row",
+#     ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2,table_row_limit=100"): "MiniLM",
+#     ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=100"): "IBM Granite R2",
+#     ("tabicl", "n_estimators=32,predML_based_on=custom_predictiveML_model"): "TabICL",
+#     ("tabicl", "n_estimators=32,predML_based_on=row_embeddings"): "TabICL_row",
+#     ("tabpfn", "device=cuda,predML_based_on=custom_predictiveML_model"): "TabPFN",
+#     ("tabpfn", "device=cuda,predML_based_on=row_embeddings"): "TabPFN_row",
+#     ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"): "TabuLa-8B_row",
+#     ("tabula_8b", "batch_size=16,device=cuda,max_length=512,predML_based_on=custom_predictiveML_model"): "TabuLa-8B",
+# }
+
+
+
+RESULTS_FOLDER = Path("results")
+PLOTS_FOLDER = Path("./prepare_paper_figures/main_experiments")
+ROW_SIM_PLOTS = True
+TRIPLET_PLOTS = True
+COL_SIM_PLOTS = True
+TABULAR_PREDICTION_PLOTS = True
+CELL_SIM_PLOTS = True
+TABLE_RETRIEVAL_PLOTS = True
+
+
+if __name__ == "__main__": 
+
+    results_folder = RESULTS_FOLDER
+    assert results_folder.exists(), f"Could not find results folder at {results_folder}"
+
+    plots_folder = PLOTS_FOLDER
+    plots_folder.mkdir(exist_ok=True)
+
+    all_results_df = pd.read_csv(results_folder / "all_results_aggregated.csv")
+
+    print(all_results_df["Approach"].unique())
+
+    ## Filter approaches
+    exclude_runs = [
+    ('sentence_transformer', 'embedding_model=BAAI_bge-base-en-v1.5,table_row_limit=100'),
+    ('sentence_transformer', 'embedding_model=ibm-granite_granite-embedding-30m-english,table_row_limit=100')
+    ]
+    all_results_df = all_results_df[
+        ~all_results_df.set_index(['Approach', 'Configuration']).index.isin(exclude_runs)
+    ]
+
+    ## Set colors for the approaches
+    all_results_df["color"] = all_results_df.apply(
+        lambda row: color_mapping.get((row["Approach"], row["Configuration"]), "#000000"),  # fallback color if missing
+        axis=1
+    )
+    ## Set chart names for the approaches
+    all_results_df["chart_name"] = all_results_df.apply(
+        lambda row: name_mapping.get((row["Approach"], row["Configuration"]), "TODO"),  # fallback color if missing
+        axis=1
+    )
+
+    # print rows with fallback chart name to check if we missed any approach/configuration in the mapping
+    missing_chart_names = all_results_df[all_results_df["chart_name"] == "TODO"]
+    if not missing_chart_names.empty:
+        print("Warning: Missing chart names for the following Approach + Configuration combinations:")
+        # print each name configuration separately:
+        for idx, row in missing_chart_names.iterrows():
+            print(f"Approach: {row['Approach']}, Configuration: {row['Configuration']}")
+        raise ValueError("Please update the name_mapping with chart names for the missing Approach + Configuration combinations!")
+    else:
+        print("All Approach + Configuration combinations have chart names ✅")
+
+    # same for colors: 
+    missing_colors = all_results_df[all_results_df["color"] == "#000000"]
+    if not missing_colors.empty:    
+        print("Warning: Missing colors for the following Approach + Configuration combinations:")
+        for idx, row in missing_colors.iterrows():
+            print(f"Approach: {row['Approach']}, Configuration: {row['Configuration']}")
+        raise ValueError("Please update the color_mapping with colors for the missing Approach + Configuration combinations!")
+    else:        print("All Approach + Configuration combinations have colors ✅")
+
+    group_cols = ["Approach", "Configuration", "task", "dataset"]
+    # Assert that we have every row of "Approach" "Configuration" "task" "dataset" only once
+    duplicates = all_results_df.duplicated(subset=group_cols, keep=False)
+    if duplicates.any():
+        # If duplicates exist, raise an error or print them
+        print("Duplicate rows found for the same Approach + Configuration + task:")
+        print(all_results_df[duplicates])
+        raise ValueError("Each Approach + Configuration + task combination must be unique!")
+
+    # If no duplicates, you can safely continue
+    print("All Approach + Configuration + task combinations are unique ✅")
+
+
+    ##############################################################################################
+    #
+    #     Row Similarity Search
+    # 
+    ##############################################################################################
+    if ROW_SIM_PLOTS:
+        # Filter data for the current task
+        df = all_results_df[all_results_df['task'] == "row_similarity_search"].copy()
+        # ----------------------------------------
+        # Average MRR scores over all datasets 
+        # ----------------------------------------
+        # TODO: (only 7 because some approaches were OOM? or on all 9 and exclude the two approaches?)
+        row_sim_plot_aggregated.create_barplot(df, plots_folder)
+
+        # ------------------------------------------------
+        # Dataset-level bar plot (MRR as metric)
+        # ------------------------------------------------
+        # goal: show how approaches vary per dataset
+
+
+        # ------------------------------------------------
+        # Results table per dataset for all approaches
+        # ------------------------------------------------
+        row_sim_results_table.create_results_table(df, plots_folder)
+
+        # TODO: only if time
+        # ------------------------------------------------
+        # Line Plot with k on the x-axis and Recall@k on the y-axis
+        # ------------------------------------------------
+        row_sim_linechart_topk.create_lineplot(df, plots_folder)
+
+        # ------------------------------------------------
+        # Resource vs. performance tradeoff
+        # ------------------------------------------------
+        quadrant_chart_row.build_quadrant_chart(df, plots_folder)
+        quadrant_chart_row.build_quadrant_chart_vram(df, plots_folder)
+
+    ##############################################################################################
+    #
+    #     Column Similarity Search
+    # 
+    ##############################################################################################
+    if COL_SIM_PLOTS:
+        # Filter data for the current task
+        df = all_results_df[all_results_df['task'] == "column_similarity_search"].copy()
+        # ----------------------------------------
+        # Average MRR scores over all datasets ?
+        # ----------------------------------------
+
+
+        # ------------------------------------------------
+        # Dataset-level bar plot (MRR as metric)?
+        # ------------------------------------------------
+        col_sim_bar_plot_per_dataset.create_barplot(df, plots_folder)
+
+
+        # ------------------------------------------------
+        # Results table per dataset for all approaches
+        # ------------------------------------------------
+        col_sim_results_table.create_results_table(df, plots_folder)
+
+
+    ##############################################################################################
+    #
+    #     Triplet Tests
+    # 
+    ##############################################################################################
+    if TRIPLET_PLOTS:
+        # Filter data for the current task
+        df = all_results_df[all_results_df['task'] == "more_similar_than"].copy()
+        # drop columns with all nans (result metrics from other tasks will be nan)
+        df = df.dropna(axis=1, how="all")
+
+        # results table
+        triplet_row_results_table.create_results_table(df, plots_folder)
+
+        # plot original 
+        triplet_row_bar_plot_original.create_barplot(df, plots_folder)
+
+        # plot ablations for books and astronomical_objects
+
+    ##############################################################################################
+    #
+    #     Cell Similarity Search
+    # 
+    ##############################################################################################
+    if CELL_SIM_PLOTS:
+        # Filter data for the current task
+        df = all_results_df[all_results_df['task'] == "cell_task"].copy()
+
+        # ------------------------------------------------
+        # Dataset-level bar plot 
+        # ------------------------------------------------
+        cell_bar_plot.create_barplot(df, plots_folder)
+        cell_bar_plot_stacked.create_barplot(df, plots_folder)
+
+        # ------------------------------------------------
+        # Results table per dataset for all approaches
+        # ------------------------------------------------
+        cell_results_table.create_results_table(df, plots_folder)
+
+        # ------------------------------------------------
+        # Quadrant chart
+        # ------------------------------------------------
+        quadrant_chart_cell.build_quadrant_chart(df, plots_folder)
+
+    ##############################################################################################
+    #
+    #     Table Retrieval
+    # 
+    ##############################################################################################
+    if TABLE_RETRIEVAL_PLOTS:
+        # Filter data for the current task
+        df = all_results_df[all_results_df['task'] == "table_retrieval"].copy()
+        # drop columns with all nans (result metrics from other tasks will be nan)
+        df = df.dropna(axis=1, how="all")
+
+        # results table for main text
+        table_retrieval_tables.create_results_table_small(df, plots_folder)
+
+        # results table for appendix
+        #table_retrieval_tables.create_results_table_appendix(df, plots_folder)
+
+
+    ##############################################################################################
+    #
+    #     Tabular Prediction
+    # 
+    ##############################################################################################
+    if TABULAR_PREDICTION_PLOTS:
+        # Filter data for the current task
+        df = all_results_df[all_results_df['task'] == "predictive_ml"].copy()
+        # drop columns with all nans (result metrics from other tasks will be nan)
+        df = df.dropna(axis=1, how="all")
+        print(df.columns)
+        # ----------------------------------------
+        # Result tables
+        # ----------------------------------------
+        tabular_prediction_result_tables.create_results_table_binary_classification(df, plots_folder)
+        tabular_prediction_result_tables.create_results_table_multiclass_classification(df, plots_folder)
+        tabular_prediction_result_tables.create_results_table_regression(df, plots_folder)
+
+        # ----------------------------------------
+        # Plots as percentage to baseline
+        # ----------------------------------------
+        tabular_prediction_barchart_binary.create_barplot(df, plots_folder)
+        tabular_prediction_barchart_multiclass.create_barplot_multiclass(df, plots_folder)
+        tabular_prediction_barchart_regression.create_barplot_regression(df, plots_folder)
+
+        # ----------------------------------------
+        # Elo table
+        # ----------------------------------------
+        # TODO: get elo scores to later use in ranking table!
+        elo_table = tablular_prediction_elo_table.create_elo_table(df, plots_folder)
+
+    ##############################################################################################
+    #
+    #     Overall Ranking
+    # 
+    ##############################################################################################
+    ranking_table.create_table(all_results_df, plots_folder, elo_table)
