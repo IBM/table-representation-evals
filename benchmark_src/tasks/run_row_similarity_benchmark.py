@@ -37,7 +37,7 @@ def run_similarity_search_based_on_row_embeddings(row_embedding_component, input
     row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=input_table)
     component_utils.assert_row_embedding_format(row_embeddings=row_embeddings, input_table=input_table)
 
-    all_positions = []
+    all_testcase_metrics = []
     for testcase_path in tqdm(testcase_paths):
         testcase_id, testcase_input_df, testcase_gt_output_df = load_benchmark.load_testcase(testcase_path)
 
@@ -45,11 +45,11 @@ def run_similarity_search_based_on_row_embeddings(row_embedding_component, input
         testcase_row_pk_value = testcase_input_df[pk_column].item()
         testcase_row_idx_in_table = input_table[input_table[pk_column] == testcase_row_pk_value].index[0]
         input_row_embedding = row_embeddings[testcase_row_idx_in_table]
-        
+
         # run similarity search
         result = sentence_transformers.util.semantic_search(query_embeddings=input_row_embedding, corpus_embeddings=row_embeddings, top_k=k+1) # +1 because most similar is row itself
         result_tuples = result[0] # one list for every query, just have one query
-        
+
         if False:
             print("#"*100)
             print(f"Testcase ID: {testcase_id} - key column: {pk_column} - Input Row:")
@@ -67,15 +67,15 @@ def run_similarity_search_based_on_row_embeddings(row_embedding_component, input
                 orig_row_id = input_table[pk_column].iloc[corpus_id]
                 predicted_row_ids.append(orig_row_id)
 
-        position_list = benchmark_metrics.get_position_of_gt(gt_row_ids=list(testcase_gt_output_df[pk_column]), predicted_row_ids=predicted_row_ids)
-        all_positions += position_list
+        testcase_metrics = benchmark_metrics.compute_testcase_metrics(gt_row_ids=list(testcase_gt_output_df[pk_column]), predicted_row_ids=predicted_row_ids)
+        all_testcase_metrics.append(testcase_metrics)
 
-    return all_positions
+    return all_testcase_metrics
 
 @monitor_resources()
 def run_similarity_search_custom_approach(similarity_search_component, testcase_paths: list, input_table: pd.DataFrame, pk_column, k: int):
     logger.debug(f"Called run_similarity_search_component")
-    all_positions = []
+    all_testcase_metrics = []
     for testcase_path in tqdm(testcase_paths):
         testcase_id, testcase_input_df, testcase_gt_output_df = load_benchmark.load_testcase(testcase_path)
 
@@ -87,10 +87,10 @@ def run_similarity_search_custom_approach(similarity_search_component, testcase_
             print(f"Exception occured when running row similarity search of approach: {e}")
             ranked_list = []
 
-        position_list = benchmark_metrics.get_position_of_gt(gt_row_ids=list(testcase_gt_output_df[pk_column]), predicted_row_ids=ranked_list)
-        all_positions += position_list
+        testcase_metrics = benchmark_metrics.compute_testcase_metrics(gt_row_ids=list(testcase_gt_output_df[pk_column]), predicted_row_ids=ranked_list)
+        all_testcase_metrics.append(testcase_metrics)
 
-    return all_positions
+    return all_testcase_metrics
 
 def main(cfg: DictConfig):
     logger.info(f"Started run_row_similarity_benchmark")
@@ -114,8 +114,8 @@ def main(cfg: DictConfig):
         _, resource_metrics_setup = component_utils.run_model_setup(component=row_embedding_component, input_table=input_table, dataset_information=dataset_information)
         
         # run similarity search based on the row embeddings
-        all_positions, resource_metrics_task = run_similarity_search_based_on_row_embeddings(row_embedding_component=row_embedding_component, input_table=input_table, testcase_paths=testcase_paths, pk_column=pk_column, k=cfg.task.top_k)
-        
+        all_testcase_metrics, resource_metrics_task = run_similarity_search_based_on_row_embeddings(row_embedding_component=row_embedding_component, input_table=input_table, testcase_paths=testcase_paths, pk_column=pk_column, k=cfg.task.top_k)
+
     elif run_row_similarity_search_based_on == "custom_function":
         ## load the needed component
         similarity_search_component = embedder._load_component("row_similarity_search_component", "RowSimilaritySearchComponent", RowSimilaritySearchInterface)
@@ -124,7 +124,7 @@ def main(cfg: DictConfig):
         _, resource_metrics_setup = component_utils.run_model_setup(component=similarity_search_component, input_table=input_table, dataset_information=dataset_information)
 
         ## run the task
-        all_positions, resource_metrics_task = run_similarity_search_custom_approach(similarity_search_component=similarity_search_component, testcase_paths=testcase_paths, input_table=input_table,pk_column=pk_column, k=cfg.task.top_k)
+        all_testcase_metrics, resource_metrics_task = run_similarity_search_custom_approach(similarity_search_component=similarity_search_component, testcase_paths=testcase_paths, input_table=input_table,pk_column=pk_column, k=cfg.task.top_k)
     else:
         logger.error(f"Got unsupported value for 'run_row_similarity_search_based_on' parameter: {run_row_similarity_search_based_on}")
         raise ValueError
@@ -134,5 +134,5 @@ def main(cfg: DictConfig):
     save_resource_metrics_to_disk(cfg=cfg, resource_metrics_setup=resource_metrics_setup, resource_metrics_task=resource_metrics_task)
 
     # compute and save results
-    result_metrics = benchmark_metrics.compute_all_metrics(all_positions)
+    result_metrics = benchmark_metrics.aggregate_testcase_metrics(all_testcase_metrics)
     result_utils.save_results(cfg=cfg, metrics=result_metrics)
