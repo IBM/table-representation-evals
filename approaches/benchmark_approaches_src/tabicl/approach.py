@@ -357,8 +357,19 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             tuple: (column_embeddings, column_names) where column_embeddings has shape (num_columns, embedding_dim)
         """
         # Get raw column embeddings without CLS tokens
-        col_embeddings_without_cls, column_names, _ = self._get_col_embeddings_without_cls(input_table)
-        
+        try:
+            col_embeddings_without_cls, column_names, _ = self._get_col_embeddings_without_cls(input_table)
+        except Exception as e:
+            # TabICL's Latin square shuffler fails on tables where all columns are constant
+            # (zero variance → no features survive internal preprocessing). Use a minimal
+            # synthetic table to determine the embedding dimension and return zeros.
+            logger.info(f"TabICL embedding failed ({e}); returning zero embeddings for this table.")
+            probe = pd.DataFrame({"a": [0.0, 1.0], "b": [0.0, 1.0]})
+            probe_emb, _, _ = self._get_col_embeddings_without_cls(probe)
+            embedding_dim = probe_emb.mean(dim=1).squeeze(0).shape[-1]
+            column_names = list(input_table.columns)
+            return np.zeros((len(column_names), embedding_dim)), column_names
+
         # Aggregate across rows (T dimension) to get per-column embeddings
         # Take mean across the row dimension to get (B, H-cls, D), then squeeze batch dimension
         column_embeddings = col_embeddings_without_cls.mean(dim=1).squeeze(0).cpu().numpy()
