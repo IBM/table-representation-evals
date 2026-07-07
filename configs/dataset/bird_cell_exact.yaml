@@ -1,0 +1,13 @@
+# Dataset configuration for BIRD exact cell value matching queries.
+# Covers queries where the NL question mentions a value verbatim as it appears in the database.
+# https://bird-bench.github.io/
+
+dataset_name: bird_cell_exact
+
+dataset:
+  # Optional: set to an absolute path if you already have BIRD data elsewhere.
+  # If null (default), data is read from cache/datasets/bird/.
+  bird_path: null
+  benchmark_file: "cell_value_matching_queries.json"
+  # Shared with bird_cell_fuzzy: both index the same BIRD databases.
+  qdrant_cache_key: "bird_cell"

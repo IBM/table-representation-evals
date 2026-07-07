@@ -1,0 +1,21 @@
+approach_name: tabpfn
+conda_env: benchmark_env
+module_path: approaches/benchmark_approaches_src/tabpfn
+class_name: TabPFNEmbedder
+
+device: cuda
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+    exclude_datasets:  # too large for TabPFN
+      - DBLP-GoogleScholar
+      - iTunes-Amazon
+  more_similar_than: {}
+  predictive_ml:
+    run_task_based_on: row_embeddings  # default; override to custom_predictiveML_model in pred run
+    exclude_datasets:  # TabPFN max ~50k rows
+      - customer_satisfaction_in_airline
+      - APSFailure
+      - GiveMeSomeCredit
+      - SDSS17

@@ -230,7 +230,8 @@ def create_preprocessed_data(input_table: pd.DataFrame, component:BaseTabularEmb
 
     elif isinstance(component, ColumnEmbeddingInterface):
         all_columns = {}
-        for c in tqdm(input_table.columns):
+        columns_iter = tqdm(input_table.columns) if len(input_table.columns) > 100 else input_table.columns
+        for c in columns_iter:
             all_columns[c] = get_column_values(input_table[c], c)
         preprocessed_data = all_columns
 

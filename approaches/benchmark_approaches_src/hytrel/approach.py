@@ -21,9 +21,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from omegaconf import DictConfig
 from transformers import AutoTokenizer, AutoConfig
-from hydra.utils import get_original_cwd
+from omegaconf import DictConfig
 
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 
@@ -92,9 +91,9 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
     
     def __init__(self, cfg: DictConfig):
         """Initialize the HyTrel embedder.
-        
+
         Args:
-            cfg (DictConfig): Configuration object containing model parameters
+            cfg: Configuration object containing model parameters
         """
         super().__init__(cfg)
         self.cfg = cfg
@@ -119,7 +118,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
             self.model = Encoder(config)
 
             checkpoint_path_from_config = getattr(self.cfg.approach, "checkpoint_path", None)
-            checkpoint_path = Path(get_original_cwd()) / Path(checkpoint_path_from_config)
+            checkpoint_path = Path(self.cfg.project_root) / Path(checkpoint_path_from_config)
             if checkpoint_path and os.path.exists(checkpoint_path):
                 logger.info(f"Loading checkpoint from: {checkpoint_path}")
                 self._inject_optimizer_config()
@@ -354,13 +353,13 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         # If train_size is provided, return only test portion
         if train_size is not None:
-            logger.info(f"Extracting test embeddings: train_size={train_size}, total_rows={num_rows}")
+            logger.debug(f"Extracting test embeddings: train_size={train_size}, total_rows={num_rows}")
             row_embeddings = row_embeddings[train_size:]
-            logger.info(f"Returning test row embeddings with shape: {row_embeddings.shape}")
-        
+            logger.debug(f"Returning test row embeddings with shape: {row_embeddings.shape}")
+
         # Convert to numpy
         row_embeddings = row_embeddings.cpu().numpy()
-        logger.info(f"Generated row embeddings with shape: {row_embeddings.shape}")
+        logger.debug(f"Generated row embeddings with shape: {row_embeddings.shape}")
         return row_embeddings
 
     def get_column_embeddings(self, input_table: pd.DataFrame) -> tuple:
@@ -384,7 +383,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         # Use target hyperedge embeddings for columns: indices 1..num_cols (index 0 is table)
         column_embeddings = target_embeddings[1:num_cols + 1].cpu().numpy()
 
-        logger.info(f"Generated column embeddings with shape: {column_embeddings.shape}")
+        logger.debug(f"Generated column embeddings with shape: {column_embeddings.shape}")
         return column_embeddings, column_names
 
     def get_table_embedding(self, input_table: pd.DataFrame) -> np.ndarray:
@@ -456,7 +455,7 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
         
         # Convert to numpy
         cell_embeddings = cell_embeddings.cpu().numpy()
-        logger.info(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
+        logger.debug(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
         return cell_embeddings
 
     def _get_embeddings(self, input_table: pd.DataFrame) -> tuple:

@@ -1,94 +1,165 @@
-# table-representation-evals
-This project provides a benchmark suite for evaluating the abilities of various models to perform tasks over tabular data, such as finding similar tables/columns/rows or clustering entities.
+# TEmBed - Tabular Embedding Test Bed
+
+A comprehensive benchmark suite for evaluating tabular embeddings across four representation levels: **cell**, **row**, **column**, and **table**, using a diverse collection of tasks and datasets.
 
 ## Section 1: Benchmark Tasks
 
-The benchmark currently includes the following task:
+| Task | Level | Description | Interface | Metric |
+|---|---|---|---|---|
+| Row Similarity Search | Row | Find the most similar row in a table to a given query row | `row_embedding` or `row_similarity_search` | Top-1 [%] |
+| Row Triplet Test | Row | Determine whether an anchor row is more similar to a positive than to a negative example | `row_embedding` | Accuracy |
+| Tabular Prediction | Row | Use row embeddings as features for classification or regression | `row_embedding` or `predictive_ml` | ROC-AUC / RMSE |
+| Column Similarity Search | Column | Retrieve semantically similar columns from a data lake | `column_embedding` | MRR |
+| Column Type Annotation | Column | Predict the semantic type of a column from a fixed label vocabulary | `column_embedding` | Macro-F1 |
+| NL→Column Mapping | Column | Match natural language query concepts to database columns | `column_embedding` | Recall@k |
+| Cell Semantic Retrieval | Cell | Retrieve the most semantically similar cells across a table collection | `cell_embedding` | — |
+| NL→Cell→Column Mapping | Cell | Map NL-extracted values to database cells and identify relevant columns | `cell_embedding` | Recall@k |
+| Table Retrieval | Table | Retrieve semantically similar tables from a collection | `table_embedding` | Recall@1 |
+| Table Shuffling Triplet Test | Table | Determine whether an anchor table is more similar to a positive than to a structurally varied negative | `table_embedding` | Triplet Accuracy |
 
-### Task 1: Row Similarity Search
-
-**Description:** Given an input table and a row, the goal is to find the most similar row from the input table to the given row.
-
-**Approaches:** To solve the tasks, approaches can provide row embeddings of a given table (implement the row_embedding_component) or provide a ranked list of the most similar rows (implement the row_similarity_search_component).
-Make sure that you set the *run_similarity_search_based_on* parameter in the experiment config accordingly.
-
+---
 
 ## Section 2: Installation
 
-1) Checkout this repository
+1. Check out this repository (including submodules):
+   ```bash
+   git clone --recurse-submodules <repo-url>
+   ```
 
-2) Make a copy of the  `setup_benchmark.sh.template` script and rename it to `setup_benchmark.sh`. 
+2. Copy the setup template and edit the `SETUP_*` flags at the top to select which approaches to install:
+   ```bash
+   cp setup_benchmark.sh.template setup_benchmark.sh
+   ```
 
-3) Adapt the parameters in `setup_benchmark.sh` to your needs, depending on which embedding approaches you want to use (you can re-run the script to install further approaches). 
+3. Run the setup script:
+   ```bash
+   bash setup_benchmark.sh
+   ```
+   This creates the `benchmark_env` conda environment (Python 3.13) and installs `benchmark_src` and `approaches` as editable packages. If you enabled additional approaches, it also creates per-approach conda environments (`benchmark_env_hytrel`, `benchmark_env_gritlm`, `benchmark_env_tabicl`).
 
-Note: The benchmark uses Hugging Face Transformers which will cache models in the default location:
-- Linux/Mac: `~/.cache/huggingface`
-- Windows: `C:\Users\username\.cache\huggingface`
+4. (Optional) Create a `.env` file at the repo root for approaches that require Hugging Face model access:
+   ```bash
+   HF_TOKEN=hf_...
+   HF_HOME=/path/to/hf/cache
+   ```
+   Required for `sap_rpt_oss` and `tabpfn` after accepting their model license terms on Hugging Face.
 
-To use a different cache location, you can set the `HF_HOME` environment variable:
+---
+
+## Section 3: How to Add Your Approach
+
+1. Copy `approaches/benchmark_approaches_src/<approach_name>/` (the template folder) to a new folder and rename the class in `approach.py`.
+
+2. Create `configs/approaches/<your_approach>.yaml` declaring `approach_name`, `module_path`, `class_name`, `conda_env`, any hyperparameters, and a `supported_tasks` block listing which tasks your approach supports and their task-specific defaults:
+   ```yaml
+   approach_name: my_approach
+   module_path: "approaches/benchmark_approaches_src/my_approach"
+   class_name: MyApproach
+   conda_env: benchmark_env      # conda environment that has your approach's dependencies
+   my_param: some_value
+
+   supported_tasks:
+     row_similarity_search:
+       run_similarity_search_based_on: row_embeddings
+     predictive_ml:
+       run_task_based_on: row_embeddings
+   ```
+
+3. Implement only the component files for the capabilities you support (delete the rest). Each component must satisfy its interface in `benchmark_src/approach_interfaces/`.
+
+4. Add your approach to a run config under `configs/runs/` (see Section 4).
+
+5. Use `logging` instead of `print` — the orchestrator captures log output to `run.log` in each result directory.
+
+---
+
+## Section 4: How to Run the Benchmark
+
+For a full reference on all configuration options, see [configs/README.md](configs/README.md).
+
+### Run configs
+
+Create or edit a file under `configs/runs/<name>.yaml`. You can freely mix approaches from
+different conda environments in one file — the orchestrator handles env switching automatically.
+
+```yaml
+benchmark_output_dir: my_results
+
+# Optional: restrict all approaches below to these tasks only
+tasks: [row_similarity_search, predictive_ml]
+
+approaches:
+  - name: my_approach
+    params:
+      my_param: some_value
+    tasks: [row_similarity_search]  # overrides the run-level tasks for this entry only
+    task_datasets:                  # optional: override the global dataset list
+      row_similarity_search: [Amazon-Google]
+```
+
+The same approach can appear multiple times with different `params` — output directories are
+automatically differentiated by a slug derived from the params (e.g.
+`my_approach/embedding_model=all-MiniLM-L6-v2/row_similarity_search/Amazon-Google/`).
+
+### Running
+
 ```bash
-export HF_HOME="/path/to/your/preferred/cache"
+# Run all jobs defined in the run config (works from any conda env)
+bash run.sh <run_config_name>
+
+# Stop on the first failure instead of continuing
+bash run.sh <run_config_name> --stop-on-error
+
+# Write results to a custom directory
+bash run.sh <run_config_name> --results-dir results_testing
 ```
 
-4) To complete the installation, run 
+`run.sh` activates `benchmark_env` and sets `PYTHONPATH` automatically. When the run config
+includes approaches from multiple conda envs (set via `conda_env` in each approach config),
+the orchestrator dispatches them as subprocesses in sequence — no manual env switching needed.
 
-```
-./setup_benchmark.sh
-```
+Results are written to `results/<benchmark_output_dir>/<approach>/<params>/<task>/<dataset>/results.json`. A run is skipped if `results.json` already exists — delete it to force a re-run.
 
- 
-## Section 3: How to add your approach
+### Smoke test (before committing)
 
-Please implement all code needed to run your approach in the /approaches folder, here are the necessary steps:
-
-1) In the folder approaches/benchmark_approaches_src, create a copy of the <approach_name> folder, and rename it accordingly to the name of your approach
-
-2) Open the approach.py file in your approach folder and rename the class
-
-3) Import your class in the approaches/benchmark_approaches_src/__init__.py file
-
-4) Make a copy of the _approach_name.yaml file in the approaches/configs/approach folder and fill in the name of your approach, as well as the foldername and classname that you set in step 1
-
-5) Implement the functions in approach.py as well as in the components you need to run the benchmark (see description in Section 1 of this README). Please delete all the component files that you do not implement (if you plan to implement them later, just copy them from the template folder again).
-
-    Hydra will automatically save a log file in the results folder (see documentation [here](https://hydra.cc/docs/tutorials/basic/running_your_app/logging/)). For printing, therefore please use the logging functions instead of print(). You can set the level to DEBUG in your experiment yaml config if needed.
-
-## Section 4: How to run the benchmark
-
-The benchmark is run one approach at a time, but you can configure several hyperaparameters that you want to try out. Some approaches require you to run their setup.sh script in the respective approach folder to install all necessary libraries before running the benchmark. 
-
-1) In approaches/configs/experiment, make a copy of <experiment>.yaml and rename it. Set the *benchmark_datasets_dir:* parameter to the filepath where you saved the datasets. Then set all parameters for the approach you want to evaluate. 
-
-2) In the commandline, from the embedding_benchmarks folder, run the following command, replacing <experiment_name> with the filename of the experiment yaml file you created in the previous step and the name of the conda environment:
-
-```
-sh run_benchmark.sh <experiment_name> benchmark_env
+```bash
+bash run_test_before_commit.sh <conda_env_name>
 ```
 
-3) Your results will be saved in the benchmark_results folder
+Runs one small dataset per task type and fails on any error.
 
-## Section 5: Overview of the Repository
+### Aggregating results
+
+Results are automatically aggregated at the end of every `run.sh` run. To re-run manually:
+```bash
+python benchmark_src/results_processing/gather_results.py results/<benchmark_output_dir>
 ```
-Tabular Benchmark Evaluation Framework
-├── approaches                                       # approaches to be evaluated on the benchmark
-│   ├── configs
-│   │   ├── approach
-│   │   │   └── <tabular_embedding_approach>.yaml    # hydra config per approach
-│   │   └── experiment
-│   │       └── <experiment>.yaml                    # run bemchmark on multiple configurations of an approach
-│   └── benchmark_approaches_src
-│       ├── __init__.py                              # import every class
-│       └── <tabular_embedding_approach>             # implement interfaces per approach
-│           ├── approach.py                          # the main class for the approach
-│           └── <task-specific>_component.py.        # several component files for different ways to approach tasks
-├── benchmark_src
-│   ├── config                                       # hydra config files
-│   ├── approach_interfaces                          # interfaces for the approaches and all components
-│   ├── tasks                                        # task-specific code 
-│   └── utils                                        # compute metrics, gather results, etc. 
-└── results                                          # results folder
-    └── <approach_name>
-        └── <specific_parameters>
-            └── <task_name>
-                └── <dataset_name>
+
+---
+
+## Section 5: Repository Structure
+
+```
+├── configs/
+│   ├── global_datasets.yaml              # canonical dataset list per task
+│   ├── approaches/
+│   │   └── <approach>.yaml               # approach params, conda_env, supported_tasks
+│   ├── runs/
+│   │   └── <run>.yaml                    # what to run: approaches + param overrides
+│   ├── task/                             # task-level defaults (top_k, metrics, etc.)
+│   └── dataset/                          # dataset-specific settings for creation scripts
+├── approaches/
+│   └── benchmark_approaches_src/
+│       └── <approach>/
+│           ├── approach.py               # main approach class
+│           └── <task>_component.py       # one file per supported capability
+├── benchmark_src/
+│   ├── approach_interfaces/              # ABCs for all component types
+│   ├── tasks/                            # one run_*_benchmark.py per task
+│   ├── utils/                            # metrics, result aggregation, etc.
+│   └── results_processing/              # gather_results.py, ranking, plots
+├── run.sh                                # entry point — activates benchmark_env, dispatches multi-env runs
+├── run_experiments.py                    # orchestrator (called by run.sh)
+├── run_test_before_commit.sh
+└── run_paper_experiments.sh
 ```

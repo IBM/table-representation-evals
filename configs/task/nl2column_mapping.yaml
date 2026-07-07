@@ -1,0 +1,20 @@
+# Task configuration for NL-to-Column Mapping benchmark (Concept Mapping)
+# Uses column embeddings to identify relevant columns for text-to-SQL queries
+# Based on BIRD's pure_concept_mapping_queries.json
+
+task_name: nl2column_mapping
+
+elo_metric: "mean_mrr"
+
+# Maximum number of queries to process (for testing/debugging)
+# Set to null or remove to process all queries
+max_queries: null
+
+# Maximum number of rows to sample per table when creating column embeddings
+# Reduces memory usage for large tables
+max_rows_per_table: 1000
+
+# Number of top columns to retrieve from Qdrant
+# Should be large enough to cover all relevant columns
+top_k_columns: 50
+

@@ -4,6 +4,7 @@ import threading
 import time
 from functools import wraps
 import logging
+from pathlib import Path
 import pandas as pd
 import pynvml
 import json
@@ -117,6 +118,8 @@ def monitor_resources(sample_interval=0.1, post_buffer=0.2):
 
 
 def save_resource_metrics_to_disk(cfg, resource_metrics_setup, resource_metrics_task):
+    output_dir = Path(cfg.output_dir)
+
     # Label functions explicitly
     resource_metrics_setup["function"] = "model_setup"
     resource_metrics_task["function"] = "task_inference"
@@ -126,7 +129,7 @@ def save_resource_metrics_to_disk(cfg, resource_metrics_setup, resource_metrics_
     # --- CSV raw ---
     df = pd.DataFrame(all_metrics)
     df["approach"] = cfg.approach.approach_name
-    df.to_csv("resource_metrics.csv", index=False)
+    df.to_csv(output_dir / "resource_metrics.csv", index=False)
 
     # --- CSV formatted ---
     combined = {"approach": cfg.approach.approach_name}
@@ -135,14 +138,14 @@ def save_resource_metrics_to_disk(cfg, resource_metrics_setup, resource_metrics_
         for k, v in d.items():
             if k != "function":
                 combined[(fn, k)] = v
-    pd.DataFrame([combined]).to_csv("resource_metrics_formatted.csv", index=False)
+    pd.DataFrame([combined]).to_csv(output_dir / "resource_metrics_formatted.csv", index=False)
 
     # --- JSON setup ---
-    with open("resource_metrics_setup.json", "w") as f:
+    with open(output_dir / "resource_metrics_setup.json", "w") as f:
         json.dump(resource_metrics_setup, f, indent=4)
 
     # --- JSON task ---
-    with open("resource_metrics_task.json", "w") as f:
+    with open(output_dir / "resource_metrics_task.json", "w") as f:
         json.dump(resource_metrics_task, f, indent=4)
 
     logger.info("Saved resource metrics: CSV + JSON for setup and task.")

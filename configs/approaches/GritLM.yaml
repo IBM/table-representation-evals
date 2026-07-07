@@ -1,0 +1,22 @@
+approach_name: GritLM
+conda_env: benchmark_env_gritlm
+module_path: "approaches/benchmark_approaches_src/GritLM"
+class_name: GritLMEmbedder
+
+embedding_model: ~
+table_row_limit: 100
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+  more_similar_than: {}
+  column_similarity_search:
+    run_similarity_search_based_on: column_embeddings
+  cell_task: {}
+  table_retrieval:
+    just_schema: true
+  predictive_ml:
+    run_task_based_on: row_embeddings
+  nl2column_mapping: {}
+  nl2cell2column_mapping: {}
+  column_type_annotation: {}

@@ -1,15 +1,14 @@
 import json
 import pandas as pd
 from pathlib import Path
-from hydra.utils import get_original_cwd
 
 from benchmark_src.dataset_creation.wikidata_hierarchies import hierarchy_utils, wikidata_utils, create_testcases_more_similar_than
 
 ### TODO: clean up dataset creation for the whole books hierarchy and books table (and fully integrate in pipeline if cached files are not yet found!)
 
-
-SAVE_DIR = Path(get_original_cwd()) / Path("cache/dataset_creation_resources/wikidata_books/wikidata_genres/")
-RESOURCES_DIR = Path(get_original_cwd()) / Path("cache/dataset_creation_resources/resources")
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+SAVE_DIR = _PROJECT_ROOT / "cache/dataset_creation_resources/wikidata_books/wikidata_genres/"
+RESOURCES_DIR = _PROJECT_ROOT / "cache/dataset_creation_resources/resources"
 
 creation_random = 48573948
 

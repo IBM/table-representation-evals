@@ -1,0 +1,23 @@
+approach_name: sentence_transformer
+conda_env: benchmark_env
+module_path: "approaches/benchmark_approaches_src/sentence_transformer"
+class_name: SentenceTransformerEmbedder
+
+embedding_model: ~        # required — set in run config
+table_row_limit: 100      # -1 for no limit
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+  more_similar_than: {}
+  column_similarity_search:
+    run_similarity_search_based_on: column_embeddings
+  column_type_annotation: {}
+  cell_task: {}
+  table_retrieval: {}
+  predictive_ml:
+    run_task_based_on: row_embeddings
+  clustering: {}
+  table_shuffling: {}
+  nl2column_mapping: {}
+  nl2cell2column_mapping: {}

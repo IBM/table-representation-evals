@@ -1,0 +1,23 @@
+approach_name: tabicl
+conda_env: benchmark_env_tabicl
+module_path: "approaches/benchmark_approaches_src/tabicl"
+class_name: TabICLEmbedder
+
+n_estimators: 32
+use_memory_efficient_model: false
+device: "auto"
+checkpoint_version: "tabicl-classifier-v2-20260212.ckpt"
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+  more_similar_than: {}
+  column_similarity_search:
+    run_similarity_search_based_on: column_embeddings
+  cell_task: {}
+  predictive_ml:
+    run_task_based_on: row_embeddings  # default; override to custom_predictiveML_model in pred run
+  column_type_annotation: {}
+  # nl2* tasks excluded: TabICL's col_embedder operates on float tensors after coercing all
+  # text to 0, so column/cell embeddings carry no text semantics and are not comparable to
+  # natural language queries.

@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import List
-from hydra.utils import get_original_cwd
 import os
 import requests
 import tarfile
@@ -312,7 +311,7 @@ def save_relational_tables_as_csv(data_path: Path, verbose: bool = False):
 def create_s2abel_dataset(cfg, needs_download: bool = True):
     dataset_name = cfg.dataset_name.split("@")[0]
     variaton_name = cfg.dataset_name.split("@")[1] if "@" in cfg.dataset_name else None
-    cache_path_download = Path(get_original_cwd()) / Path(cfg.cache_dir) / "cell_level_data" / dataset_name
+    cache_path_download = Path(cfg.cache_dir) / "cell_level_data" / dataset_name
     if variaton_name is not None:
         cache_path_dataset = cache_path_download / variaton_name
     else:

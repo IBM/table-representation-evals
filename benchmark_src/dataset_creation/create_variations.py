@@ -79,7 +79,7 @@ def create_dataset_variations(variation_parameters: dict, dataset_df: pd.DataFra
             raise NotImplementedError(f"Variation parameter {param} not implemented.")
 
     # load dataset specific config
-    dataset_config_path = Path("./benchmark_src/config/dataset") / f"{dataset_name}.yaml"
+    dataset_config_path = Path(__file__).resolve().parent.parent.parent / "configs" / "dataset" / f"{dataset_name}.yaml"
     if not dataset_config_path.exists():
         print(f"Could not find dataset config path: {dataset_config_path}")
     try:

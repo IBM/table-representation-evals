@@ -1,0 +1,4318 @@
+[
+  {
+    "db_id": "airline",
+    "question": "Among the flights on 2018/8/1, how many of them departed from an airport in New York?",
+    "evidence": "on 2018/8/1 refers to FL_DATE = '2018/8/1'; departed from an airport in New York refers to ORIGIN = 'JFK';",
+    "SQL": "SELECT COUNT(*) FROM Airlines WHERE FL_DATE = '2018/8/1' AND ORIGIN = 'JFK'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Airlines",
+        "column": "ORIGIN"
+      }
+    ],
+    "matched_values": [
+      "JFK"
+    ],
+    "extracted_values_from_NL": [
+      "departed from an airport in New York"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "What is the scheduled local departure time and the actual departure time of the flight from Philadelphia to Harrisburg with the plane's tail number N627AE on the 13th of August 2018?",
+    "evidence": "scheduled local departure time refers to CRS_DEP_TIME; actual departure time refers to DEP_TIME; from Philadelphia refers to ORIGIN = 'PHL'; to Harrisburg refers to DEST = 'MDT'; tail number refers to TAIL_NUM; TAIL_NUM = 'N627AE'; on the 13th of August 2018 refers to FL_DATE = '2018/8/13';",
+    "SQL": "SELECT CRS_DEP_TIME, DEP_TIME FROM Airlines WHERE ORIGIN = 'PHL' AND DEST = 'MDT' AND TAIL_NUM = 'N627AE' AND FL_DATE = '2018/8/13'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Airlines",
+        "column": "ORIGIN"
+      }
+    ],
+    "matched_values": [
+      "PHL"
+    ],
+    "extracted_values_from_NL": [
+      "from Philadelphia"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "How many flights on the 1st of August 2018 were coming from Allentown, Pennsylvania?",
+    "evidence": "1st of August 2018 refers to FL_DATE = '2018/8/1'; coming from Allentown, Pennsylvania refers to ORIGIN = 'ABE';",
+    "SQL": "SELECT COUNT(*) FROM Airlines WHERE FL_DATE = '2018/8/1' AND ORIGIN = 'ABE'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Airlines",
+        "column": "ORIGIN"
+      }
+    ],
+    "matched_values": [
+      "ABE"
+    ],
+    "extracted_values_from_NL": [
+      "coming from Allentown, Pennsylvania"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "What is the only flight destination for flights from Albany?",
+    "evidence": "flight destination refers to DEST; from Albany refers to ORIGIN = 'ABY';",
+    "SQL": "SELECT DEST FROM Airlines WHERE ORIGIN = 'ABY' GROUP BY DEST",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Airlines",
+        "column": "ORIGIN"
+      }
+    ],
+    "matched_values": [
+      "ABY"
+    ],
+    "extracted_values_from_NL": [
+      "from Albany"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "How many flights from Dallas to Santa Ana departed on time?",
+    "evidence": "from Dallas refers to ORIGIN = 'DFW'; to Santa Ana refers to DEST = 'SNA'; departed on time refers to DEP_DELAY = 0;",
+    "SQL": "SELECT COUNT(*) FROM Airlines WHERE DEST = 'SNA' AND ORIGIN = 'DFW' AND DEP_DELAY = 0",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Airlines",
+        "column": "ORIGIN"
+      }
+    ],
+    "matched_values": [
+      "DFW"
+    ],
+    "extracted_values_from_NL": [
+      "from Dallas"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "Which flight carrier operator flies from Atlantic City to Fort Lauderdale?",
+    "evidence": "flight carrier operator refers to OP_CARRIER_AIRLINE_ID; from Atlantic City refers to ORIGIN = 'ACY'; to Fort Lauderdale refers to DEST = 'FLL';",
+    "SQL": "SELECT T2.Description FROM Airlines AS T1 INNER JOIN `Air Carriers` AS T2 ON T1.OP_CARRIER_AIRLINE_ID = T2.Code WHERE T1.ORIGIN = 'ACY' AND T1.DEST = 'FLL' GROUP BY T2.Description",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Airlines",
+        "column": "ORIGIN"
+      }
+    ],
+    "matched_values": [
+      "ACY"
+    ],
+    "extracted_values_from_NL": [
+      "from Atlantic City"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "Provide the air carrier description of the flight with a tail number N922US from Phoenix.",
+    "evidence": "tail number refers to TAIL_NUM; TAIL_NUM = 'N922US'; from Phoenix refers to ORIGIN = 'PHX';",
+    "SQL": "SELECT T2.Description FROM Airlines AS T1 INNER JOIN `Air Carriers` AS T2 ON T2.Code = T1.OP_CARRIER_AIRLINE_ID WHERE T1.TAIL_NUM = 'N922US' AND T1.ORIGIN = 'PHX' GROUP BY T2.Description",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Airlines",
+        "column": "ORIGIN"
+      }
+    ],
+    "matched_values": [
+      "PHX"
+    ],
+    "extracted_values_from_NL": [
+      "from Phoenix"
+    ]
+  },
+  {
+    "db_id": "car_retails",
+    "question": "Who are the sales representatives in New York City? List their full names.",
+    "evidence": "New York City refers to city = 'NYC'; sales representative refers to jobTitle = 'Sales Rep';",
+    "SQL": "SELECT t1.lastName, t1.firstName FROM employees AS t1 INNER JOIN offices AS t2 ON t1.officeCode = t2.officeCode WHERE t2.city = 'NYC' AND t1.jobTitle = 'Sales Rep'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "employees"
+    ],
+    "gold_columns": [
+      {
+        "table": "offices",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "NYC"
+    ],
+    "extracted_values_from_NL": [
+      "New York City"
+    ]
+  },
+  {
+    "db_id": "cars",
+    "question": "How many American cars have an acceleration time of less than 12 seconds?",
+    "evidence": "American car refers to country = 'USA'; an acceleration time of less than 12 seconds refers to acceleration < 12",
+    "SQL": "SELECT COUNT(*) FROM data AS T1 INNER JOIN production AS T2 ON T1.ID = T2.ID INNER JOIN country AS T3 ON T3.origin = T2.country WHERE T3.country = 'USA' AND T1.acceleration < 12",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "country",
+        "column": "country"
+      }
+    ],
+    "matched_values": [
+      "USA"
+    ],
+    "extracted_values_from_NL": [
+      "American car"
+    ]
+  },
+  {
+    "db_id": "cars",
+    "question": "Calculate the percentage of American cars among all cars.",
+    "evidence": "American car refers to country = 'USA'; percentage = divide(count(ID where country = 'USA'), count(ID)) * 100%",
+    "SQL": "SELECT CAST(SUM(CASE WHEN T3.country = 'USA' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*) FROM data AS T1 INNER JOIN production AS T2 ON T1.ID = T2.ID INNER JOIN country AS T3 ON T3.origin = T2.country",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "country",
+        "column": "country"
+      }
+    ],
+    "matched_values": [
+      "USA"
+    ],
+    "extracted_values_from_NL": [
+      "American car"
+    ]
+  },
+  {
+    "db_id": "cs_semester",
+    "question": "State the name of research postgraduate student among Professor Zhihua Zhou's research assistants.",
+    "evidence": "research postgraduate student refers to type = 'RPG'; research assistant refers to the student who serves for research where the abbreviation is RA;",
+    "SQL": "SELECT T3.f_name, T3.l_name FROM prof AS T1 INNER JOIN RA AS T2 ON T1.prof_id = T2.prof_id INNER JOIN student AS T3 ON T2.student_id = T3.student_id WHERE T1.first_name = 'Zhihua' AND T3.type = 'RPG' AND T1.last_name = 'Zhou'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "prof"
+    ],
+    "gold_columns": [
+      {
+        "table": "student",
+        "column": "type"
+      }
+    ],
+    "matched_values": [
+      "RPG"
+    ],
+    "extracted_values_from_NL": [
+      "research postgraduate student"
+    ]
+  },
+  {
+    "db_id": "cs_semester",
+    "question": "What is the percentage of Professor Ogdon Zywicki's research assistants are taught postgraduate students?",
+    "evidence": "research assistant refers to the student who serves for research where the abbreviation is RA; taught postgraduate student refers to type = 'TPG'; DIVIDE(COUNT(student_id where type = 'TPG' and first_name = 'Ogdon', last_name = 'Zywicki'), COUNT(first_name = 'Ogdon', last_name = 'Zywicki')) as percentage;",
+    "SQL": "SELECT CAST(SUM(CASE WHEN T3.type = 'TPG' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(T1.student_id) FROM RA AS T1 INNER JOIN prof AS T2 ON T1.prof_id = T2.prof_id INNER JOIN student AS T3 ON T1.student_id = T3.student_id WHERE T2.first_name = 'Ogdon' AND T2.last_name = 'Zywicki'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "ra"
+    ],
+    "gold_columns": [
+      {
+        "table": "student",
+        "column": "type"
+      }
+    ],
+    "matched_values": [
+      "TPG"
+    ],
+    "extracted_values_from_NL": [
+      "taught postgraduate student"
+    ]
+  },
+  {
+    "db_id": "cs_semester",
+    "question": "Provide the registered courses' names by undergraduate students with GPA of 3.7 and above.",
+    "evidence": "Undergraduate students refers to type = 'UG'; GPA of 3.7 and above refers to gpa > 3.7;",
+    "SQL": "SELECT DISTINCT T1.f_name FROM student AS T1 INNER JOIN registration AS T2 ON T1.student_id = T2.student_id INNER JOIN course AS T3 ON T2.course_id = T3.course_id WHERE T1.type = 'UG' AND T1.gpa > 3.7",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "student"
+    ],
+    "gold_columns": [
+      {
+        "table": "student",
+        "column": "type"
+      }
+    ],
+    "matched_values": [
+      "UG"
+    ],
+    "extracted_values_from_NL": [
+      "Undergraduate students"
+    ]
+  },
+  {
+    "db_id": "cs_semester",
+    "question": "Among undergraduate students, list the name of the course with the highest student satisfaction.",
+    "evidence": "Undergraduate students refers to type = 'UG'; satisfaction refers to sat; highest satisfaction refers to MAX(sat);",
+    "SQL": "SELECT T3.name FROM student AS T1 INNER JOIN registration AS T2 ON T1.student_id = T2.student_id INNER JOIN course AS T3 ON T2.course_id = T3.course_id WHERE T1.type = 'UG' ORDER BY T2.sat DESC LIMIT 1",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "student"
+    ],
+    "gold_columns": [
+      {
+        "table": "student",
+        "column": "type"
+      }
+    ],
+    "matched_values": [
+      "UG"
+    ],
+    "extracted_values_from_NL": [
+      "Undergraduate students"
+    ]
+  },
+  {
+    "db_id": "cs_semester",
+    "question": "List the capability of research postgraduate students with an intellegence level of 4 and above.",
+    "evidence": "research postgraduate students refers to type = 'RPG'; intelligence level of 4 and above refers to intelligence > = 4;",
+    "SQL": "SELECT T1.capability FROM RA AS T1 INNER JOIN student AS T2 ON T1.student_id = T2.student_id WHERE T2.type = 'RPG' AND T2.intelligence >= 4",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "ra"
+    ],
+    "gold_columns": [
+      {
+        "table": "student",
+        "column": "type"
+      }
+    ],
+    "matched_values": [
+      "RPG"
+    ],
+    "extracted_values_from_NL": [
+      "research postgraduate students"
+    ]
+  },
+  {
+    "db_id": "cs_semester",
+    "question": "Among research postgraduate students, give the name of the course with the student satisfaction value of 1.",
+    "evidence": "research postgraduate students refers to type = 'RPG'; name of the course refers to name; satisfaction refers to sat; sat = 1;",
+    "SQL": "SELECT T3.name FROM student AS T1 INNER JOIN registration AS T2 ON T1.student_id = T2.student_id INNER JOIN course AS T3 ON T2.course_id = T3.course_id WHERE T2.sat = 1 AND T1.type = 'RPG'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "student"
+    ],
+    "gold_columns": [
+      {
+        "table": "student",
+        "column": "type"
+      }
+    ],
+    "matched_values": [
+      "RPG"
+    ],
+    "extracted_values_from_NL": [
+      "research postgraduate students"
+    ]
+  },
+  {
+    "db_id": "legislator",
+    "question": "Give the official full names of legislators representing Virginia.",
+    "evidence": "Virginia refers to state = 'VA'",
+    "SQL": "SELECT T1.official_full_name FROM current AS T1 INNER JOIN `current-terms` AS T2 ON T1.bioguide_id = T2.bioguide WHERE T2.state = 'VA' GROUP BY T1.official_full_name",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "current-terms",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "VA"
+    ],
+    "extracted_values_from_NL": [
+      "Virginia"
+    ]
+  },
+  {
+    "db_id": "legislator",
+    "question": "List down the open secrets and thomas ID of the democrat senators of New Jersey.",
+    "evidence": "open secrets refers to opensecrets_id; democrat refers to party = democrat; senators refers to type = 'sen'; New Jersey refers to state = 'NJ';",
+    "SQL": "SELECT T1.opensecrets_id, T1.thomas_id FROM current AS T1 INNER JOIN `current-terms` AS T2 ON T1.bioguide_id = T2.bioguide WHERE T2.type = 'sen' AND T2.state = 'NJ' GROUP BY T1.opensecrets_id, T1.thomas_id",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "current-terms",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "NJ"
+    ],
+    "extracted_values_from_NL": [
+      "New Jersey"
+    ]
+  },
+  {
+    "db_id": "legislator",
+    "question": "Provide the google entity ID of the senators in New York.",
+    "evidence": "google entity ID refers to google_entity_id_id; senators refers to type = 'sen'; New York refers to state = 'NY';",
+    "SQL": "SELECT T1.google_entity_id_id FROM historical AS T1 INNER JOIN `historical-terms` AS T2 ON T1.bioguide_id = T2.bioguide WHERE T2.type = 'sen' AND T2.state = 'NY'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "historical"
+    ],
+    "gold_columns": [
+      {
+        "table": "current-terms",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "NY"
+    ],
+    "extracted_values_from_NL": [
+      "New York"
+    ]
+  },
+  {
+    "db_id": "legislator",
+    "question": "What is the total number of senators New Jersey have?",
+    "evidence": "senators refers to type = 'rep'; New Jersey refers to state = 'NJ';",
+    "SQL": "SELECT COUNT(type) FROM `historical-terms` WHERE state = 'NJ' AND type = 'rep'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "`historical-terms`"
+    ],
+    "gold_columns": [
+      {
+        "table": "current-terms",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "NJ"
+    ],
+    "extracted_values_from_NL": [
+      "New Jersey"
+    ]
+  },
+  {
+    "db_id": "legislator",
+    "question": "List down the MapLight ID of the representatives in Maine.",
+    "evidence": "representatives refers to type = 'rep'; Maine refers to state = 'ME';",
+    "SQL": "SELECT T1.maplight_id FROM historical AS T1 INNER JOIN `historical-terms` AS T2 ON T1.bioguide_id = T2.bioguide WHERE T2.type = 'rep' AND T2.state = 'ME' GROUP BY T1.maplight_id",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "historical"
+    ],
+    "gold_columns": [
+      {
+        "table": "current-terms",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "ME"
+    ],
+    "extracted_values_from_NL": [
+      "Maine"
+    ]
+  },
+  {
+    "db_id": "legislator",
+    "question": "Among the female legislators, what is the percentage of the senators in Maine?",
+    "evidence": "female refers to gender_bio = 'F'; percentage = MULTIPLY(DIVIDE(SUM(type = 'sen'), COUNT(type)), 100.0); senators refers to type = 'sen'; Maine refers to state = 'ME';",
+    "SQL": "SELECT CAST(SUM(CASE WHEN T2.type = 'sen' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(T2.type) FROM current AS T1 INNER JOIN `current-terms` AS T2 ON T1.bioguide_id = T2.bioguide WHERE T2.state = 'ME' AND T1.gender_bio = 'F'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "current-terms",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "ME"
+    ],
+    "extracted_values_from_NL": [
+      "Maine"
+    ]
+  },
+  {
+    "db_id": "music_platform_2",
+    "question": "List the titles of the art category.",
+    "evidence": "art category refers to category = 'arts'",
+    "SQL": "SELECT DISTINCT T2.title FROM categories AS T1 INNER JOIN reviews AS T2 ON T2.podcast_id = T1.podcast_id WHERE T1.category = 'arts'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "categories"
+    ],
+    "gold_columns": [
+      {
+        "table": "categories",
+        "column": "category"
+      }
+    ],
+    "matched_values": [
+      "arts"
+    ],
+    "extracted_values_from_NL": [
+      "art category"
+    ]
+  },
+  {
+    "db_id": "music_platform_2",
+    "question": "What is the average rating of all the podcasts in category art?",
+    "evidence": "category art refers to category = 'arts'; average rating = Divide (Sum (rating), Count (podcast_id))",
+    "SQL": "SELECT AVG(T2.rating) FROM categories AS T1 INNER JOIN reviews AS T2 ON T2.podcast_id = T1.podcast_id WHERE T1.category = 'arts'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "categories"
+    ],
+    "gold_columns": [
+      {
+        "table": "categories",
+        "column": "category"
+      }
+    ],
+    "matched_values": [
+      "arts"
+    ],
+    "extracted_values_from_NL": [
+      "category art"
+    ]
+  },
+  {
+    "db_id": "music_platform_2",
+    "question": "Provide the names of podcasts in the art category in 2018.",
+    "evidence": "art category refers to category = 'arts'; in 2018 refers to created_at like '2018%'; name of podcast refers to title",
+    "SQL": "SELECT DISTINCT T2.title FROM categories AS T1 INNER JOIN reviews AS T2 ON T2.podcast_id = T1.podcast_id WHERE T1.category = 'arts' AND T2.created_at LIKE '2018-%'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "categories"
+    ],
+    "gold_columns": [
+      {
+        "table": "categories",
+        "column": "category"
+      }
+    ],
+    "matched_values": [
+      "arts"
+    ],
+    "extracted_values_from_NL": [
+      "art category"
+    ]
+  },
+  {
+    "db_id": "professional_basketball",
+    "question": "Name the teams along with the coaches that went to 'Quarter Final' round in 1946.",
+    "evidence": "team name refers to teams.name; coach refers to coachID; 'Quarter Final' round refers to round = 'QF'; in 1946 refers to year = 1946",
+    "SQL": "SELECT DISTINCT T1.coachID, T3.name FROM coaches AS T1 JOIN series_post AS T2 ON T1.tmID = T2.tmIDWinner JOIN teams AS T3 ON T3.tmID = T1.tmID WHERE T2.round = 'QF' AND T2.year = 1946",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "coaches",
+      "series_post",
+      "teams"
+    ],
+    "gold_columns": [
+      {
+        "table": "series_post",
+        "column": "round"
+      }
+    ],
+    "matched_values": [
+      "QF"
+    ],
+    "extracted_values_from_NL": [
+      "Quarter Final' round"
+    ]
+  },
+  {
+    "db_id": "professional_basketball",
+    "question": "Which winning team in the 1947 playoff quarterfinals managed to score 3,513 defensive points that same year?",
+    "evidence": "team refers to tmID; quarterfinal refers to round = 'QF'; score 3,513 defensive points refers to d_pts > = 3513",
+    "SQL": "SELECT T2.tmID FROM series_post AS T1 INNER JOIN teams AS T2 ON T1.tmIDWinner = T2.tmID WHERE T1.year = 1947 AND T1.round = 'QF' AND T2.d_pts = 3513",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "series_post"
+    ],
+    "gold_columns": [
+      {
+        "table": "series_post",
+        "column": "round"
+      }
+    ],
+    "matched_values": [
+      "QF"
+    ],
+    "extracted_values_from_NL": [
+      "quarterfinal"
+    ]
+  },
+  {
+    "db_id": "public_review_platform",
+    "question": "Among the Yelp_Businesses in Arizona, how many of them are still running?",
+    "evidence": "Arizona refers to state = 'AZ'; still running refers to active = 'true';",
+    "SQL": "SELECT COUNT(business_id) FROM Business WHERE state LIKE 'AZ' AND active LIKE 'True'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "business"
+    ],
+    "gold_columns": [
+      {
+        "table": "Business",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "AZ"
+    ],
+    "extracted_values_from_NL": [
+      "Arizona"
+    ]
+  },
+  {
+    "db_id": "public_review_platform",
+    "question": "How many Yelp_Businesses in Arizona have a Elitestar rating of over 4?",
+    "evidence": "Arizona refers to state = 'AZ'; Elitestar rating of over 4 refers to stars > 4;",
+    "SQL": "SELECT COUNT(business_id) FROM Business WHERE state LIKE 'AZ' AND stars > 4",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "business"
+    ],
+    "gold_columns": [
+      {
+        "table": "Business",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "AZ"
+    ],
+    "extracted_values_from_NL": [
+      "Arizona"
+    ]
+  },
+  {
+    "db_id": "public_review_platform",
+    "question": "How many Yelp_Business in Arizona has user no. 3 reviewed?",
+    "evidence": "in Arizona refers to state = 'AZ'; user no. 3 refers to user_id = 3",
+    "SQL": "SELECT COUNT(T2.business_id) FROM Reviews AS T1 INNER JOIN Business AS T2 ON T1.business_id = T2.business_id WHERE T2.state LIKE 'AZ' AND T1.user_id = 3",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "reviews"
+    ],
+    "gold_columns": [
+      {
+        "table": "Business",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "AZ"
+    ],
+    "extracted_values_from_NL": [
+      "in Arizona"
+    ]
+  },
+  {
+    "db_id": "public_review_platform",
+    "question": "Please list all the categories of the Yelp_Business in Arizona.",
+    "evidence": "categories refers to category_name; in Arizona refers to state = 'AZ'",
+    "SQL": "SELECT T1.category_name FROM Categories AS T1 INNER JOIN Business_Categories AS T2 ON T1.category_id = T2.category_id INNER JOIN Business AS T3 ON T2.business_id = T3.business_id WHERE T3.state LIKE 'AZ' GROUP BY T1.category_name",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "categories"
+    ],
+    "gold_columns": [
+      {
+        "table": "Business",
+        "column": "state"
+      }
+    ],
+    "matched_values": [
+      "AZ"
+    ],
+    "extracted_values_from_NL": [
+      "in Arizona"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "In reviews for the Eagle National Bank product, how many of the 5 star reviews where from Nashville, Tennessee?",
+    "evidence": "5 star refers to Stars = 5; Nashville refers to city = 'Nashville'; Tennessee refers to state_abbrev = 'TN'",
+    "SQL": "SELECT COUNT(T2.Stars) FROM district AS T1 INNER JOIN reviews AS T2 ON T1.district_id = T2.district_id WHERE T1.city = 'Nashville' AND T1.state_abbrev = 'TN' AND T2.Product = 'Eagle National Mortgage' AND T2.Stars = 5",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "district"
+    ],
+    "gold_columns": [
+      {
+        "table": "district",
+        "column": "state_abbrev"
+      }
+    ],
+    "matched_values": [
+      "TN"
+    ],
+    "extracted_values_from_NL": [
+      "Tennessee"
+    ]
+  },
+  {
+    "db_id": "retail_world",
+    "question": "How many suppliers are there in the United States of America?",
+    "evidence": "United States of America refers to Country = 'USA'",
+    "SQL": "SELECT COUNT(SupplierID) FROM Suppliers WHERE Country = 'USA'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "suppliers"
+    ],
+    "gold_columns": [
+      {
+        "table": "Customers",
+        "column": "Country"
+      }
+    ],
+    "matched_values": [
+      "USA"
+    ],
+    "extracted_values_from_NL": [
+      "United States of America"
+    ]
+  },
+  {
+    "db_id": "retail_world",
+    "question": "What is the average salary of sales representatives in the United Kingdom?",
+    "evidence": "average salary = avg(Salary); sales representative refers to Title = 'Sales Representative'; in the United Kingdom refers to Country = 'UK'",
+    "SQL": "SELECT AVG(Salary) FROM Employees WHERE Title = 'Sales Representative' AND Country = 'UK'",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "employees"
+    ],
+    "gold_columns": [
+      {
+        "table": "Customers",
+        "column": "Country"
+      }
+    ],
+    "matched_values": [
+      "UK"
+    ],
+    "extracted_values_from_NL": [
+      "in the United Kingdom"
+    ]
+  },
+  {
+    "db_id": "retail_world",
+    "question": "Which of the American customers have experienced a delay in the shipment and how long was the longest?",
+    "evidence": "\"American\" refers to Country = 'USA'; longest delay in shipment refers to Max(Subtract(RequiredDate, ShippedDate)); customer refers to CustomerID",
+    "SQL": "SELECT T1.CompanyName, TIMESTAMPDIFF(DAY, T2.ShippedDate, T2.RequiredDate) FROM Customers AS T1 INNER JOIN Orders AS T2 ON T1.CustomerID = T2.CustomerID WHERE T1.Country = 'USA' AND TIMESTAMPDIFF(DAY, T2.ShippedDate, T2.RequiredDate) < 0",
+    "fuzzy_type": "abbreviation",
+    "used_tables": [
+      "customers"
+    ],
+    "gold_columns": [
+      {
+        "table": "Customers",
+        "column": "Country"
+      }
+    ],
+    "matched_values": [
+      "USA"
+    ],
+    "extracted_values_from_NL": [
+      "American"
+    ]
+  },
+  {
+    "db_id": "coinmarketcap",
+    "question": "Which crytocurrency was ranked the first by CoinMarketCap on 2013/4/28?",
+    "evidence": "ranked the first refers to cmc_rank = 1; on 2013/4/28 refers to date = '2013-04-28'",
+    "SQL": "SELECT T1.name FROM coins AS T1 INNER JOIN historical AS T2 ON T1.id = T2.coin_id WHERE T2.date = '2013-04-28' AND T2.cmc_rank = 1",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "coins"
+    ],
+    "gold_columns": [
+      {
+        "table": "Historical",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "2013-04-28"
+    ],
+    "extracted_values_from_NL": [
+      "on 2013/4/28"
+    ]
+  },
+  {
+    "db_id": "coinmarketcap",
+    "question": "How much dollars was a Bitcoin worth on 2013/4/28 according to the coin market?",
+    "evidence": "worth refers to price; on 2013/4/28 refers to date = '2013-04-28'",
+    "SQL": "SELECT T2.market_cap FROM coins AS T1 INNER JOIN historical AS T2 ON T1.id = T2.coin_id WHERE T2.date = '2013-04-28' AND T1.name = 'Bitcoin'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "coins"
+    ],
+    "gold_columns": [
+      {
+        "table": "Historical",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "2013-04-28"
+    ],
+    "extracted_values_from_NL": [
+      "on 2013/4/28"
+    ]
+  },
+  {
+    "db_id": "coinmarketcap",
+    "question": "Which crytocurrency was not opened on 2013/5/3?",
+    "evidence": "not opened refers to open IS NULL; on 2013/5/3 refers to date = '2013-05-03'",
+    "SQL": "SELECT T1.name FROM coins AS T1 INNER JOIN historical AS T2 ON T1.id = T2.coin_id WHERE T2.date = '2013-05-03' AND T2.open IS NULL",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "coins"
+    ],
+    "gold_columns": [
+      {
+        "table": "Historical",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "2013-05-03"
+    ],
+    "extracted_values_from_NL": [
+      "on 2013/5/3"
+    ]
+  },
+  {
+    "db_id": "european_football_1",
+    "question": "What is the name of the division in which Club Brugge and Genk competed on September 13, 2009?",
+    "evidence": "September 13, 2009 refers to Date = '2009-09-13'; Club Brugge refers to HomeTeam; Genk refers to AwayTeam;",
+    "SQL": "SELECT T2.name FROM matchs AS T1 INNER JOIN divisions AS T2 ON T1.Div = T2.division WHERE T1.Date = '2009-09-13' and T1.HomeTeam = 'Club Brugge' AND T1.AwayTeam = 'Genk'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "matchs"
+    ],
+    "gold_columns": [
+      {
+        "table": "matchs",
+        "column": "Date"
+      }
+    ],
+    "matched_values": [
+      "2009-09-13"
+    ],
+    "extracted_values_from_NL": [
+      "September 13, 2009"
+    ]
+  },
+  {
+    "db_id": "food_inspection",
+    "question": "How many low risk violations were found in the inspection on 2014/1/14 for Tiramisu Kitchen?",
+    "evidence": "Tiramisu Kitchen is the name of the business; inspection on 2014/1/14 refers to date = '2014-01-14'; low risk violations refer to risk_category = 'Low Risk';",
+    "SQL": "SELECT COUNT(T1.business_id) FROM violations AS T1 INNER JOIN businesses AS T2 ON T1.business_id = T2.business_id WHERE T1.`date` = '2014-01-14' AND T2.name = 'Tiramisu Kitchen' AND T1.risk_category = 'Low Risk'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "violations"
+    ],
+    "gold_columns": [
+      {
+        "table": "inspections",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "2014-01-14"
+    ],
+    "extracted_values_from_NL": [
+      "inspection on 2014/1/14"
+    ]
+  },
+  {
+    "db_id": "food_inspection",
+    "question": "What is the description of the low risk violation of Tiramisu Kitchen on 2014/1/14?",
+    "evidence": "Tiramisu Kitchen is the name of the business; 2014/1/14 refers to date = '2014-01-14'; low risk violations refer to risk_category = 'Low Risk';",
+    "SQL": "SELECT T1.description FROM violations AS T1 INNER JOIN businesses AS T2 ON T1.business_id = T2.business_id WHERE T1.`date` = '2014-01-14' AND T2.name = 'Tiramisu Kitchen' AND T1.risk_category = 'Low Risk'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "violations"
+    ],
+    "gold_columns": [
+      {
+        "table": "inspections",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "2014-01-14"
+    ],
+    "extracted_values_from_NL": [
+      "2014/1/14"
+    ]
+  },
+  {
+    "db_id": "food_inspection",
+    "question": "Among violations on 3rd June, 2014, describe any 5 names, located cities and tax codes of the eateries with high risk category.",
+    "evidence": "eateries with high risk category refer to business_id where risk_category = 'High Risk'; 3rd June, 2014 refers to date = '2014-06-03';",
+    "SQL": "SELECT DISTINCT T2.name, T2.city, T2.tax_code FROM violations AS T1 INNER JOIN businesses AS T2 ON T1.business_id = T2.business_id WHERE T1.risk_category = 'High Risk' AND T1.`date` = '2014-06-03' LIMIT 5",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "violations"
+    ],
+    "gold_columns": [
+      {
+        "table": "inspections",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "2014-06-03"
+    ],
+    "extracted_values_from_NL": [
+      "3rd June, 2014"
+    ]
+  },
+  {
+    "db_id": "legislator",
+    "question": "For which state did current legislator Sherrod Brown serve during his term that started on 1993/1/5?",
+    "evidence": "Sherrod Brown is an full official name; started on 1993/1/5 refers to start = '1993-01-05';",
+    "SQL": "SELECT T1.state FROM `current-terms` AS T1 INNER JOIN current AS T2 ON T2.bioguide_id = T1.bioguide WHERE T1.start = '1993-01-05' AND T2.official_full_name = 'Sherrod Brown'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "`current-terms`"
+    ],
+    "gold_columns": [
+      {
+        "table": "current-terms",
+        "column": "start"
+      }
+    ],
+    "matched_values": [
+      "1993-01-05"
+    ],
+    "extracted_values_from_NL": [
+      "started on 1993/1/5"
+    ]
+  },
+  {
+    "db_id": "legislator",
+    "question": "Please list the full official names of all the current legislators who served the term that started on 2013/1/3.",
+    "evidence": "term that started on 2013/1/3 refers to start = '2013-01-03';",
+    "SQL": "SELECT T1.official_full_name FROM current AS T1 INNER JOIN `current-terms` AS T2 ON T1.bioguide_id = T2.bioguide WHERE T2.start = '2013-01-03'",
+    "fuzzy_type": "date_format",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "current-terms",
+        "column": "start"
+      }
+    ],
+    "matched_values": [
+      "2013-01-03"
+    ],
+    "extracted_values_from_NL": [
+      "term that started on 2013/1/3"
+    ]
+  },
+  {
+    "db_id": "menu",
+    "question": "How many pages were there on the menu created on 17th November 1898?",
+    "evidence": "created on 17th November 1898 refers to date = '1898-11-17';",
+    "SQL": "SELECT SUM(CASE WHEN T1.date = '1898-11-17' THEN 1 ELSE 0 END) FROM Menu AS T1 INNER JOIN MenuPage AS T2 ON T1.id = T2.menu_id",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "menu"
+    ],
+    "gold_columns": [
+      {
+        "table": "Menu",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "1898-11-17"
+    ],
+    "extracted_values_from_NL": [
+      "created on 17th November 1898"
+    ]
+  },
+  {
+    "db_id": "movie",
+    "question": "Who played the No.1 character in the credit list of the movie which was released on \"2015/10/26\"?",
+    "evidence": "No.1 character refers to creditOrder = '1'; released on \"2015/10/26\" refers to Release Date = '2015-10-26'",
+    "SQL": "SELECT T3.Name FROM movie AS T1 INNER JOIN characters AS T2 ON T1.MovieID = T2.MovieID INNER JOIN actor AS T3 ON T3.ActorID = T2.ActorID WHERE T1.`Release Date` = '2015-10-26' AND T2.creditOrder = '1'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "movie"
+    ],
+    "gold_columns": [
+      {
+        "table": "movie",
+        "column": "Release Date"
+      }
+    ],
+    "matched_values": [
+      "2015-10-26"
+    ],
+    "extracted_values_from_NL": [
+      "released on \"2015/10/26"
+    ]
+  },
+  {
+    "db_id": "movie_platform",
+    "question": "Who gave a \"4\" rating to the movie \"Freaks\" at 2013/5/4 6:33:32? Give his/her user id.",
+    "evidence": "4 rating refers to rating_score = 4; the movie \"Freaks\" refers to movie_title = 'Freaks' ; at 2013/5/4 6:33:32 refers to rating_timestamp_utc = '2013-05-04 06:33:32'",
+    "SQL": "SELECT T1.user_id FROM ratings AS T1 INNER JOIN movies AS T2 ON T1.movie_id = T2.movie_id WHERE rating_score = 4 AND rating_timestamp_utc LIKE '2013-05-04 06:33:32' AND T2.movie_title LIKE 'Freaks'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "ratings"
+    ],
+    "gold_columns": [
+      {
+        "table": "ratings",
+        "column": "rating_timestamp_utc"
+      }
+    ],
+    "matched_values": [
+      "2013-05-04 06:33:32"
+    ],
+    "extracted_values_from_NL": [
+      "at 2013/5/4 6:33:32"
+    ]
+  },
+  {
+    "db_id": "movie_platform",
+    "question": "Give the url of movie which was rated 5 on 2013/5/3 5:11:17.",
+    "evidence": "rated 5 refers to rating_score = 5; on 2013/5/3 5:11:17 refers to rating_timestamp_utc = '2013-05-03 05:11:17'",
+    "SQL": "SELECT T2.movie_url FROM ratings AS T1 INNER JOIN movies AS T2 ON T1.movie_id = T2.movie_id WHERE rating_score = 5 AND rating_timestamp_utc LIKE '2013-05-03 05:11:17'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "ratings"
+    ],
+    "gold_columns": [
+      {
+        "table": "ratings",
+        "column": "rating_timestamp_utc"
+      }
+    ],
+    "matched_values": [
+      "2013-05-03 05:11:17"
+    ],
+    "extracted_values_from_NL": [
+      "on 2013/5/3 5:11:17"
+    ]
+  },
+  {
+    "db_id": "movie_platform",
+    "question": "What is the average number of followers of the lists created by the user who rated the movie \"Pavee Lackeen: The Traveller Girl\" on 3/27/2011 at 2:06:34 AM?",
+    "evidence": "average number of followers refers to AVG(list_followers); movie \"Pavee Lackeen: The Traveller Girl\" refers to movie_title = 'Pavee Lackeen: The Traveller Girl'; on 3/27/2011 at 2:06:34 AM refers to rating_timestamp_utc = '2011-03-27 02:06:34'",
+    "SQL": "SELECT CAST(SUM(T4.list_followers) AS REAL) / COUNT(T2.list_id) FROM ratings AS T1 INNER JOIN lists_users AS T2 ON T1.user_id = T2.user_id INNER JOIN movies AS T3 ON T1.movie_id = T3.movie_id INNER JOIN lists AS T4 ON T2.list_id = T4.list_id WHERE T3.movie_title LIKE 'Pavee Lackeen: The Traveller Girl' AND T1.rating_timestamp_utc LIKE '2011-03-27 02:06:34'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "ratings"
+    ],
+    "gold_columns": [
+      {
+        "table": "ratings",
+        "column": "rating_timestamp_utc"
+      }
+    ],
+    "matched_values": [
+      "2011-03-27 02:06:34"
+    ],
+    "extracted_values_from_NL": [
+      "on 3/27/2011 at 2:06:34 AM"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "Was the tag in the complaint filed by Matthew Pierce on 2016/10/28 approved by himself?",
+    "evidence": "on 2016/10/28 refers to Date received = '2016-10-28'; \"Consumer consent provided?\" in (null, 'N/A', 'Empty') means that the company didn't get the permission of consent; \"Consumer consent provided?\" not in (null, 'N/A', 'Empty') means that customers provide the consent for this tag;",
+    "SQL": "SELECT CASE WHEN T2.`Consumer consent provided?` IN (NULL, 'N/A', 'Empty') THEN 'No' ELSE 'Yes' END FROM client AS T1 INNER JOIN events AS T2 ON T1.client_id = T2.Client_ID WHERE T1.first = 'Matthew' AND T1.last = 'Pierce' AND T2.`Date received` = '2016-10-28'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "client"
+    ],
+    "gold_columns": [
+      {
+        "table": "callcenterlogs",
+        "column": "Date received"
+      }
+    ],
+    "matched_values": [
+      "2016-10-28"
+    ],
+    "extracted_values_from_NL": [
+      "on 2016/10/28"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "Did Ms. Lyric Emely Taylor provide the consent for result of the complaint call on 2016/5/20?",
+    "evidence": "Ms refers to sex = 'Female'; \"Consumer consent provided?\" in (null, 'N/A', 'Empty') means that the company didn't get the permission of consent; \"Consumer consent provided?\" not in (null, 'N/A', 'Empty') means the customers provide the consent; on 2016/5/20 refers to Date received = '2016-05-20';",
+    "SQL": "SELECT CASE WHEN T2.`Consumer consent provided?` IN (NULL, 'N/A', '') THEN 'No' ELSE 'Yes' END FROM client AS T1 INNER JOIN events AS T2 ON T1.client_id = T2.Client_ID WHERE T1.first = 'Lyric' AND T1.middle = 'Emely' AND T1.last = 'Taylor' AND T1.sex = 'Female' AND T2.`Date received` = '2016-05-20'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "client"
+    ],
+    "gold_columns": [
+      {
+        "table": "callcenterlogs",
+        "column": "Date received"
+      }
+    ],
+    "matched_values": [
+      "2016-05-20"
+    ],
+    "extracted_values_from_NL": [
+      "on 2016/5/20"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "What was the review context from Jacksonville on 2017/7/22?",
+    "evidence": "Jacksonville refers to city = 'Jacksonville'; on 2017/7/22 refers to Date = '2017-07-22';",
+    "SQL": "SELECT T1.Reviews FROM reviews AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T2.city = 'Jacksonville' AND T1.Date = '2017-07-22'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "reviews"
+    ],
+    "gold_columns": [
+      {
+        "table": "reviews",
+        "column": "Date"
+      }
+    ],
+    "matched_values": [
+      "2017-07-22"
+    ],
+    "extracted_values_from_NL": [
+      "on 2017/7/22"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "How many stars did \"Eagle Capital\" received from Little Rock on 2013/4/4?",
+    "evidence": "Eagle Capital refers to Product = 'Eagle Capital'; Little Rock is a city; on 2013/4/4 refers to Date = '2013-04-04';",
+    "SQL": "SELECT COUNT(T1.Stars) FROM reviews AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T1.Product = 'Eagle Capital' AND T2.city = 'Little Rock' AND T1.Date = '2013-04-04'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "reviews"
+    ],
+    "gold_columns": [
+      {
+        "table": "reviews",
+        "column": "Date"
+      }
+    ],
+    "matched_values": [
+      "2013-04-04"
+    ],
+    "extracted_values_from_NL": [
+      "on 2013/4/4"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "Who is the owner of the final phone number for the complaints on server \"MORIAH\" on 9/11/2013?",
+    "evidence": "owner refers to first, middle, last; on 9/11/2013 refers to Date received = '2013-09-11'",
+    "SQL": "SELECT T1.first, T1.middle, T1.last FROM client AS T1 INNER JOIN callcenterlogs AS T2 ON T1.client_id = T2.`rand client` WHERE T2.server = 'MORIAH' AND T2.`Date received` = '2013-09-11'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "client"
+    ],
+    "gold_columns": [
+      {
+        "table": "callcenterlogs",
+        "column": "Date received"
+      }
+    ],
+    "matched_values": [
+      "2013-09-11"
+    ],
+    "extracted_values_from_NL": [
+      "on 9/11/2013"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "List the product reviewed with 1 star on March 14, 2016 from Newton, Massachusetts.",
+    "evidence": "1 star refers to Stars = 1; on March 14, 2016 refers to Date = '2016-03-14'; Newton refers to city = 'Newton'; Massachusetts refers to state_abbrev = 'MA'",
+    "SQL": "SELECT T2.Product FROM district AS T1 INNER JOIN reviews AS T2 ON T1.district_id = T2.district_id WHERE T1.city = 'Newton' AND T1.state_abbrev = 'MA' AND T2.Date = '2016-03-14' AND T2.Stars = 1",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "district"
+    ],
+    "gold_columns": [
+      {
+        "table": "reviews",
+        "column": "Date"
+      }
+    ],
+    "matched_values": [
+      "2016-03-14"
+    ],
+    "extracted_values_from_NL": [
+      "on March 14, 2016"
+    ]
+  },
+  {
+    "db_id": "sales_in_weather",
+    "question": "How many units of item no.9 were sold in store no.1 on 2012/1/1?",
+    "evidence": "store no. 1 refers to store_nbr = 1; item no. 9 refers to item_nbr = 9; on 2012/1/1 refers to date = '2012-01-01'",
+    "SQL": "SELECT units FROM sales_in_weather WHERE `date` = '2012-01-01' AND store_nbr = 1 AND item_nbr = 9",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "sales_in_weather"
+    ],
+    "gold_columns": [
+      {
+        "table": "sales_in_weather",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "2012-01-01"
+    ],
+    "extracted_values_from_NL": [
+      "on 2012/1/1"
+    ]
+  },
+  {
+    "db_id": "sales_in_weather",
+    "question": "What was the temperature range of station no.1 on 2012/1/1?",
+    "evidence": "on 2012/1/1 refers to date = '2012-01-01'; temperature range refers to Subtract (tmax, tmin); station no.1 refers to station_nbr = 1",
+    "SQL": "SELECT tmax - tmin AS temrange FROM weather WHERE station_nbr = 1 AND `date` = '2012-01-01'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "weather"
+    ],
+    "gold_columns": [
+      {
+        "table": "sales_in_weather",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "2012-01-01"
+    ],
+    "extracted_values_from_NL": [
+      "on 2012/1/1"
+    ]
+  },
+  {
+    "db_id": "sales_in_weather",
+    "question": "On which day was the weather more windy in station no.1, 2012/1/1 or 2012/1/2?",
+    "evidence": "station no.1 refers to station_nbr = 1; 2012/1/1 refers to date = '2012-01-01'; 2012/1/2 refers to date = '2012-01-02'; more windy refers to Max(avgspeed)",
+    "SQL": "SELECT CASE WHEN (SUM(CASE WHEN `date` = '2012-01-01' THEN avgspeed ELSE 0 END) - SUM(CASE WHEN `date` = '2012-01-02' THEN avgspeed ELSE 0 END)) > 0 THEN '2012-01-01' ELSE '2012-01-02' END FROM weather WHERE station_nbr = 1",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "weather"
+    ],
+    "gold_columns": [
+      {
+        "table": "sales_in_weather",
+        "column": "date"
+      }
+    ],
+    "matched_values": [
+      "2012-01-01"
+    ],
+    "extracted_values_from_NL": [
+      "2012/1/1"
+    ]
+  },
+  {
+    "db_id": "synthea",
+    "question": "According to the observation on 2008/3/11, what was the height of Elly Koss?",
+    "evidence": "2008/3/11 refers to date = '2008-03-11'; height refers to DESCRIPTION = 'Body Height' from observations;",
+    "SQL": "SELECT T2.value, T2.units FROM patients AS T1 INNER JOIN observations AS T2 ON T1.patient = T2.PATIENT WHERE T1.first = 'Elly' AND T1.last = 'Koss' AND T2.date = '2008-03-11' AND T2.description = 'Body Height'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "patients"
+    ],
+    "gold_columns": [
+      {
+        "table": "encounters",
+        "column": "DATE"
+      }
+    ],
+    "matched_values": [
+      "2008-03-11"
+    ],
+    "extracted_values_from_NL": [
+      "2008/3/11"
+    ]
+  },
+  {
+    "db_id": "synthea",
+    "question": "Give the body height status of Mr. Vincent Wyman on 2010/8/2.",
+    "evidence": "body height status refers to DESCRIPTION = 'Body Height' from observations; on 2010/8/2 refers to DATE = '2010-08-02';",
+    "SQL": "SELECT T2.description, T2.VALUE, T2.units FROM patients AS T1 INNER JOIN observations AS T2 ON T1.patient = T2.PATIENT WHERE T1.prefix = 'Mr.' AND T1.first = 'Vincent' AND T1.last = 'Wyman' AND T2.date = '2010-08-02' AND T2.description = 'Body Height'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "patients"
+    ],
+    "gold_columns": [
+      {
+        "table": "encounters",
+        "column": "DATE"
+      }
+    ],
+    "matched_values": [
+      "2010-08-02"
+    ],
+    "extracted_values_from_NL": [
+      "on 2010/8/2"
+    ]
+  },
+  {
+    "db_id": "synthea",
+    "question": "Give the procedure description of Ms. Jacquelyn Shanahan on 2009/8/9.",
+    "evidence": "on 2009/8/9 refers to DATE = '2009-08-09';",
+    "SQL": "SELECT DISTINCT T2.description FROM patients AS T1 INNER JOIN procedures AS T2 ON T1.patient = T2.PATIENT WHERE T1.prefix = 'Ms.' AND T1.first = 'Jacquelyn' AND T1.last = 'Shanahan' AND T2.DATE = '2009-08-09'",
+    "fuzzy_type": "date_format",
+    "used_tables": [
+      "patients"
+    ],
+    "gold_columns": [
+      {
+        "table": "encounters",
+        "column": "DATE"
+      }
+    ],
+    "matched_values": [
+      "2009-08-09"
+    ],
+    "extracted_values_from_NL": [
+      "on 2009/8/9"
+    ]
+  },
+  {
+    "db_id": "address",
+    "question": "Among the area code 787, list the country of the cities with a postal point type of unique postal office.",
+    "evidence": "postal point type of unique postal office refers to type = 'Unique Post Office';",
+    "SQL": "SELECT DISTINCT T2.county FROM area_code AS T1 INNER JOIN country AS T2 ON T1.zip_code = T2.zip_code INNER JOIN zip_data AS T3 ON T1.zip_code = T3.zip_code WHERE T1.area_code = '787' AND T3.type = 'Unique Post Office'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "area_code"
+    ],
+    "gold_columns": [
+      {
+        "table": "zip_data",
+        "column": "type"
+      }
+    ],
+    "matched_values": [
+      "Unique Post Office"
+    ],
+    "extracted_values_from_NL": [
+      "postal point type of unique postal office"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "How many flights of Alaska Airlines were delayed on 2018/8/2?",
+    "evidence": "Alaska Airlines refers to Description = 'Alaska Airlines Inc.: AS'; delayed refers to DEP_DELAY > 0; on 2018/8/2 refers to FL_DATE = '2018/8/2';",
+    "SQL": "SELECT COUNT(*) FROM Airlines AS T1 INNER JOIN `Air Carriers` AS T2 ON T1.OP_CARRIER_AIRLINE_ID = T2.Code WHERE T1.FL_DATE = '2018/8/2' AND T2.Description = 'Alaska Airlines Inc.: AS' AND T1.DEP_DELAY > 0",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Air Carriers",
+        "column": "Description"
+      }
+    ],
+    "matched_values": [
+      "Alaska Airlines Inc.: AS"
+    ],
+    "extracted_values_from_NL": [
+      "Alaska Airlines"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "How many flights from American Airlines were cancelled due to a type A cancellation code?",
+    "evidence": "American Airlines refers to Description = 'American Airlines Inc.: AA'; cancelled refers to Cancelled = 1; cancelled due to type A cancellation code refers to CANCELLATION_CODE = 'A';",
+    "SQL": "SELECT COUNT(*) FROM Airlines AS T1 INNER JOIN `Air Carriers` AS T2 ON T1.OP_CARRIER_AIRLINE_ID = T2.Code WHERE T1.CANCELLATION_CODE = 'A' AND T2.Description = 'American Airlines Inc.: AA' AND T1.CANCELLED = 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Air Carriers",
+        "column": "Description"
+      }
+    ],
+    "matched_values": [
+      "American Airlines Inc.: AA"
+    ],
+    "extracted_values_from_NL": [
+      "American Airlines"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "How many planes of Spirit Air Lines took off on 2018/8/7?",
+    "evidence": "Spirit Air Lines refers to Description = 'Spirit Air Lines: NK'; on 2018/8/7 refers to FL_DATE = '2018/8/7';",
+    "SQL": "SELECT COUNT(T2.Code) FROM Airlines AS T1 INNER JOIN `Air Carriers` AS T2 ON T1.OP_CARRIER_AIRLINE_ID = T2.Code WHERE T1.FL_DATE = '2018/8/7' AND T2.Description = 'Spirit Air Lines: NK'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Air Carriers",
+        "column": "Description"
+      }
+    ],
+    "matched_values": [
+      "Spirit Air Lines: NK"
+    ],
+    "extracted_values_from_NL": [
+      "Spirit Air Lines"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "What is the tail number of a Compass Airline's plane that flew the most number of flights from LAX to ABQ?",
+    "evidence": "tail number refers to TAIL_NUM; Compass Airline refers to Description = 'Compass Airlines: CP'; flew the most number of lights from LAX TO ABQ refers to MAX(COUNT(OP_CARRIER_AIRLINE_ID WHERE ORIGIN = 'LAX' and DEST = 'ABQ')); from LAX refers to ORIGIN = 'LAX'; to ABQ refers to DEST = 'ABQ';",
+    "SQL": "SELECT T2.OP_CARRIER_AIRLINE_ID FROM `Air Carriers` AS T1 INNER JOIN Airlines AS T2 ON T1.Code = T2.OP_CARRIER_AIRLINE_ID WHERE T1.Description = 'Compass Airlines: CP' AND T2.ORIGIN = 'LAX' AND T2.DEST = 'ABQ' GROUP BY T2.OP_CARRIER_AIRLINE_ID ORDER BY COUNT(T2.OP_CARRIER_AIRLINE_ID) DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "`air carriers`"
+    ],
+    "gold_columns": [
+      {
+        "table": "Air Carriers",
+        "column": "Description"
+      }
+    ],
+    "matched_values": [
+      "Compass Airlines: CP"
+    ],
+    "extracted_values_from_NL": [
+      "Compass Airline"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "Which airport did Republic Airline fly the most from?",
+    "evidence": "Republic Airline refers to Description = 'Republic Airline: YX'; fly the most from refers to MAX(COUNT(ORIGIN));",
+    "SQL": "SELECT T2.DEST FROM `Air Carriers` AS T1 INNER JOIN Airlines AS T2 ON T1.Code = T2.OP_CARRIER_AIRLINE_ID WHERE T1.Description = 'Republic Airline: YX' GROUP BY T2.DEST ORDER BY COUNT(T2.DEST) DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "`air carriers`"
+    ],
+    "gold_columns": [
+      {
+        "table": "Air Carriers",
+        "column": "Description"
+      }
+    ],
+    "matched_values": [
+      "Republic Airline: YX"
+    ],
+    "extracted_values_from_NL": [
+      "Republic Airline"
+    ]
+  },
+  {
+    "db_id": "airline",
+    "question": "How many hours in total did all of the Delta Air Lines aircraft were delayed due to a late aircraft in August of 2018? Identify the plane number of the aircraft with the highest delayed hours.",
+    "evidence": "hours in total = DIVIDE(SUM(LATE_AIRCRAFT_DELAY), 60); Delta Air Lines refers to Description = 'Delta Air Lines Inc.: DL'; delayed due to a late aircraft refers to LATE_AIRCRAFT_DELAY; in August of 2018 refers to FL_DATE like '2018/8/%'; plane number refers to TAIL_NUM; highest delayed hours refers to MAX(DIVIDE(SUM(LATE_AIRCRAFT_DELAY),60));",
+    "SQL": "SELECT T1.TAIL_NUM, SUM(CAST(T1.LATE_AIRCRAFT_DELAY AS REAL) / 60) AS delay FROM Airlines AS T1 INNER JOIN `Air Carriers` AS T2 ON T2.Code = T1.OP_CARRIER_AIRLINE_ID WHERE T1.FL_DATE LIKE '2018/8/%' AND T2.Description = 'Delta Air Lines Inc.: DL' ORDER BY delay DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "airlines"
+    ],
+    "gold_columns": [
+      {
+        "table": "Air Carriers",
+        "column": "Description"
+      }
+    ],
+    "matched_values": [
+      "Delta Air Lines Inc.: DL"
+    ],
+    "extracted_values_from_NL": [
+      "Delta Air Lines"
+    ]
+  },
+  {
+    "db_id": "car_retails",
+    "question": "How many French customers does Gerard Hernandez take care of?",
+    "evidence": "Gerakd Hermandez is an employee; French customer refers to customer from France where country = 'France'",
+    "SQL": "SELECT COUNT(t1.customerNumber) FROM customers AS t1 INNER JOIN employees AS t2 ON t1.salesRepEmployeeNumber = t2.employeeNumber WHERE t1.country = 'France' AND t2.firstName = 'Gerard' AND t2.lastName = 'Hernandez'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "customers"
+    ],
+    "gold_columns": [
+      {
+        "table": "offices",
+        "column": "country"
+      }
+    ],
+    "matched_values": [
+      "France"
+    ],
+    "extracted_values_from_NL": [
+      "French customer"
+    ]
+  },
+  {
+    "db_id": "car_retails",
+    "question": "List all the name of customers who have orders that are still processing.",
+    "evidence": "Still processing refers to status = 'In Process';",
+    "SQL": "SELECT t2.customerName FROM orders AS t1 INNER JOIN customers AS t2 ON t1.customerNumber = t2.customerNumber WHERE t1.status = 'In Process'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "orders"
+    ],
+    "gold_columns": [
+      {
+        "table": "orders",
+        "column": "status"
+      }
+    ],
+    "matched_values": [
+      "In Process"
+    ],
+    "extracted_values_from_NL": [
+      "Still processing"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "List the all the institutes from the state with the most number of American Indian in 2007.",
+    "evidence": "institutes refers to chronname; American Indian refers to race = 'Ai'; most number of American Indian refers to MAX(COUNT(race = 'Ai')); in 2007 refers to year = '2007';",
+    "SQL": "SELECT T1.chronname FROM institution_details AS T1 INNER JOIN state_sector_grads AS T2 ON T1.state = T2.state WHERE T2.year = 2007 AND T2.race = 'Ai' GROUP BY T1.chronname ORDER BY COUNT(T1.chronname) DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_grads",
+        "column": "race"
+      }
+    ],
+    "matched_values": [
+      "Ai"
+    ],
+    "extracted_values_from_NL": [
+      "American Indian"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "Name the state with the most number of graduate cohort in 2012 from private institute for profit? List all such institutes in the mentioned state.",
+    "evidence": "most number of graduate cohort refers to MAX(SUM(grad_cohort)); in 2012 refers to year = 2012; private institute for profit refers to control = 'Private for-profit'; institutes refers to chronname;",
+    "SQL": "SELECT T1.state, T1.chronname FROM institution_details AS T1 INNER JOIN state_sector_grads AS T2 ON T1.state = T2.state WHERE T2.year = 2012 AND T1.control = 'Private for-profit' GROUP BY T2.grad_cohort ORDER BY COUNT(T2.grad_cohort) DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_details",
+        "column": "control"
+      }
+    ],
+    "matched_values": [
+      "Private for-profit"
+    ],
+    "extracted_values_from_NL": [
+      "private institute for profit"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "How many students that graduated from Lincoln College in 2011 belong to the cohort type of Bachelor's/equivalent seeking cohort at 4-year institutions?",
+    "evidence": "Lincoln College refers to chronname = 'Lincoln College'; in 2011 refers to year = 2011; Bachelor's/equivalent seeking cohort at 4-year institutions refers to cohort = '4y bach';",
+    "SQL": "SELECT COUNT(T1.unitid) FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T1.unitid = T2.unitid WHERE T1.chronname = 'Lincoln College' AND T2.year = 2011 AND T2.cohort = '4y bach'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_grads",
+        "column": "cohort"
+      }
+    ],
+    "matched_values": [
+      "4y bach"
+    ],
+    "extracted_values_from_NL": [
+      "Bachelor's/equivalent seeking cohort at 4-year institutions"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "How many students for both genders graduated from a 2-year institute in Alabama in 2011?",
+    "evidence": "2-year institute refers to cohort = '2y all'; Alabama refers to state = 'Alabama'; in 2011 refers to year = 2011; T2.gender = 'B' means both genders;",
+    "SQL": "SELECT SUM(T2.grad_cohort) FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE  T2.cohort = '2y all' AND T2.year = 2011 AND T1.state = 'Alabama'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_grads",
+        "column": "cohort"
+      }
+    ],
+    "matched_values": [
+      "2y all"
+    ],
+    "extracted_values_from_NL": [
+      "2-year institute"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "Tell the name of school in \"NJ\" that could get the bachelor's degree with highest students number.",
+    "evidence": "name of school refers to chronname; NJ refers to state_abbr = 'NJ'; bachelor's degree refers to level = '4-year'; highest students number refers to MAX(student_count);",
+    "SQL": "SELECT DISTINCT T1.chronname FROM institution_details AS T1 INNER JOIN state_sector_grads AS T2 ON T2.state = T1.state WHERE T2.state_abbr = 'NJ' AND T1.level = '4-year' AND T1.student_count = ( SELECT MAX(T1.student_count) FROM institution_details AS T1 INNER JOIN state_sector_grads AS T2 ON T2.state = T1.state WHERE T2.state_abbr = 'NJ' AND T1.level = '4-year' )",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_details",
+        "column": "level"
+      }
+    ],
+    "matched_values": [
+      "4-year"
+    ],
+    "extracted_values_from_NL": [
+      "bachelor's degree"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "How many 2-year private nonprofit schools in \"CT\" whose graduation rate falls below the average for the state?",
+    "evidence": "2-year refers to level = '2-year'; private nonprofit refers to control = 'Private not-for-profit'; CT refers to state_abbr = 'CT'; graduation rate falls below the average for the state refers to awards_per_value < awards_per_natl_value;",
+    "SQL": "SELECT COUNT(DISTINCT T1.chronname) FROM institution_details AS T1 INNER JOIN state_sector_grads AS T2 ON T2.state = T1.state WHERE T2.state_abbr = 'CT' AND T2.level = '2-year' AND T1.control = 'Private not-for-profit' AND T1.awards_per_value < T1.awards_per_natl_value",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_details",
+        "column": "control"
+      }
+    ],
+    "matched_values": [
+      "Private not-for-profit"
+    ],
+    "extracted_values_from_NL": [
+      "private nonprofit"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "For the state which has the 113 2-year public schools, tell the number of graduated Asian students who seeks another type of degree or certificate at a 2-year institution in 2013.",
+    "evidence": "schools_count = 113; 2-year refers to level = '2-year'; public refers to control = 'public'; Asian refers to race = 'A'; seeks another type of degree or certificate at a 2-year institution refers to cohort = '2y all'; in 2013 refers to year = 2013;",
+    "SQL": "SELECT COUNT(T2.grad_cohort) FROM state_sector_details AS T1 INNER JOIN state_sector_grads AS T2 ON T2.stateid = T1.stateid WHERE T2.level = '2-year' AND T2.control = 'Public' AND T2.gender = 'B' AND T2.race = 'A' AND T2.cohort = '2y all' AND T1.schools_count = 113",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "state_sector_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_grads",
+        "column": "cohort"
+      }
+    ],
+    "matched_values": [
+      "2y all"
+    ],
+    "extracted_values_from_NL": [
+      "seeks another type of degree or certificate at a 2-year institution"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "What is the institution's name of american students within the number of degree-seeking students in the cohort that ranges from 1 to 3?",
+    "evidence": "institution's name refers to chronname; american refers to race = 'Ai'; number of degree-seeking students in the cohort refers to grad_cohort; grad_cohort < = 3;",
+    "SQL": "SELECT DISTINCT T1.chronname FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE T2.grad_cohort BETWEEN 1 AND 3 AND T2.race = 'Ai'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_grads",
+        "column": "race"
+      }
+    ],
+    "matched_values": [
+      "Ai"
+    ],
+    "extracted_values_from_NL": [
+      "american"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "In year 2010 at schools located in Hawaii, what is the percentage of schools offers an associate's degree?",
+    "evidence": "Hawaii refers to state = 'Hawaii'; associate's degree refers to level = '2-year'; percentage = MULTIPLY(DIVIDE(SUM(level = '2-year' ), count(level)), 1.0);",
+    "SQL": "SELECT CAST(SUM(CASE WHEN T2.level = '2-year' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(T2.level) FROM state_sector_details AS T1 INNER JOIN state_sector_grads AS T2 ON T2.stateid = T1.stateid WHERE T2.state = 'Hawaii' AND T2.year = 2010",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "state_sector_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_details",
+        "column": "level"
+      }
+    ],
+    "matched_values": [
+      "2-year"
+    ],
+    "extracted_values_from_NL": [
+      "associate's degree"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "What is the website address of the institution with the highest number of White degree-seeking students at 2-year institutions in 2008?",
+    "evidence": "website address refers to site; White refers to race = 'W'; degree-seeking students at 2-year institutions refers to cohort = '2y all'; in 2008 refers to year = '2008';",
+    "SQL": "SELECT T1.site FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE T2.race = 'W' AND T2.cohort = '2y all' AND T2.year = 2008 ORDER BY T2.grad_cohort DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_grads",
+        "column": "cohort"
+      }
+    ],
+    "matched_values": [
+      "2y all"
+    ],
+    "extracted_values_from_NL": [
+      "degree-seeking students at 2-year institutions"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "In Yale University, what is the average number of Black students per year who were bachelor's/equivalent-seeking cohort at 4-year institutions between 2002 to 2005?",
+    "evidence": "Yale University refers to chronname = 'Yale University'; average = DIVIDE(COUNT(race = 'B' WHERE cohort = '4y bach AND year BETWEEN 2002 AND 2005), 3); Black refers to race = 'B'; bachelor's/equivalent-seeking cohort at 4-year institutions refers to cohort = '4y bach'; between 2002 to 2005 refers to year BETWEEN '2002' AND '2005';",
+    "SQL": "SELECT AVG(T2.grad_cohort) FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE T1.chronname = 'Yale University' AND T2.year BETWEEN 2002 AND 2005 AND T2.race = 'B' AND T2.cohort = '4y bach'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_grads",
+        "column": "cohort"
+      }
+    ],
+    "matched_values": [
+      "4y bach"
+    ],
+    "extracted_values_from_NL": [
+      "bachelor's/equivalent-seeking cohort at 4-year institutions"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "What is the name of the school with the highest number of first-time, full-time, degree-seeking female students in the cohort being tracked, minus any exclusions who were seeking another type of degree or certificate at a 4-year institution?",
+    "evidence": "name of the school refers to chronname; highest number of first-time, full-time, degree-seeking female students in the cohort being tracked, minus any exclusions refers to MAX(grad_cohort WHERE gender = 'F'); seeking another type of degree or certificate at a 4-year institution refers to cohort = '4y other';",
+    "SQL": "SELECT T1.chronname FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE T2.gender = 'F' AND T2.cohort = '4y other' ORDER BY T2.grad_cohort DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_grads",
+        "column": "cohort"
+      }
+    ],
+    "matched_values": [
+      "4y other"
+    ],
+    "extracted_values_from_NL": [
+      "seeking another type of degree or certificate at a 4-year institution"
+    ]
+  },
+  {
+    "db_id": "college_completion",
+    "question": "Among the Ivy League Schools in 2013, which schools have the highest number of Black students who graduated within 150 percent of normal/expected time who were seeking a bachelor's/equivalent cohort at 4-year institutions?",
+    "evidence": "Ivy League Schools refers to chronname = 'Brown University' or chronname = 'Columbia University' or chronname = 'Cornell University' or chronname = 'Dartmouth College' or chronname = 'Harvard University' or chronname = 'Princeton University' or chronname = 'University of Pennsylvania' or chronname = 'Yale University'; in 2013 refers to year = '2013'; highest number of Black students who graduated within 150 percent of normal/expected time refers to MAX(grad_150 WHERE race = 'B'); seeking a bachelor's/equivalent cohort at 4-year institutions refers to cohort = '4y bach';",
+    "SQL": "SELECT T1.chronname FROM institution_details AS T1 INNER JOIN institution_grads AS T2 ON T2.unitid = T1.unitid WHERE T1.chronname IN ( 'Brown University', 'Columbia University', 'Cornell University', 'Dartmouth College', 'Harvard University', 'Princeton University', 'University of Pennsylvania', 'Yale University' ) AND T2.year = 2013 AND T2.race = 'B' AND T2.cohort = '4y bach' ORDER BY T2.grad_cohort DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "institution_details"
+    ],
+    "gold_columns": [
+      {
+        "table": "institution_grads",
+        "column": "cohort"
+      }
+    ],
+    "matched_values": [
+      "4y bach"
+    ],
+    "extracted_values_from_NL": [
+      "seeking a bachelor's/equivalent cohort at 4-year institutions"
+    ]
+  },
+  {
+    "db_id": "cookbook",
+    "question": "List the ingredients which measure in slices.",
+    "evidence": "slices refers to unit = 'slice(s)'",
+    "SQL": "SELECT T1.name FROM Ingredient AS T1 INNER JOIN Quantity AS T2 ON T1.ingredient_id = T2.ingredient_id WHERE T2.unit = 'slice(s)'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "ingredient"
+    ],
+    "gold_columns": [
+      {
+        "table": "Quantity",
+        "column": "unit"
+      }
+    ],
+    "matched_values": [
+      "slice(s)"
+    ],
+    "extracted_values_from_NL": [
+      "slices"
+    ]
+  },
+  {
+    "db_id": "disney",
+    "question": "Among the movies directed by Wolfgang Reitherman, how many of them are Comedies?",
+    "evidence": "directed by Wolfgang Reitherman refers to director = 'Wolfgang Reitherman'; comedies refers to genre = 'Comedy'; movies refer to movie_title;",
+    "SQL": "SELECT COUNT(T3.name) FROM ( SELECT T2.name FROM `movies_total_gross` AS T1 INNER JOIN director AS T2 ON T1.movie_title = T2.name WHERE T2.director = 'Wolfgang Reitherman' AND T1.genre = 'Comedy' GROUP BY T2.name ) T3",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "`movies_total_gross`",
+      "t2"
+    ],
+    "gold_columns": [
+      {
+        "table": "movies_total_gross",
+        "column": "genre"
+      }
+    ],
+    "matched_values": [
+      "Comedy"
+    ],
+    "extracted_values_from_NL": [
+      "comedies"
+    ]
+  },
+  {
+    "db_id": "food_inspection",
+    "question": "Give the name of the business which met all the required standards during the unscheduled routine inspection on 2016/9/28.",
+    "evidence": "met all the required standards refers to score = 100; unscheduled routine inspection on 2016/9/28 refers to type = 'Routine - Unscheduled' where date = '2016-09-28';",
+    "SQL": "SELECT T2.name FROM inspections AS T1 INNER JOIN businesses AS T2 ON T1.business_id = T2.business_id WHERE T1.score = 100 AND T1.`date` = '2016-09-28' AND T1.type = 'Routine - Unscheduled'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "inspections"
+    ],
+    "gold_columns": [
+      {
+        "table": "inspections",
+        "column": "type"
+      }
+    ],
+    "matched_values": [
+      "Routine - Unscheduled"
+    ],
+    "extracted_values_from_NL": [
+      "unscheduled routine inspection on 2016/9/28"
+    ]
+  },
+  {
+    "db_id": "food_inspection",
+    "question": "In businesses that violates 103157 on May 27, 2016 , what is the name of the business that has an unscheduled inspection?",
+    "evidence": "businesses that violates 103157 refer to business_id where violation_type_id = 103157; date = '2016-05-27'; unscheduled inspection refers to type = 'Routine - Unscheduled';",
+    "SQL": "SELECT DISTINCT T3.name FROM violations AS T1 INNER JOIN inspections AS T2 ON T1.business_id = T2.business_id INNER JOIN businesses AS T3 ON T2.business_id = T3.business_id WHERE T1.`date` = '2016-05-27' AND T1.violation_type_id = 103157 AND T2.type = 'Routine - Unscheduled'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "violations"
+    ],
+    "gold_columns": [
+      {
+        "table": "inspections",
+        "column": "type"
+      }
+    ],
+    "matched_values": [
+      "Routine - Unscheduled"
+    ],
+    "extracted_values_from_NL": [
+      "unscheduled inspection"
+    ]
+  },
+  {
+    "db_id": "food_inspection_2",
+    "question": "What are the names of the businesses that passed with conditions in May 2012?",
+    "evidence": "name of business refers to dba_name; passed with conditions refers to results = 'Pass w/ Conditions'; in May 2012 refers to inspection_date like '2012-05%'",
+    "SQL": "SELECT DISTINCT T2.dba_name FROM inspection AS T1 INNER JOIN establishment AS T2 ON T1.license_no = T2.license_no WHERE strftime('%Y-%m', T1.inspection_date) = '2012-05' AND T1.results = 'Pass w/ Conditions'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "inspection"
+    ],
+    "gold_columns": [
+      {
+        "table": "inspection",
+        "column": "results"
+      }
+    ],
+    "matched_values": [
+      "Pass w/ Conditions"
+    ],
+    "extracted_values_from_NL": [
+      "passed with conditions"
+    ]
+  },
+  {
+    "db_id": "hockey",
+    "question": "How many coaches worked a temporary term in the year 2007?",
+    "evidence": "worked a temporary term refers to notes = 'interim'",
+    "SQL": "SELECT COUNT(coachID) FROM Coaches WHERE year = 2007 AND notes = 'interim'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "coaches"
+    ],
+    "gold_columns": [
+      {
+        "table": "Coaches",
+        "column": "notes"
+      }
+    ],
+    "matched_values": [
+      "interim"
+    ],
+    "extracted_values_from_NL": [
+      "worked a temporary term"
+    ]
+  },
+  {
+    "db_id": "hockey",
+    "question": "In 1997, how many loss did the coach have who temporary coached Tampa Bay Lightning? Indicate his/her coach ID.",
+    "evidence": "temporary coached refers to notes = 'interim'; number of loss refers to L (to add)",
+    "SQL": "SELECT SUM(T1.l), T1.coachID FROM Coaches AS T1 INNER JOIN Teams AS T2 ON T1.tmID = T2.tmID AND T1.year = T2.year WHERE T1.notes = 'interim' AND T1.year = '1997' AND T2.name = 'Tampa Bay Lightning' GROUP BY T1.coachID",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "coaches"
+    ],
+    "gold_columns": [
+      {
+        "table": "Coaches",
+        "column": "notes"
+      }
+    ],
+    "matched_values": [
+      "interim"
+    ],
+    "extracted_values_from_NL": [
+      "temporary coached"
+    ]
+  },
+  {
+    "db_id": "human_resources",
+    "question": "What is the average salary of the worst performing managers?",
+    "evidence": "the worst performing refers to performance = 'Poor'; manager is a positiontitle; average salary refers to AVG(salary)",
+    "SQL": "SELECT AVG(CAST(REPLACE(SUBSTR(T1.salary, 4), ',', '') AS REAL)) FROM employee AS T1 INNER JOIN position AS T2  ON T1.positionID = T2.positionID WHERE T1.performance = 'Poor' AND T2.positiontitle = 'Manager'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "employee"
+    ],
+    "gold_columns": [
+      {
+        "table": "employee",
+        "column": "performance"
+      }
+    ],
+    "matched_values": [
+      "Poor"
+    ],
+    "extracted_values_from_NL": [
+      "the worst performing"
+    ]
+  },
+  {
+    "db_id": "ice_hockey_draft",
+    "question": "What is the height in centimeter of the tallest player born in Edmonton, Alberta, Canada?",
+    "evidence": "height in centimeter refers to height_in_cm; tallest player refers to MAX(height_in_cm); born in Edmonton, Alberta, Canada refers to birthplace = 'Edmonton, AB, CAN';",
+    "SQL": "SELECT T2.height_in_cm FROM PlayerInfo AS T1 INNER JOIN height_info AS T2 ON T1.height = T2.height_id WHERE T1.birthplace = 'Edmonton, AB, CAN' ORDER BY T2.height_in_cm DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "playerinfo"
+    ],
+    "gold_columns": [
+      {
+        "table": "PlayerInfo",
+        "column": "birthplace"
+      }
+    ],
+    "matched_values": [
+      "Edmonton, AB, CAN"
+    ],
+    "extracted_values_from_NL": [
+      "born in Edmonton, Alberta, Canada"
+    ]
+  },
+  {
+    "db_id": "ice_hockey_draft",
+    "question": "How tall is the player from Yale University who picked up 28 penalty minutes in the 2005-2006 season?",
+    "evidence": "how tall refers to height_in_cm; Yale University refers to TEAM = 'Yale Univ.'; 28 penalty minutes refers to PIM = '28'; 2005-2006 season refers to SEASON = '2005-2006';",
+    "SQL": "SELECT T3.height_in_cm FROM SeasonStatus AS T1 INNER JOIN PlayerInfo AS T2 ON T1.ELITEID = T2.ELITEID INNER JOIN height_info AS T3 ON T2.height = T3.height_id WHERE T1.SEASON = '2005-2006' AND T1.TEAM = 'Yale Univ.' AND T1.PIM = 28",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "seasonstatus"
+    ],
+    "gold_columns": [
+      {
+        "table": "SeasonStatus",
+        "column": "TEAM"
+      }
+    ],
+    "matched_values": [
+      "Yale Univ."
+    ],
+    "extracted_values_from_NL": [
+      "Yale University"
+    ]
+  },
+  {
+    "db_id": "ice_hockey_draft",
+    "question": "Among the Italian players, who has the shortest height?",
+    "evidence": "Italian refers to nation = 'Italy'; players refers to PlayerName; shortest height refers to MIN(height_in_cm);",
+    "SQL": "SELECT T2.PlayerName FROM height_info AS T1 INNER JOIN PlayerInfo AS T2 ON T1.height_id = T2.height WHERE T2.nation = 'Italy' ORDER BY T1.height_in_cm ASC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "height_info"
+    ],
+    "gold_columns": [
+      {
+        "table": "PlayerInfo",
+        "column": "nation"
+      }
+    ],
+    "matched_values": [
+      "Italy"
+    ],
+    "extracted_values_from_NL": [
+      "Italian"
+    ]
+  },
+  {
+    "db_id": "ice_hockey_draft",
+    "question": "Which team has the most Swedish?",
+    "evidence": "Swedish refers to nation = 'Sweden'; team with the most Swedish refers to MAX(TEAM WHERE nation = 'Sweden');",
+    "SQL": "SELECT T.TEAM FROM ( SELECT T2.TEAM, COUNT(DISTINCT T1.ELITEID) FROM PlayerInfo AS T1 INNER JOIN SeasonStatus AS T2 ON T1.ELITEID = T2.ELITEID WHERE T1.nation = 'Sweden' GROUP BY T2.TEAM ORDER BY COUNT(DISTINCT T1.ELITEID) DESC LIMIT 1 ) AS T",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "playerinfo",
+      "t2"
+    ],
+    "gold_columns": [
+      {
+        "table": "PlayerInfo",
+        "column": "nation"
+      }
+    ],
+    "matched_values": [
+      "Sweden"
+    ],
+    "extracted_values_from_NL": [
+      "Swedish"
+    ]
+  },
+  {
+    "db_id": "ice_hockey_draft",
+    "question": "What is the percentage of Swedish players in playoffs games in the 1997 - 2000 season?",
+    "evidence": "percentage = MULTIPLY(DIVIDE(SUM(nation = 'Sweden'), COUNT(ELITEID) WHERE SEASON = '1997-2000'), 100); Swedish refers to nation = 'Sweden'; players refers to PlayerName; playoffs games refers to GAMETYPE = 'Playoffs'; 1997-2000 season refers to 3 consecutive SEASONs : '1997-1998', '1998-1999', '1999-2000';",
+    "SQL": "SELECT DISTINCT CAST(COUNT(CASE WHEN T1.nation = 'Sweden' THEN T1.ELITEID ELSE NULL END) OVER (PARTITION BY T2.SEASON) AS REAL) * 100 / COUNT(T1.ELITEID) OVER (PARTITION BY T2.SEASON) FROM PlayerInfo AS T1 INNER JOIN SeasonStatus AS T2 ON T1.ELITEID = T2.ELITEID WHERE T2.SEASON IN ('1997-1998', '1998-1999', '1999-2000')",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "playerinfo"
+    ],
+    "gold_columns": [
+      {
+        "table": "PlayerInfo",
+        "column": "nation"
+      }
+    ],
+    "matched_values": [
+      "Sweden"
+    ],
+    "extracted_values_from_NL": [
+      "Swedish"
+    ]
+  },
+  {
+    "db_id": "law_episode",
+    "question": "How many awards has Julia Roberts been nominated for?",
+    "evidence": "been nominated refers to result = 'Nominee'",
+    "SQL": "SELECT COUNT(T2.award_id) FROM Person AS T1 INNER JOIN Award AS T2 ON T1.person_id = T2.person_id WHERE T1.name = 'Julia Roberts' AND T2.result = 'Nominee'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "person"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Nominee"
+    ],
+    "extracted_values_from_NL": [
+      "been nominated"
+    ]
+  },
+  {
+    "db_id": "law_episode",
+    "question": "How many times did the episode titled \"Agony\" win an award?",
+    "evidence": "titled \"Agony\" refers to title = 'Agony'; win an award refers to result = 'Winner'",
+    "SQL": "SELECT COUNT(T2.award_id) FROM Episode AS T1 INNER JOIN Award AS T2 ON T1.episode_id = T2.episode_id WHERE T1.title = 'Agony' AND T2.result = 'Winner'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "episode"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Winner"
+    ],
+    "extracted_values_from_NL": [
+      "win an award"
+    ]
+  },
+  {
+    "db_id": "law_episode",
+    "question": "What are the names of the two people who won an award for their role as directors?",
+    "evidence": "won an award refers to result = 'Winner'; role as director refers to role = 'director'",
+    "SQL": "SELECT T1.name FROM Person AS T1 INNER JOIN Award AS T2 ON T1.person_id = T2.person_id WHERE T2.Result = 'Winner' AND T2.role = 'director'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "person"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Winner"
+    ],
+    "extracted_values_from_NL": [
+      "won an award"
+    ]
+  },
+  {
+    "db_id": "law_episode",
+    "question": "In what year did the episodes titled DWB get an award?",
+    "evidence": "titled DWB refers to title = 'DWB'; get an award refers to result = 'Winner'",
+    "SQL": "SELECT DISTINCT T1.year FROM Award AS T1 INNER JOIN Episode AS T2 ON T1.episode_id = T2.episode_id WHERE T2.title = 'DWB' AND T1.result = 'Winner'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Winner"
+    ],
+    "extracted_values_from_NL": [
+      "get an award"
+    ]
+  },
+  {
+    "db_id": "law_episode",
+    "question": "What role was Julia Roberts nominated for?",
+    "evidence": "nominated refers to result = 'Nominee'",
+    "SQL": "SELECT T2.role FROM Person AS T1 INNER JOIN Award AS T2 ON T1.person_id = T2.person_id WHERE T2.Result = 'Nominee' AND T1.name = 'Julia Roberts'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "person"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Nominee"
+    ],
+    "extracted_values_from_NL": [
+      "nominated"
+    ]
+  },
+  {
+    "db_id": "law_episode",
+    "question": "List out director names that received an award along with the episode number.",
+    "evidence": "director refers to role = 'director'; received an award refers to result = 'Winner'; episode number refers to episode",
+    "SQL": "SELECT T3.name, T1.episode_id FROM Episode AS T1 INNER JOIN Award AS T2 ON T1.episode_id = T2.episode_id INNER JOIN Person AS T3 ON T2.person_id = T3.person_id WHERE T2.role = 'director' AND T2.result = 'Winner'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "episode"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Winner"
+    ],
+    "extracted_values_from_NL": [
+      "received an award"
+    ]
+  },
+  {
+    "db_id": "law_episode",
+    "question": "Who are the actors with a height of over 1.80m in an episode that won an award?",
+    "evidence": "who refers to name; a height of over 1.80m refers to height_meters > 1.80; won an award refers to result = 'Winner'",
+    "SQL": "SELECT T2.name FROM Award AS T1 INNER JOIN Person AS T2 ON T1.person_id = T2.person_id WHERE T1.result = 'Winner' AND T2.height_meters > 1.80",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Winner"
+    ],
+    "extracted_values_from_NL": [
+      "won an award"
+    ]
+  },
+  {
+    "db_id": "menu",
+    "question": "How many menus sponsored by Krogs Fiske Restaurant were created in April 2015?",
+    "evidence": "sponsored by Krogs Fiske Restaurant refers to sponsor = 'Krogs Fiskerestaurant'; created in April 2015 refers to date like '2015-04%';",
+    "SQL": "SELECT COUNT(*) FROM Menu WHERE date LIKE '2015-04%' AND sponsor = 'Krogs Fiskerestaurant'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "menu"
+    ],
+    "gold_columns": [
+      {
+        "table": "Menu",
+        "column": "sponsor"
+      }
+    ],
+    "matched_values": [
+      "Krogs Fiskerestaurant"
+    ],
+    "extracted_values_from_NL": [
+      "sponsored by Krogs Fiske Restaurant"
+    ]
+  },
+  {
+    "db_id": "menu",
+    "question": "What are the names of the dishes in the menu sponsored by The Society of Cumberland that was created for the 19th reunion at Grand Pacific Hotel in Chicago, Illinois?",
+    "evidence": "sponsored by The Society of Cumberland refers to sponsor = 'THE SOCIETY OF THE CUMBERLAND'; created for the 19th reunion refers to event = '19NTH REUNION'; Grand Pacific Hotel in Chicago, Illinois refers to place = 'GRAND PACIFIC HOTEL, CHICAGO, ILL';",
+    "SQL": "SELECT T4.name FROM Menu AS T1 INNER JOIN MenuPage AS T2 ON T1.id = T2.menu_id INNER JOIN MenuItem AS T3 ON T2.id = T3.menu_page_id INNER JOIN Dish AS T4 ON T3.dish_id = T4.id WHERE T1.sponsor = 'THE SOCIETY OF THE CUMBERLAND' AND T1.event = '19NTH REUNION' AND T1.place = 'GRAND PACIFIC HOTEL,CHICAGO,ILL'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "menu"
+    ],
+    "gold_columns": [
+      {
+        "table": "Menu",
+        "column": "sponsor"
+      }
+    ],
+    "matched_values": [
+      "THE SOCIETY OF THE CUMBERLAND"
+    ],
+    "extracted_values_from_NL": [
+      "sponsored by The Society of Cumberland"
+    ]
+  },
+  {
+    "db_id": "menu",
+    "question": "What are the names of the dishes in the menu sponsored by The Society of Cumberland that was created for the 19th reunion at Grand Pacific Hotel in Chicago, Illinois?",
+    "evidence": "sponsored by The Society of Cumberland refers to sponsor = 'THE SOCIETY OF THE CUMBERLAND'; created for the 19th reunion refers to event = '19NTH REUNION'; Grand Pacific Hotel in Chicago, Illinois refers to place = 'GRAND PACIFIC HOTEL, CHICAGO, ILL';",
+    "SQL": "SELECT T4.name FROM Menu AS T1 INNER JOIN MenuPage AS T2 ON T1.id = T2.menu_id INNER JOIN MenuItem AS T3 ON T2.id = T3.menu_page_id INNER JOIN Dish AS T4 ON T3.dish_id = T4.id WHERE T1.sponsor = 'THE SOCIETY OF THE CUMBERLAND' AND T1.event = '19NTH REUNION' AND T1.place = 'GRAND PACIFIC HOTEL,CHICAGO,ILL'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "menu"
+    ],
+    "gold_columns": [
+      {
+        "table": "Menu",
+        "column": "event"
+      }
+    ],
+    "matched_values": [
+      "19NTH REUNION"
+    ],
+    "extracted_values_from_NL": [
+      "created for the 19th reunion"
+    ]
+  },
+  {
+    "db_id": "movie",
+    "question": "In romantic movies, how many of them starred by John Travolta?",
+    "evidence": "romantic movies refers to Genre = 'Romance'; starred by John Travolta refers to Name = 'John Travolta'",
+    "SQL": "SELECT COUNT(*) FROM movie AS T1 INNER JOIN characters AS T2 ON T1.MovieID = T2.MovieID INNER JOIN actor AS T3 ON T3.ActorID = T2.ActorID WHERE T1.Genre = 'Romance' AND T3.Name = 'John Travolta'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "movie"
+    ],
+    "gold_columns": [
+      {
+        "table": "movie",
+        "column": "Genre"
+      }
+    ],
+    "matched_values": [
+      "Romance"
+    ],
+    "extracted_values_from_NL": [
+      "romantic movies"
+    ]
+  },
+  {
+    "db_id": "movie",
+    "question": "List the character's name of actress born in Sherman Oaks and starred in the movie Bruce Almighty with height greater than the 50% of average height of all actors listed.",
+    "evidence": "actress refers to Gender = 'Female'; born in Sherman Oaks refers to Birth City = 'Sherman Oaks'; movie Bruce Almighty refers to Title = 'Bruce Almighty'; height greater than the 50% of average height refers to Height (Inches) > multiply(avg(Height (Inches)), 0.5)",
+    "SQL": "SELECT T3.Name FROM movie AS T1 INNER JOIN characters AS T2 ON T1.MovieID = T2.MovieID INNER JOIN actor AS T3 ON T3.ActorID = T2.ActorID WHERE T3.Gender = 'Female' AND T1.Title = 'Godzilla' AND T3.`Birth City` = 'Sherman Oaks' AND T3.`Height (Inches)` * 100 > ( SELECT AVG(`Height (Inches)`) FROM actor ) * 50",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "actor",
+      "movie"
+    ],
+    "gold_columns": [
+      {
+        "table": "actor",
+        "column": "Gender"
+      }
+    ],
+    "matched_values": [
+      "Female"
+    ],
+    "extracted_values_from_NL": [
+      "actress"
+    ]
+  },
+  {
+    "db_id": "movie_3",
+    "question": "Among the films that are released in 2006, how many of them are rated Adults Only in the Motion Picture Association Film Rating?",
+    "evidence": "released in 2006 refers to release_year = 2006; rated Adults Only refers to rating = 'NC-17'",
+    "SQL": "SELECT COUNT(film_id) FROM film WHERE rating = 'NC-17' AND release_year = 2006",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "film"
+    ],
+    "gold_columns": [
+      {
+        "table": "film",
+        "column": "rating"
+      }
+    ],
+    "matched_values": [
+      "NC-17"
+    ],
+    "extracted_values_from_NL": [
+      "rated Adults Only"
+    ]
+  },
+  {
+    "db_id": "movie_3",
+    "question": "Among the films with a rental duration of 7 days, how many are comedies?",
+    "evidence": "rental duration of 7 refers to rental_duration = 7; comedies refers to name = 'Comedy'",
+    "SQL": "SELECT COUNT(T1.film_id) FROM film AS T1 INNER JOIN film_category AS T2 ON T1.film_id = T2.film_id INNER JOIN category AS T3 ON T2.category_id = T3.category_id WHERE T1.rental_duration = 7 AND T3.name = 'Comedy'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "film"
+    ],
+    "gold_columns": [
+      {
+        "table": "category",
+        "column": "name"
+      }
+    ],
+    "matched_values": [
+      "Comedy"
+    ],
+    "extracted_values_from_NL": [
+      "comedies"
+    ]
+  },
+  {
+    "db_id": "movie_3",
+    "question": "Among the classic movies, how many movies have a rental rate of less than 1?",
+    "evidence": "classic movie refers to name = 'Classics'; rental rate of less than 1 refers to rental_rate < 1; movie refers to film_id",
+    "SQL": "SELECT COUNT(T1.film_id) FROM film_category AS T1 INNER JOIN category AS T2 ON T1.category_id = T2.category_id INNER JOIN film AS T3 ON T1.film_id = T3.film_id WHERE T3.rental_rate < 1 AND T2.name = 'Classics'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "film_category"
+    ],
+    "gold_columns": [
+      {
+        "table": "category",
+        "column": "name"
+      }
+    ],
+    "matched_values": [
+      "Classics"
+    ],
+    "extracted_values_from_NL": [
+      "classic movie"
+    ]
+  },
+  {
+    "db_id": "movie_3",
+    "question": "Indicate the title of all the films rated as 'Adults Only'.",
+    "evidence": "'Adults Only' refers to rating = 'NC-17'",
+    "SQL": "SELECT title FROM film WHERE rating = 'NC-17'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "film"
+    ],
+    "gold_columns": [
+      {
+        "table": "film",
+        "column": "rating"
+      }
+    ],
+    "matched_values": [
+      "NC-17"
+    ],
+    "extracted_values_from_NL": [
+      "Adults Only"
+    ]
+  },
+  {
+    "db_id": "movie_3",
+    "question": "Indicate the name of the actors of the films rated as 'Parents Strongly Precautioned' with the highest replacement cost.",
+    "evidence": "name refers to first_name, last_name; Parents Strongly Precautioned' refers to rating = 'PG-13'; \nhighest replacement cost refers to MAX(replacement_cost)",
+    "SQL": "SELECT T1.first_name, T1.last_name FROM actor AS T1 INNER JOIN film_actor AS T2 ON T1.actor_id = T2.actor_id INNER JOIN film AS T3 ON T2.film_id = T3.film_id WHERE T3.rating = 'PG-13' ORDER BY T3.replacement_cost DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "actor"
+    ],
+    "gold_columns": [
+      {
+        "table": "film",
+        "column": "rating"
+      }
+    ],
+    "matched_values": [
+      "PG-13"
+    ],
+    "extracted_values_from_NL": [
+      "Parents Strongly Precautioned"
+    ]
+  },
+  {
+    "db_id": "movie_3",
+    "question": "How many films in English are for adults only?",
+    "evidence": "English is a name of a language; for adults only refers to rating = 'NC-17'",
+    "SQL": "SELECT COUNT(T1.film_id) FROM film AS T1 INNER JOIN language AS T2 ON T1.language_id = T2.language_id WHERE T2.name = 'English' AND T1.rating = 'NC-17'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "film"
+    ],
+    "gold_columns": [
+      {
+        "table": "film",
+        "column": "rating"
+      }
+    ],
+    "matched_values": [
+      "NC-17"
+    ],
+    "extracted_values_from_NL": [
+      "for adults only"
+    ]
+  },
+  {
+    "db_id": "movie_3",
+    "question": "Among the adult films, how many of them have a rental duration of fewer than 4 days?",
+    "evidence": "adult film refers to rating = 'NC-17'; rental duration of fewer than 4 days refers to rental_duration < 4",
+    "SQL": "SELECT COUNT(film_id) FROM film WHERE rating = 'NC-17' AND rental_duration < 4",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "film"
+    ],
+    "gold_columns": [
+      {
+        "table": "film",
+        "column": "rating"
+      }
+    ],
+    "matched_values": [
+      "NC-17"
+    ],
+    "extracted_values_from_NL": [
+      "adult film"
+    ]
+  },
+  {
+    "db_id": "movies_4",
+    "question": "Are there any post-production movies in Nederlands?",
+    "evidence": "post-production movies refers to movie_status = 'Post Production'; Nederlands refers to language_name = 'Nederlands';",
+    "SQL": "SELECT DISTINCT CASE WHEN T1.movie_status = 'Post Production' THEN 'YES' ELSE 'NO' END AS YORN FROM movie AS T1 INNER JOIN movie_languages AS T2 ON T1.movie_id = T2.movie_id INNER JOIN language AS T3 ON T2.language_id = T3.language_id WHERE T3.language_name = 'Nederlands'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "movie"
+    ],
+    "gold_columns": [
+      {
+        "table": "movie",
+        "column": "movie_status"
+      }
+    ],
+    "matched_values": [
+      "Post Production"
+    ],
+    "extracted_values_from_NL": [
+      "post-production movies"
+    ]
+  },
+  {
+    "db_id": "professional_basketball",
+    "question": "Among the players born in Whitestone, how many of them have won the MVP?",
+    "evidence": "\"Whitestone\" is the birthCity of the player; won the MVP refers to award = 'Most Valuable Player'",
+    "SQL": "SELECT COUNT(DISTINCT T1.playerID) FROM players AS T1 INNER JOIN awards_players AS T2 ON T1.playerID = T2.playerID WHERE T2.award = 'Most Valuable Player' AND T1.birthCity = 'Houston'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "players"
+    ],
+    "gold_columns": [
+      {
+        "table": "awards_players",
+        "column": "award"
+      }
+    ],
+    "matched_values": [
+      "Most Valuable Player"
+    ],
+    "extracted_values_from_NL": [
+      "won the MVP"
+    ]
+  },
+  {
+    "db_id": "professional_basketball",
+    "question": "Among the players that went to high school in New York and have won the MVP, what is their average height?",
+    "evidence": "high school in New York refers to highSchool like '%New York%'; won the MVP refers to award = 'Most Valuable Player'; average height = Divide (Sum(height), Count(playerID))",
+    "SQL": "SELECT AVG(T1.height) FROM players AS T1 INNER JOIN awards_players AS T2 ON T1.playerID = T2.playerID WHERE T2.award = 'Most Valuable Player' AND T1.birthCity = 'New York'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "players"
+    ],
+    "gold_columns": [
+      {
+        "table": "awards_players",
+        "column": "award"
+      }
+    ],
+    "matched_values": [
+      "Most Valuable Player"
+    ],
+    "extracted_values_from_NL": [
+      "won the MVP"
+    ]
+  },
+  {
+    "db_id": "regional_sales",
+    "question": "Find the store ID with more orders between \"Aurora\" and \"Babylon\" city.",
+    "evidence": "\"Aurora\" refers to City Name = 'Aurora (Township)'; \"Babylon\" refers to City Name = 'Babylong (Town)'; more order refers to Max(Count(OrderNumber))",
+    "SQL": "SELECT T2.StoreID FROM `Sales Orders` AS T1 INNER JOIN `Store Locations` AS T2 ON T2.StoreID = T1._StoreID WHERE T2.`City Name` = 'Aurora (Township)' OR T2.`City Name` = 'Babylon (Town)' GROUP BY T2.StoreID ORDER BY COUNT(T1.OrderNumber) DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "`sales orders`"
+    ],
+    "gold_columns": [
+      {
+        "table": "Store Locations",
+        "column": "City Name"
+      }
+    ],
+    "matched_values": [
+      "Aurora (Township)"
+    ],
+    "extracted_values_from_NL": [
+      "Aurora"
+    ]
+  },
+  {
+    "db_id": "restaurant",
+    "question": "In which counties are there A&W Root Beer Restaurants?",
+    "evidence": "A&W Root Beer Restaurant refers to label = 'a & w root beer'",
+    "SQL": "SELECT DISTINCT T2.county FROM generalinfo AS T1 INNER JOIN geographic AS T2 ON T1.city = T2.city WHERE T1.label = 'a & w root beer'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "generalinfo"
+    ],
+    "gold_columns": [
+      {
+        "table": "generalinfo",
+        "column": "label"
+      }
+    ],
+    "matched_values": [
+      "a & w root beer"
+    ],
+    "extracted_values_from_NL": [
+      "A&W Root Beer Restaurant"
+    ]
+  },
+  {
+    "db_id": "restaurant",
+    "question": "Please list any five cities that have an unidentified county and region.",
+    "evidence": "unidentified county and region refers to county = 'unknown' AND region = 'unknown'",
+    "SQL": "SELECT city FROM geographic WHERE county = 'unknown' AND region = 'unknown' LIMIT 5",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "geographic"
+    ],
+    "gold_columns": [
+      {
+        "table": "geographic",
+        "column": "region"
+      }
+    ],
+    "matched_values": [
+      "unknown"
+    ],
+    "extracted_values_from_NL": [
+      "unidentified county and region"
+    ]
+  },
+  {
+    "db_id": "restaurant",
+    "question": "Please name any three restaurants that have an unidentified region.",
+    "evidence": "restaurant name refers to label; unidentified region refers to region = 'unknown'",
+    "SQL": "SELECT T2.label FROM location AS T1 INNER JOIN generalinfo AS T2 ON T1.id_restaurant = T2.id_restaurant INNER JOIN geographic AS T3 ON T2.city = T3.city WHERE T3.region = 'unknown' LIMIT 3",
+    "fuzzy_type": "synonym",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "geographic",
+        "column": "region"
+      }
+    ],
+    "matched_values": [
+      "unknown"
+    ],
+    "extracted_values_from_NL": [
+      "unidentified region"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "Among the complaints received in year 2015, what is total number of complaints timely response and closed with an explanation?",
+    "evidence": "in year 2015 refers to Date received LIKE '2015%'; timely response refers to Timely response?\" = 'Yes'; closed with an explanation refers to Company response to consumer = 'Closed with explanation'",
+    "SQL": "SELECT COUNT(T1.`Complaint ID`) FROM callcenterlogs AS T1 INNER JOIN events AS T2 ON T1.`Complaint ID` = T2.`Complaint ID` WHERE strftime('%Y', T1.`Date received`) = '2015' AND T2.`Timely response?` = 'Yes' AND T2.`Company response to consumer` = 'Closed with explanation'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "callcenterlogs"
+    ],
+    "gold_columns": [
+      {
+        "table": "events",
+        "column": "Company response to consumer"
+      }
+    ],
+    "matched_values": [
+      "Closed with explanation"
+    ],
+    "extracted_values_from_NL": [
+      "closed with an explanation"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "In complaints received in 2014, how many of them were submitted via call?",
+    "evidence": "in 2014 refers to Date received LIKE '2014%'; submitted via call refers to Submitted via = 'Phone'",
+    "SQL": "SELECT COUNT(T2.`Complaint ID`) FROM callcenterlogs AS T1 INNER JOIN events AS T2 ON T1.`Complaint ID` = T2.`Complaint ID` WHERE T2.`Submitted via` = 'Phone' AND strftime('%Y', T1.`Date received`) = '2014'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "callcenterlogs"
+    ],
+    "gold_columns": [
+      {
+        "table": "events",
+        "column": "Submitted via"
+      }
+    ],
+    "matched_values": [
+      "Phone"
+    ],
+    "extracted_values_from_NL": [
+      "submitted via call"
+    ]
+  },
+  {
+    "db_id": "shakespeare",
+    "question": "Other than \"stage directions\", what is the name of the character that appeared 5 times in \"the sea-coast\"?",
+    "evidence": "Other than \"stage directions\" refers to CharName ! = '(stage directions)'; name of the character refers to CharName; appeared 5 times in \"the sea-coast\" refers to chapters.Description = 'The sea-coast.' and count(character_id) = 5",
+    "SQL": "SELECT T.CharName FROM ( SELECT T3.CharName, COUNT(T3.id) AS num FROM paragraphs AS T1 INNER JOIN chapters AS T2 ON T1.chapter_id = T2.id INNER JOIN characters AS T3 ON T1.character_id = T3.id WHERE T2.Description = 'The sea-coast.' AND T3.CharName != '(stage directions)' AND T1.chapter_id = 18709 GROUP BY T3.id, T3.CharName ) AS T WHERE T.num = 5",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "paragraphs",
+      "t3"
+    ],
+    "gold_columns": [
+      {
+        "table": "chapters",
+        "column": "Description"
+      }
+    ],
+    "matched_values": [
+      "The sea-coast."
+    ],
+    "extracted_values_from_NL": [
+      "appeared 5 times in \"the sea-coast"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "What is the percentage of Primetime Emmy nominated episodes with a rating over 7 to all the episodes that have a rating over 7?",
+    "evidence": "\"Primetime Emmy' is the award_category;  rating over 7 refers to rating > 7; nominated refers to result = 'Nominee'; percentage = Divide(Count(episode_id(award_category = 'Primetime Emmy')), Count (episode_id)) * 100",
+    "SQL": "SELECT CAST(SUM(CASE WHEN T1.award_category = 'Primetime Emmy' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*) FROM Award AS T1 INNER JOIN Episode AS T2 ON T1.episode_id = T2.episode_id WHERE T2.rating > 7 AND T1.result = 'Nominee';",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Nominee"
+    ],
+    "extracted_values_from_NL": [
+      "nominated"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "How old was the awardee when he/she won the first-ever award for Outstanding Voice-Over Performance in Primetime Emmy Awards?",
+    "evidence": "\"Outstanding Voice-Over Performance\" is the award; 'Primetime Emmy Awards' is the organization; awardee refers to result = 'Winner'; first ever award refers to Min(year); age at the time of awarded refers to Subtract(year, SUBSTR(birthdate, 0, 5))",
+    "SQL": "SELECT T2.year - CAST(SUBSTR(T1.birthdate, 1, 4) AS int) AS age FROM Person AS T1 INNER JOIN Award AS T2 ON T1.name = T2.person WHERE T2.award = 'Outstanding Voice-Over Performance' AND T2.organization = 'Primetime Emmy Awards' AND T2.result = 'Winner';",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "person"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Winner"
+    ],
+    "extracted_values_from_NL": [
+      "awardee"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "For the episode who won the award held by Jupiter Award, describe award name, aired date and rating of that episode.",
+    "evidence": "held by Jupiter Award refers to organization = 'Jupiter Award'; won the award refers to result = 'Winner'",
+    "SQL": "SELECT T1.award, T2.air_date, T2.rating FROM Award AS T1 INNER JOIN Episode AS T2 ON T1.episode_id = T2.episode_id WHERE T1.organization = 'Jupiter Award' AND T1.result = 'Winner';",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Winner"
+    ],
+    "extracted_values_from_NL": [
+      "won the award"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "Name the title of the episode that was nominated for Emmy's Outstanding Animated Program 21 times.",
+    "evidence": "nominated for refers to result = 'Nominee'; Outstanding Animated Program refers to award = 'Outstanding Animated Program (For Programming Less Than One Hour)'; Emmy's refers to organization = 'Primetime Emmy Awards'; 21 times refers to COUNT(episode_id) = 21;",
+    "SQL": "SELECT T2.title FROM Award AS T1 INNER JOIN Episode AS T2 ON T1.episode_id = T2.episode_id WHERE T1.organization = 'Primetime Emmy Awards' AND T1.award = 'Outstanding Animated Program (For Programming Less Than One Hour)' AND T1.result = 'Nominee' GROUP BY T1.episode_id HAVING COUNT(T1.episode_id) = 21;",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Nominee"
+    ],
+    "extracted_values_from_NL": [
+      "nominated for"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "Name the title of the episode that was nominated for Emmy's Outstanding Animated Program 21 times.",
+    "evidence": "nominated for refers to result = 'Nominee'; Outstanding Animated Program refers to award = 'Outstanding Animated Program (For Programming Less Than One Hour)'; Emmy's refers to organization = 'Primetime Emmy Awards'; 21 times refers to COUNT(episode_id) = 21;",
+    "SQL": "SELECT T2.title FROM Award AS T1 INNER JOIN Episode AS T2 ON T1.episode_id = T2.episode_id WHERE T1.organization = 'Primetime Emmy Awards' AND T1.award = 'Outstanding Animated Program (For Programming Less Than One Hour)' AND T1.result = 'Nominee' GROUP BY T1.episode_id HAVING COUNT(T1.episode_id) = 21;",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "award"
+      }
+    ],
+    "matched_values": [
+      "Outstanding Animated Program (For Programming Less Than One Hour)"
+    ],
+    "extracted_values_from_NL": [
+      "Outstanding Animated Program"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "Name the title of the episode that was nominated for Emmy's Outstanding Animated Program 21 times.",
+    "evidence": "nominated for refers to result = 'Nominee'; Outstanding Animated Program refers to award = 'Outstanding Animated Program (For Programming Less Than One Hour)'; Emmy's refers to organization = 'Primetime Emmy Awards'; 21 times refers to COUNT(episode_id) = 21;",
+    "SQL": "SELECT T2.title FROM Award AS T1 INNER JOIN Episode AS T2 ON T1.episode_id = T2.episode_id WHERE T1.organization = 'Primetime Emmy Awards' AND T1.award = 'Outstanding Animated Program (For Programming Less Than One Hour)' AND T1.result = 'Nominee' GROUP BY T1.episode_id HAVING COUNT(T1.episode_id) = 21;",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "organization"
+      }
+    ],
+    "matched_values": [
+      "Primetime Emmy Awards"
+    ],
+    "extracted_values_from_NL": [
+      "Emmy's"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "Name the performer who won Emmy Award for Outstanding Voice-Over Performance by playing Homer simpson 20.",
+    "evidence": "Outstanding Voice-Over Performance refers to award = 'Outstanding Voice-Over Performance'; who won refers to result = 'Winner'; Emmy refers to organization = 'Primetime Emmy Awards'; playing Homer simpson 20 refers to character = 'Homer simpson 20'",
+    "SQL": "SELECT T1.person FROM Award AS T1 INNER JOIN Character_Award AS T2 ON T1.award_id = T2.award_id WHERE T2.character = 'Homer simpson 20' AND T1.organization = 'Primetime Emmy Awards' AND T1.award = 'Outstanding Voice-Over Performance' AND T1.result = 'Winner';",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "organization"
+      }
+    ],
+    "matched_values": [
+      "Primetime Emmy Awards"
+    ],
+    "extracted_values_from_NL": [
+      "Emmy"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "How old was composer of the show when he was nominated for Emmy's Outstanding Music Composition for a Series in 2009. Indicate his full name as well.",
+    "evidence": "in 2009 refers to year = 2009; old refers to SUBTRACT(2009, birthdate); composer of the show refers to role = 'composer'; Emmy's refers to organization = 'Primetime Emmy Awards'; nominated refers to result = 'Nominee'; Outstanding Music Composition refers to award = 'Outstanding Music Composition for a Series (Original Dramatic Score)'",
+    "SQL": "SELECT T1.year - T2.birthdate AS ageIn2009, T2.name FROM Award AS T1 INNER JOIN Person AS T2 ON T1.person = T2.name WHERE T1.role = 'composer' AND T1.organization = 'Primetime Emmy Awards' AND T1.award = 'Outstanding Music Composition for a Series (Original Dramatic Score)' AND T1.result = 'Nominee' AND T1.year = 2009;",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "organization"
+      }
+    ],
+    "matched_values": [
+      "Primetime Emmy Awards"
+    ],
+    "extracted_values_from_NL": [
+      "Emmy's"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "How old was composer of the show when he was nominated for Emmy's Outstanding Music Composition for a Series in 2009. Indicate his full name as well.",
+    "evidence": "in 2009 refers to year = 2009; old refers to SUBTRACT(2009, birthdate); composer of the show refers to role = 'composer'; Emmy's refers to organization = 'Primetime Emmy Awards'; nominated refers to result = 'Nominee'; Outstanding Music Composition refers to award = 'Outstanding Music Composition for a Series (Original Dramatic Score)'",
+    "SQL": "SELECT T1.year - T2.birthdate AS ageIn2009, T2.name FROM Award AS T1 INNER JOIN Person AS T2 ON T1.person = T2.name WHERE T1.role = 'composer' AND T1.organization = 'Primetime Emmy Awards' AND T1.award = 'Outstanding Music Composition for a Series (Original Dramatic Score)' AND T1.result = 'Nominee' AND T1.year = 2009;",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "award"
+      }
+    ],
+    "matched_values": [
+      "Outstanding Music Composition for a Series (Original Dramatic Score)"
+    ],
+    "extracted_values_from_NL": [
+      "Outstanding Music Composition"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "What percentage of votes are from the nominated episodes?",
+    "evidence": "nominated episodes refers to result = 'Nominee'; percentage of votes = DIVIDE(SUM(result = 'Nominee), SUM(Votes)) as percentage",
+    "SQL": "SELECT CAST(SUM(CASE WHEN T1.result = 'Nominee' THEN T2.votes ELSE 0 END) AS REAL) * 100 / SUM(T2.votes) FROM Award AS T1 INNER JOIN Episode AS T2 ON T1.episode_id = T2.episode_id;",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Nominee"
+    ],
+    "extracted_values_from_NL": [
+      "nominated episodes"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "In year 2009, what is the percentage of the episode titled by \"Gone Maggie Gone\" being nominated?",
+    "evidence": "being nominated refers to result = 'Nominee'; percentage = divide(count(result = 'Nominee'), count(result)) * 100%",
+    "SQL": "SELECT CAST((SUM(CASE WHEN T1.result = 'Nominee' THEN 1 ELSE 0 END) - SUM(CASE WHEN T1.result = 'Winner' THEN 1 ELSE 0 END)) AS REAL) * 100 / COUNT(T1.result) FROM Award AS T1 INNER JOIN Episode AS T2 ON T1.episode_id = T2.episode_id WHERE T2.title = 'Gone Maggie Gone' AND T1.year = 2009;",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "result"
+      }
+    ],
+    "matched_values": [
+      "Nominee"
+    ],
+    "extracted_values_from_NL": [
+      "being nominated"
+    ]
+  },
+  {
+    "db_id": "social_media",
+    "question": "Give the number of users who do not show their genders.",
+    "evidence": "do not show their gender refers to Gender = 'Unknown'",
+    "SQL": "SELECT COUNT(UserID) AS user_number FROM user WHERE Gender = 'Unknown'",
+    "fuzzy_type": "synonym",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "user",
+        "column": "Gender"
+      }
+    ],
+    "matched_values": [
+      "Unknown"
+    ],
+    "extracted_values_from_NL": [
+      "do not show their gender"
+    ]
+  },
+  {
+    "db_id": "superstore",
+    "question": "How many orders in the south superstore with the fastest delivery are items of furniture?",
+    "evidence": "fastest delivery refers to Ship Mode = 'First Class'; furniture refers to Category = 'Furniture'",
+    "SQL": "SELECT COUNT(T1.`Order ID`) FROM south_superstore AS T1 INNER JOIN product AS T2 ON T1.`Product ID` = T2.`Product ID` WHERE T1.`Ship Mode` = 'First Class' AND T2.Category = 'Furniture'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "south_superstore"
+    ],
+    "gold_columns": [
+      {
+        "table": "central_superstore",
+        "column": "ship mode"
+      }
+    ],
+    "matched_values": [
+      "First Class"
+    ],
+    "extracted_values_from_NL": [
+      "fastest delivery"
+    ]
+  },
+  {
+    "db_id": "superstore",
+    "question": "How many office supply orders were made by Cindy Stewart in the south superstore?",
+    "evidence": "office supply refers to Category = 'Office Supplies'",
+    "SQL": "SELECT COUNT(*) FROM south_superstore AS T1 INNER JOIN people AS T2 ON T1.`Customer ID` = T2.`Customer ID` INNER JOIN product AS T3 ON T3.`Product ID` = T1.`Product ID` WHERE T3.Category = 'Office Supplies' AND T2.`Customer Name` = 'Cindy Stewart'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "south_superstore"
+    ],
+    "gold_columns": [
+      {
+        "table": "product",
+        "column": "Category"
+      }
+    ],
+    "matched_values": [
+      "Office Supplies"
+    ],
+    "extracted_values_from_NL": [
+      "office supply"
+    ]
+  },
+  {
+    "db_id": "superstore",
+    "question": "How many orders with a quantity greater than 5 have been shipped by the fastest delivery method?",
+    "evidence": "orders with a quantity greater than 5 refers to Quantity > 5; shipped by the fastest delivery method refers to Ship Mode = 'First Class'",
+    "SQL": "SELECT COUNT(DISTINCT `Order ID`) FROM central_superstore WHERE Quantity > 5 AND `Ship Mode` = 'First Class'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "central_superstore"
+    ],
+    "gold_columns": [
+      {
+        "table": "central_superstore",
+        "column": "ship mode"
+      }
+    ],
+    "matched_values": [
+      "First Class"
+    ],
+    "extracted_values_from_NL": [
+      "shipped by the fastest delivery method"
+    ]
+  },
+  {
+    "db_id": "synthea",
+    "question": "Provide medications received by patients with an allergy to mould on 6th June 2016.",
+    "evidence": "medications refers to DESCRIPTION from medications; allergy to mould refers to allergies where DESCRIPTION = 'Allergy to mould'; on 6th June 2016 refers to START = '6/6/16';",
+    "SQL": "SELECT T2.DESCRIPTION FROM allergies AS T1 INNER JOIN medications AS T2 ON T1.PATIENT = T2.PATIENT WHERE T1.START = '6/6/16' AND T1.DESCRIPTION = 'Allergy to mould'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "allergies"
+    ],
+    "gold_columns": [
+      {
+        "table": "allergies",
+        "column": "START"
+      }
+    ],
+    "matched_values": [
+      "6/6/16"
+    ],
+    "extracted_values_from_NL": [
+      "on 6th June 2016"
+    ]
+  },
+  {
+    "db_id": "talkingdata",
+    "question": "What is the most common device model among female users between the ages 27 to 28?",
+    "evidence": "most common device model refers to MAX(COUNT(device_id)); female refers to gender = 'F'; between the ages 27 to 28 refers to group = 'F27-28';",
+    "SQL": "SELECT T2.device_model FROM gender_age AS T1 INNER JOIN phone_brand_device_model2 AS T2 ON T1.device_id = T2.device_id WHERE T1.`group` = 'F27-28' AND T1.gender = 'F' ORDER BY T2.device_id DESC LIMIT 1",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "gender_age"
+    ],
+    "gold_columns": [
+      {
+        "table": "gender_age",
+        "column": "group"
+      }
+    ],
+    "matched_values": [
+      "F27-28"
+    ],
+    "extracted_values_from_NL": [
+      "between the ages 27 to 28"
+    ]
+  },
+  {
+    "db_id": "talkingdata",
+    "question": "List at least 10 device models that male users over the age of 39 usually use.",
+    "evidence": "male refers to gender = 'M'; over the age of 39 refers to group = 'M39+';",
+    "SQL": "SELECT T1.device_model FROM phone_brand_device_model2 AS T1 INNER JOIN gender_age AS T2 ON T1.device_id = T2.device_id WHERE T2.`group` = 'M39+' AND T2.gender = 'M' LIMIT 10",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "phone_brand_device_model2"
+    ],
+    "gold_columns": [
+      {
+        "table": "gender_age",
+        "column": "group"
+      }
+    ],
+    "matched_values": [
+      "M39+"
+    ],
+    "extracted_values_from_NL": [
+      "over the age of 39"
+    ]
+  },
+  {
+    "db_id": "world_development_indicators",
+    "question": "What is the series note description of the series \"SP.DYN.TO65.MA.ZS\" which covers the topic \"Health: Mortality\" in 1967?",
+    "evidence": "in 1967 refers to Year = 'YR1967'",
+    "SQL": "SELECT T2.Description FROM Series AS T1 INNER JOIN SeriesNotes AS T2 ON T1.SeriesCode = T2.Seriescode WHERE T1.SeriesCode = 'SP.DYN.TO65.MA.ZS' AND T1.Topic = 'Health: Mortality' AND T2.Year = 'YR1967'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "series"
+    ],
+    "gold_columns": [
+      {
+        "table": "FootNotes",
+        "column": "Year"
+      }
+    ],
+    "matched_values": [
+      "YR1967"
+    ],
+    "extracted_values_from_NL": [
+      "in 1967"
+    ]
+  },
+  {
+    "db_id": "world_development_indicators",
+    "question": "Write down the description and series code of Benin in year 2005.",
+    "evidence": "Benin is the short name of the country; year 2005 refers to Year = 'YR2005';",
+    "SQL": "SELECT T2.Description, T2.Seriescode FROM Country AS T1 INNER JOIN FootNotes AS T2 ON T1.CountryCode = T2.Countrycode WHERE T1.TableName = 'Benin' AND T2.Year = 'YR2005'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "country"
+    ],
+    "gold_columns": [
+      {
+        "table": "FootNotes",
+        "column": "Year"
+      }
+    ],
+    "matched_values": [
+      "YR2005"
+    ],
+    "extracted_values_from_NL": [
+      "year 2005"
+    ]
+  },
+  {
+    "db_id": "world_development_indicators",
+    "question": "What are the footnote description of Finland in year 2000?",
+    "evidence": "Finland is the short name of the country; year 2000 refers to Year = 'YR2000';",
+    "SQL": "SELECT DISTINCT T2.Description FROM Country AS T1 INNER JOIN FootNotes AS T2 ON T1.CountryCode = T2.Countrycode WHERE T1.TableName = 'Finland' AND T2.Year = 'YR2000'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "country"
+    ],
+    "gold_columns": [
+      {
+        "table": "FootNotes",
+        "column": "Year"
+      }
+    ],
+    "matched_values": [
+      "YR2000"
+    ],
+    "extracted_values_from_NL": [
+      "year 2000"
+    ]
+  },
+  {
+    "db_id": "world_development_indicators",
+    "question": "How many footnotes have been made in year 1980 and what are the table names of these countries that made the footnotes?",
+    "evidence": "year 1980 refers to Year = 'YR1980';",
+    "SQL": "SELECT COUNT(T2.Description) FROM Country AS T1 INNER JOIN FootNotes AS T2 ON T1.CountryCode = T2.Countrycode WHERE T2.Year = 'YR1980' UNION ALL SELECT DISTINCT T1.TableName FROM Country AS T1 INNER JOIN FootNotes AS T2 ON T1.CountryCode = T2.Countrycode WHERE T2.Year = 'YR1980'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "country"
+    ],
+    "gold_columns": [
+      {
+        "table": "FootNotes",
+        "column": "Year"
+      }
+    ],
+    "matched_values": [
+      "YR1980"
+    ],
+    "extracted_values_from_NL": [
+      "year 1980"
+    ]
+  },
+  {
+    "db_id": "world_development_indicators",
+    "question": "What is the percentage of countries in the Middle East and North Africa that have finished reporting on their real external debt?",
+    "evidence": "percentage = divide(count(countrycode where  ExternalDebtReportingStatus = 'Actual' ), count(countrycode))*100%; in the Middle East and North Africa refers to region = 'Middle East & North Africa'; have finished reporting on their real external debt refers to ExternalDebtReportingStatus = 'Actual'",
+    "SQL": "SELECT CAST(SUM(CASE WHEN ExternalDebtReportingStatus = 'Actual' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(CountryCode) FROM Country WHERE region = 'Middle East & North Africa'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "country"
+    ],
+    "gold_columns": [
+      {
+        "table": "Country",
+        "column": "Region"
+      }
+    ],
+    "matched_values": [
+      "Middle East & North Africa"
+    ],
+    "extracted_values_from_NL": [
+      "in the Middle East and North Africa"
+    ]
+  },
+  {
+    "db_id": "world_development_indicators",
+    "question": "How many nations in East Asia and the Pacific have completed their external debt reporting on time?",
+    "evidence": "in East Asia and the Pacific refers to region = 'East Asia & Pacific'; have completed their external debt reporting on time refers to ExternalDebtReportingStatus = 'Estimate'",
+    "SQL": "SELECT COUNT(CountryCode)  FROM Country WHERE Region = 'East Asia & Pacific' AND ExternalDebtReportingStatus = 'Estimate'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "country"
+    ],
+    "gold_columns": [
+      {
+        "table": "Country",
+        "column": "Region"
+      }
+    ],
+    "matched_values": [
+      "East Asia & Pacific"
+    ],
+    "extracted_values_from_NL": [
+      "in East Asia and the Pacific"
+    ]
+  },
+  {
+    "db_id": "world_development_indicators",
+    "question": "What portion of the nations in Latin America and the Caribbean had more than 50% of their land used for agriculture in 1961?",
+    "evidence": "portion = divide(count(CountryName where Year = '1961' and Value>50), count(CountryName))*100%; nations in Latin America and the Caribbean refers to region = 'Latin America & Caribbean';  more than 50% of their land used for agriculture refers to value where indicatorname = 'Agricultural land (% of land area)'>50; in 1961 refers to Year = '1961'",
+    "SQL": "SELECT CAST(SUM(CASE WHEN T1.Value > 50 THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(T2.CountryCode) FROM Indicators AS T1 INNER JOIN Country AS T2 ON T1.CountryCode = T2.CountryCode WHERE T1.Year = 1961 AND T2.Region = 'Latin America & Caribbean' AND indicatorname = 'Agricultural land (% of land area)'",
+    "fuzzy_type": "synonym",
+    "used_tables": [
+      "indicators"
+    ],
+    "gold_columns": [
+      {
+        "table": "Country",
+        "column": "Region"
+      }
+    ],
+    "matched_values": [
+      "Latin America & Caribbean"
+    ],
+    "extracted_values_from_NL": [
+      "nations in Latin America and the Caribbean"
+    ]
+  },
+  {
+    "db_id": "address",
+    "question": "What is the area code of Bsihopville, SC?",
+    "evidence": "\"Bishopville\" is the city; 'SC' is the state",
+    "SQL": "SELECT T1.area_code FROM area_code AS T1 INNER JOIN zip_data AS T2 ON T1.zip_code = T2.zip_code WHERE T2.city = 'Bishopville' AND T2.state = 'SC'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "area_code",
+      "zip_data"
+    ],
+    "gold_columns": [
+      {
+        "table": "zip_data",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Bishopville"
+    ],
+    "extracted_values_from_NL": [
+      "Bsihopville"
+    ]
+  },
+  {
+    "db_id": "address",
+    "question": "List the bad alias of the postal point located in Cmauy.",
+    "evidence": "postal points refer to zip_code; Camuy is the city;",
+    "SQL": "SELECT T1.bad_alias FROM avoid AS T1 INNER JOIN zip_data AS T2 ON T1.zip_code = T2.zip_code WHERE T2.city = 'Camuy'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "avoid",
+      "zip_data"
+    ],
+    "gold_columns": [
+      {
+        "table": "zip_data",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Camuy"
+    ],
+    "extracted_values_from_NL": [
+      "Cmauy"
+    ]
+  },
+  {
+    "db_id": "address",
+    "question": "Provide the names of bad aliases in the city of Augadilla.",
+    "evidence": "",
+    "SQL": "SELECT T1.bad_alias FROM avoid AS T1 INNER JOIN zip_data AS T2 ON T1.zip_code = T2.zip_code WHERE T2.city = 'Aguadilla'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "avoid",
+      "zip_data"
+    ],
+    "gold_columns": [
+      {
+        "table": "zip_data",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Aguadilla"
+    ],
+    "extracted_values_from_NL": [
+      "Augadilla"
+    ]
+  },
+  {
+    "db_id": "beer_factory",
+    "question": "How many breweries are there in Asutralia?",
+    "evidence": "Australia refers to Country = 'Australia';",
+    "SQL": "SELECT COUNT(BreweryName) FROM rootbeerbrand WHERE Country = 'Australia'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "rootbeerbrand"
+    ],
+    "gold_columns": [
+      {
+        "table": "rootbeerbrand",
+        "column": "Country"
+      }
+    ],
+    "matched_values": [
+      "Australia"
+    ],
+    "extracted_values_from_NL": [
+      "Asutralia"
+    ]
+  },
+  {
+    "db_id": "beer_factory",
+    "question": "How many Flosom customers prefer to pay with Vsia?",
+    "evidence": "Folsom refers to City = 'Folsom'; Visa refers to CreditCardType = 'Visa';",
+    "SQL": "SELECT COUNT(T1.CustomerID) FROM customers AS T1 INNER JOIN `transaction` AS T2 ON T1.CustomerID = T2.CustomerID WHERE T1.City = 'Folsom' AND T2.CreditCardType = 'Visa'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "customers",
+      "transaction"
+    ],
+    "gold_columns": [
+      {
+        "table": "customers",
+        "column": "City"
+      }
+    ],
+    "matched_values": [
+      "Folsom"
+    ],
+    "extracted_values_from_NL": [
+      "Flosom"
+    ]
+  },
+  {
+    "db_id": "books",
+    "question": "Name the streets in Dlalas.",
+    "evidence": "\"Dallas\" is the city; streets refers to street_name",
+    "SQL": "SELECT street_name FROM address WHERE city = 'Dallas'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "address"
+    ],
+    "gold_columns": [
+      {
+        "table": "address",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Dallas"
+    ],
+    "extracted_values_from_NL": [
+      "Dlalas"
+    ]
+  },
+  {
+    "db_id": "books",
+    "question": "How many customers have an address that is located in the city of Vlileneuve-la-Garenne?",
+    "evidence": "\"Villeneuve-la-Garenne\" is the city",
+    "SQL": "SELECT COUNT(address_id) FROM address WHERE city = 'Villeneuve-la-Garenne'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "address"
+    ],
+    "gold_columns": [
+      {
+        "table": "address",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Villeneuve-la-Garenne"
+    ],
+    "extracted_values_from_NL": [
+      "Vlileneuve-la-Garenne"
+    ]
+  },
+  {
+    "db_id": "books",
+    "question": "What is the full name of the customers who live in Biayin city?",
+    "evidence": "full name refers to first_name, last_name; 'Baiyin' is the city",
+    "SQL": "SELECT T3.first_name, T3.last_name FROM address AS T1 INNER JOIN customer_address AS T2 ON T1.address_id = T2.address_id INNER JOIN customer AS T3 ON T3.customer_id = T2.customer_id WHERE T1.city = 'Baiyin'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "address",
+      "customer",
+      "customer_address"
+    ],
+    "gold_columns": [
+      {
+        "table": "address",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Baiyin"
+    ],
+    "extracted_values_from_NL": [
+      "Biayin"
+    ]
+  },
+  {
+    "db_id": "car_retails",
+    "question": "How many employees are there in Sdyney?",
+    "evidence": "sales agent and sales representative are synonyms; Sydney is a city;",
+    "SQL": "SELECT COUNT(employeeNumber) FROM employees WHERE officeCode = ( SELECT officeCode FROM offices WHERE city = 'Sydney' )",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "employees"
+    ],
+    "gold_columns": [
+      {
+        "table": "offices",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Sydney"
+    ],
+    "extracted_values_from_NL": [
+      "Sdyney"
+    ]
+  },
+  {
+    "db_id": "car_retails",
+    "question": "List out full name of employees who are working in Tkoyo?",
+    "evidence": "Tokyo is a city; full name = firstName+lastName;",
+    "SQL": "SELECT T1.firstName, T1.lastName FROM employees AS T1 INNER JOIN offices AS T2 ON T1.officeCode = T2.officeCode WHERE T2.city = 'Tokyo'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "employees",
+      "offices"
+    ],
+    "gold_columns": [
+      {
+        "table": "offices",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Tokyo"
+    ],
+    "extracted_values_from_NL": [
+      "Tkoyo"
+    ]
+  },
+  {
+    "db_id": "car_retails",
+    "question": "List out full name of employees who are working in Bsoton?",
+    "evidence": "full name = contactFirstName, contactLastName; Boston is a city;",
+    "SQL": "SELECT T1.firstName, T1.lastName FROM employees AS T1 INNER JOIN offices AS T2 ON T1.officeCode = T2.officeCode WHERE T2.city = 'Boston'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "employees",
+      "offices"
+    ],
+    "gold_columns": [
+      {
+        "table": "offices",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Boston"
+    ],
+    "extracted_values_from_NL": [
+      "Bsoton"
+    ]
+  },
+  {
+    "db_id": "chicago_crime",
+    "question": "How many aldermen have \"Jmaes\" as their first name?",
+    "evidence": "",
+    "SQL": "SELECT COUNT(*) FROM Ward WHERE alderman_first_name = 'James'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "ward"
+    ],
+    "gold_columns": [
+      {
+        "table": "Ward",
+        "column": "alderman_first_name"
+      }
+    ],
+    "matched_values": [
+      "James"
+    ],
+    "extracted_values_from_NL": [
+      "Jmaes"
+    ]
+  },
+  {
+    "db_id": "codebase_comments",
+    "question": "List the summary of the method \"Csatle.MonoRail.Framework.Test.StubViewComponentContext.RenderSection\".",
+    "evidence": "",
+    "SQL": "SELECT DISTINCT Summary FROM Method WHERE Name = 'Castle.MonoRail.Framework.Test.StubViewComponentContext.RenderSection'",
+    "fuzzy_type": "typo",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "Method",
+        "column": "Name"
+      }
+    ],
+    "matched_values": [
+      "Castle.MonoRail.Framework.Test.StubViewComponentContext.RenderSection"
+    ],
+    "extracted_values_from_NL": [
+      "Csatle.MonoRail.Framework.Test.StubViewComponentContext.RenderSection"
+    ]
+  },
+  {
+    "db_id": "codebase_comments",
+    "question": "Give the tokenized name for the method \"Spuay.Irc.Messages.KnockMessage.GetTokens\".",
+    "evidence": "",
+    "SQL": "SELECT NameTokenized FROM Method WHERE Name = 'Supay.Irc.Messages.KnockMessage.GetTokens'",
+    "fuzzy_type": "typo",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "Method",
+        "column": "Name"
+      }
+    ],
+    "matched_values": [
+      "Supay.Irc.Messages.KnockMessage.GetTokens"
+    ],
+    "extracted_values_from_NL": [
+      "Spuay.Irc.Messages.KnockMessage.GetTokens"
+    ]
+  },
+  {
+    "db_id": "codebase_comments",
+    "question": "Provide the tokenized name of the method \"Syk.Excel.ExcelBook.TypeConvert\".",
+    "evidence": "tokenized name refers to NameTokenized; NameTokenized = 'Sky.Excel.ExcelBook.TypeConvert';",
+    "SQL": "SELECT NameTokenized FROM Method WHERE Name = 'Sky.Excel.ExcelBook.TypeConvert'",
+    "fuzzy_type": "typo",
+    "used_tables": [],
+    "gold_columns": [
+      {
+        "table": "Method",
+        "column": "Name"
+      }
+    ],
+    "matched_values": [
+      "Sky.Excel.ExcelBook.TypeConvert"
+    ],
+    "extracted_values_from_NL": [
+      "Syk.Excel.ExcelBook.TypeConvert"
+    ]
+  },
+  {
+    "db_id": "disney",
+    "question": "How many voice actors for the movie Aalddin?",
+    "evidence": "Aladdin is the name of the movie which refers to movie = 'Aladdin';",
+    "SQL": "SELECT COUNT('voice-actor') FROM `voice-actors` WHERE movie = 'Aladdin'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "voice-actors"
+    ],
+    "gold_columns": [
+      {
+        "table": "voice-actors",
+        "column": "movie"
+      }
+    ],
+    "matched_values": [
+      "Aladdin"
+    ],
+    "extracted_values_from_NL": [
+      "Aalddin"
+    ]
+  },
+  {
+    "db_id": "disney",
+    "question": "How many voice-actors were involved in the Bmabi movie?",
+    "evidence": "Bambi is the name of the movie which refers to movie = 'Bambi';",
+    "SQL": "SELECT COUNT(DISTINCT 'voice-actor') FROM `voice-actors` WHERE movie = 'Bambi'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "voice-actors"
+    ],
+    "gold_columns": [
+      {
+        "table": "voice-actors",
+        "column": "movie"
+      }
+    ],
+    "matched_values": [
+      "Bambi"
+    ],
+    "extracted_values_from_NL": [
+      "Bmabi"
+    ]
+  },
+  {
+    "db_id": "genes",
+    "question": "For the pairs of genes both from the class APTases, what is the average expression correlation score?",
+    "evidence": "",
+    "SQL": "SELECT AVG(T2.Expression_Corr) FROM Genes AS T1 INNER JOIN Interactions AS T2 ON T1.GeneID = T2.GeneID1 WHERE T1.Class = 'ATPases'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "genes",
+      "interactions"
+    ],
+    "gold_columns": [
+      {
+        "table": "Genes",
+        "column": "Class"
+      }
+    ],
+    "matched_values": [
+      "ATPases"
+    ],
+    "extracted_values_from_NL": [
+      "APTases"
+    ]
+  },
+  {
+    "db_id": "legislator",
+    "question": "How many current legislators chose Rpeublican as their political party?",
+    "evidence": "chose Republican as their political party refers to party = 'Republican'",
+    "SQL": "SELECT COUNT(*) FROM `current-terms` WHERE party = 'Republican'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "current-terms"
+    ],
+    "gold_columns": [
+      {
+        "table": "current-terms",
+        "column": "party"
+      }
+    ],
+    "matched_values": [
+      "Republican"
+    ],
+    "extracted_values_from_NL": [
+      "Rpeublican"
+    ]
+  },
+  {
+    "db_id": "movie",
+    "question": "Which character has the longest screen time in the movie Btaman?",
+    "evidence": "longest screen time refers to max(screentime); movie Batman refers to title = 'Batman'",
+    "SQL": "SELECT T2.`Character Name` FROM movie AS T1 INNER JOIN characters AS T2 ON T1.MovieID = T2.MovieID WHERE T1.Title = 'Batman' ORDER BY T2.screentime DESC LIMIT 1",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "characters",
+      "movie",
+      "screentime"
+    ],
+    "gold_columns": [
+      {
+        "table": "movie",
+        "column": "Title"
+      }
+    ],
+    "matched_values": [
+      "Batman"
+    ],
+    "extracted_values_from_NL": [
+      "Btaman"
+    ]
+  },
+  {
+    "db_id": "movie",
+    "question": "How much longer in percentage is the screen time of the most important character in Btaman than the least important one?",
+    "evidence": "most important character refers to max(screentime); least important character refers to min(screentime); movie Batman refers to title = 'Batman'; percentage = divide(subtract(max(screentime) , min(screentime)) , min(screentime)) * 100%",
+    "SQL": "SELECT (MAX(CAST(SUBSTR(T2.screentime, 3, 2) AS REAL)) - MIN(CAST(SUBSTR(T2.screentime, 3, 2) AS REAL))) * 100 / MIN(CAST(SUBSTR(T2.screentime, 3, 2) AS REAL)) FROM movie AS T1 INNER JOIN characters AS T2 ON T1.MovieID = T2.MovieID WHERE T1.Title = 'Batman'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "characters",
+      "movie"
+    ],
+    "gold_columns": [
+      {
+        "table": "movie",
+        "column": "Title"
+      }
+    ],
+    "matched_values": [
+      "Batman"
+    ],
+    "extracted_values_from_NL": [
+      "Btaman"
+    ]
+  },
+  {
+    "db_id": "movie",
+    "question": "Count the male actors born in United States that starred in Gohst.",
+    "evidence": "male refers to Gender = 'Male'; born in USA refers to Birth Country = 'USA'; Ghost refers to Title = 'Ghost'",
+    "SQL": "SELECT COUNT(*) FROM movie AS T1 INNER JOIN characters AS T2 ON T1.MovieID = T2.MovieID INNER JOIN actor AS T3 ON T3.ActorID = T2.ActorID WHERE T1.Title = 'Ghost' AND T3.Gender = 'Male' AND T3.`Birth Country` = 'USA'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "actor",
+      "characters",
+      "movie"
+    ],
+    "gold_columns": [
+      {
+        "table": "movie",
+        "column": "Title"
+      }
+    ],
+    "matched_values": [
+      "Ghost"
+    ],
+    "extracted_values_from_NL": [
+      "Gohst"
+    ]
+  },
+  {
+    "db_id": "movie_3",
+    "question": "How many films are there under the category of \"Hroror\"?",
+    "evidence": "\"Horror\" is the name of category",
+    "SQL": "SELECT COUNT(T1.film_id) FROM film_category AS T1 INNER JOIN category AS T2 ON T1.category_id = T2.category_id WHERE T2.name = 'Horror'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "category",
+      "film_category"
+    ],
+    "gold_columns": [
+      {
+        "table": "category",
+        "column": "name"
+      }
+    ],
+    "matched_values": [
+      "Horror"
+    ],
+    "extracted_values_from_NL": [
+      "Hroror"
+    ]
+  },
+  {
+    "db_id": "movies_4",
+    "question": "The movie 'Gjoira ni-sen mireniamu' is from which country?",
+    "evidence": "movie 'Gojira ni-sen mireniamu' refers to title = 'Gojira ni-sen mireniamu'; which country refers to country_name",
+    "SQL": "SELECT T3.COUNTry_name FROM movie AS T1 INNER JOIN production_COUNTry AS T2 ON T1.movie_id = T2.movie_id INNER JOIN COUNTry AS T3 ON T2.COUNTry_id = T3.COUNTry_id WHERE T1.title = 'Gojira ni-sen mireniamu'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "country",
+      "movie",
+      "production_country"
+    ],
+    "gold_columns": [
+      {
+        "table": "movie",
+        "column": "title"
+      }
+    ],
+    "matched_values": [
+      "Gojira ni-sen mireniamu"
+    ],
+    "extracted_values_from_NL": [
+      "Gjoira ni-sen mireniamu"
+    ]
+  },
+  {
+    "db_id": "public_review_platform",
+    "question": "What is the closing and opening time of businesses located at Tmepe with highest star rating?",
+    "evidence": "located at Tempe refers to city = 'Tempe'; highest star rating refers to max(stars)",
+    "SQL": "SELECT T2.closing_time, T2.opening_time FROM Business AS T1 INNER JOIN Business_Hours AS T2 ON T1.business_id = T2.business_id WHERE T1.city LIKE 'Tempe' ORDER BY T1.stars DESC LIMIT 1",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "business",
+      "business_hours",
+      "stars"
+    ],
+    "gold_columns": [
+      {
+        "table": "Business",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Tempe"
+    ],
+    "extracted_values_from_NL": [
+      "Tmepe"
+    ]
+  },
+  {
+    "db_id": "public_review_platform",
+    "question": "What is the closing and opening time of businesses located at Glibert with highest star rating?",
+    "evidence": "\"Gilbert\" is the name of city; highest star rating refers to Max(stars)",
+    "SQL": "SELECT T2.closing_time, T2.opening_time FROM Business AS T1 INNER JOIN Business_Hours AS T2 ON T1.business_id = T2.business_id WHERE T1.city LIKE 'Gilbert' ORDER BY T1.stars DESC LIMIT 1",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "business",
+      "business_hours",
+      "stars"
+    ],
+    "gold_columns": [
+      {
+        "table": "Business",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Gilbert"
+    ],
+    "extracted_values_from_NL": [
+      "Glibert"
+    ]
+  },
+  {
+    "db_id": "public_review_platform",
+    "question": "Among the businesses which have short length of review, which one located in Pohenix?",
+    "evidence": "short length of review refers to review_length = 'Short'; in Phoenix refers to city = 'Phoenix'",
+    "SQL": "SELECT DISTINCT T1.business_id FROM Business AS T1 INNER JOIN Reviews AS T2 ON T1.business_id = T2.business_id WHERE T1.city = 'Phoenix' AND T2.review_length = 'Short'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "business",
+      "reviews"
+    ],
+    "gold_columns": [
+      {
+        "table": "Business",
+        "column": "city"
+      }
+    ],
+    "matched_values": [
+      "Phoenix"
+    ],
+    "extracted_values_from_NL": [
+      "Pohenix"
+    ]
+  },
+  {
+    "db_id": "regional_sales",
+    "question": "How many different time zones are there in the Nrotheast region?",
+    "evidence": "",
+    "SQL": "SELECT COUNT(DISTINCT T2.`Time Zone`) FROM Regions AS T1 INNER JOIN `Store Locations` AS T2 ON T2.StateCode = T1.StateCode WHERE T1.Region = 'Northeast'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "regions",
+      "store locations"
+    ],
+    "gold_columns": [
+      {
+        "table": "Regions",
+        "column": "Region"
+      }
+    ],
+    "matched_values": [
+      "Northeast"
+    ],
+    "extracted_values_from_NL": [
+      "Nrotheast"
+    ]
+  },
+  {
+    "db_id": "regional_sales",
+    "question": "Which store in Airzona has the most net profit?",
+    "evidence": "\"Arizona\" is the name of State; most net profit = Max(Subtract( Unit Price, Unit Cost))",
+    "SQL": "SELECT T2.StoreID FROM `Sales Orders` AS T1 INNER JOIN `Store Locations` AS T2 ON T2.StoreID = T1._StoreID WHERE T2.State = 'Arizona' ORDER BY T1.`Unit Price` - T1.`Unit Cost` DESC LIMIT 1",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "sales orders",
+      "store locations"
+    ],
+    "gold_columns": [
+      {
+        "table": "Regions",
+        "column": "State"
+      }
+    ],
+    "matched_values": [
+      "Arizona"
+    ],
+    "extracted_values_from_NL": [
+      "Airzona"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "How many complaints have the client Deisel Glaloway filed?",
+    "evidence": "",
+    "SQL": "SELECT COUNT(T1.client_id) FROM client AS T1 INNER JOIN events AS T2 ON T1.client_id = T2.Client_ID WHERE T1.first = 'Diesel' AND T1.last = 'Galloway'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "client",
+      "t2"
+    ],
+    "gold_columns": [
+      {
+        "table": "client",
+        "column": "first"
+      }
+    ],
+    "matched_values": [
+      "Diesel"
+    ],
+    "extracted_values_from_NL": [
+      "Deisel"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "List all the complaints narratives made by the customer named Bernda and last name Myaer.",
+    "evidence": "complaints narratives refers to \"Consumer complaint narrative\";",
+    "SQL": "SELECT T2.`Consumer complaint narrative` FROM client AS T1 INNER JOIN events AS T2 ON T1.client_id = T2.Client_ID WHERE T1.first = 'Brenda' AND T1.last = 'Mayer'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "client",
+      "t2"
+    ],
+    "gold_columns": [
+      {
+        "table": "client",
+        "column": "first"
+      }
+    ],
+    "matched_values": [
+      "Brenda"
+    ],
+    "extracted_values_from_NL": [
+      "Bernda"
+    ]
+  },
+  {
+    "db_id": "retail_complains",
+    "question": "How did Kryan Mluler submit his complaint?",
+    "evidence": "how it was submitted refers to \"Submitted via\";",
+    "SQL": "SELECT DISTINCT T2.`Submitted via` FROM client AS T1 INNER JOIN events AS T2 ON T1.client_id = T2.Client_ID WHERE T1.first = 'Kyran' AND T1.last = 'Muller'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "client",
+      "t2"
+    ],
+    "gold_columns": [
+      {
+        "table": "client",
+        "column": "first"
+      }
+    ],
+    "matched_values": [
+      "Kyran"
+    ],
+    "extracted_values_from_NL": [
+      "Kryan"
+    ]
+  },
+  {
+    "db_id": "retail_world",
+    "question": "The sales of how many territories in total do the employees in Lnodon take charge of?",
+    "evidence": "London refers to city = 'London';",
+    "SQL": "SELECT COUNT(T2.TerritoryID) FROM Employees AS T1 INNER JOIN EmployeeTerritories AS T2 ON T1.EmployeeID = T2.EmployeeID WHERE T1.City = 'London'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "employees",
+      "employeeterritories"
+    ],
+    "gold_columns": [
+      {
+        "table": "Customers",
+        "column": "City"
+      }
+    ],
+    "matched_values": [
+      "London"
+    ],
+    "extracted_values_from_NL": [
+      "Lnodon"
+    ]
+  },
+  {
+    "db_id": "retail_world",
+    "question": "Find and list the company name, company contact name, and contact title of customers from Mdarid.",
+    "evidence": "from Madrid refers to City = 'Madrid'",
+    "SQL": "SELECT CompanyName, ContactName, ContactTitle FROM Customers WHERE City = 'Madrid'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "customers"
+    ],
+    "gold_columns": [
+      {
+        "table": "Customers",
+        "column": "City"
+      }
+    ],
+    "matched_values": [
+      "Madrid"
+    ],
+    "extracted_values_from_NL": [
+      "Mdarid"
+    ]
+  },
+  {
+    "db_id": "retail_world",
+    "question": "List the supplier company names located in Gremany.",
+    "evidence": "located in Germany refers to Country = 'Germany';",
+    "SQL": "SELECT CompanyName FROM Suppliers WHERE Country = 'Germany'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "suppliers"
+    ],
+    "gold_columns": [
+      {
+        "table": "Customers",
+        "column": "Country"
+      }
+    ],
+    "matched_values": [
+      "Germany"
+    ],
+    "extracted_values_from_NL": [
+      "Gremany"
+    ]
+  },
+  {
+    "db_id": "shipping",
+    "question": "What is the average number of shipments done by the Kneworth trucks?",
+    "evidence": "\"Kenworth\" is the make of truck; average = Divide (Count(ship_id where make = 'Kenworth'), Count(truck_id where make = 'Kenworth))",
+    "SQL": "SELECT CAST(COUNT(T2.ship_id) AS REAL) / COUNT(DISTINCT T1.truck_id) FROM truck AS T1 INNER JOIN shipment AS T2 ON T1.truck_id = T2.truck_id WHERE T1.make = 'Kenworth'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "shipment",
+      "truck"
+    ],
+    "gold_columns": [
+      {
+        "table": "truck",
+        "column": "make"
+      }
+    ],
+    "matched_values": [
+      "Kenworth"
+    ],
+    "extracted_values_from_NL": [
+      "Kneworth"
+    ]
+  },
+  {
+    "db_id": "shipping",
+    "question": "Among the top 5 heaviest shipments, how many shipments were transported via Mcak?",
+    "evidence": "heaviest shipment refers to Max(weight); via Mack refers to make = 'Mack'",
+    "SQL": "SELECT COUNT(T2.ship_id) FROM truck AS T1 INNER JOIN shipment AS T2 ON T1.truck_id = T2.truck_id WHERE T1.make = 'Mack' ORDER BY T2.weight DESC LIMIT 1",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "shipment",
+      "truck",
+      "weight"
+    ],
+    "gold_columns": [
+      {
+        "table": "truck",
+        "column": "make"
+      }
+    ],
+    "matched_values": [
+      "Mack"
+    ],
+    "extracted_values_from_NL": [
+      "Mcak"
+    ]
+  },
+  {
+    "db_id": "simpson_episodes",
+    "question": "How many people were considered as prospective recipients of the \"Ainmation\" award?",
+    "evidence": "prospective recipients refers to result = 'Nominee'",
+    "SQL": "SELECT COUNT(*) FROM Award WHERE award = 'Animation' AND result = 'Nominee';",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "award"
+    ],
+    "gold_columns": [
+      {
+        "table": "Award",
+        "column": "award"
+      }
+    ],
+    "matched_values": [
+      "Animation"
+    ],
+    "extracted_values_from_NL": [
+      "Ainmation"
+    ]
+  },
+  {
+    "db_id": "social_media",
+    "question": "How many tweets in total were posted by a user in Agrentina?",
+    "evidence": "\"Argentina\" is the Country",
+    "SQL": "SELECT COUNT(T1.TweetID) FROM twitter AS T1 INNER JOIN location AS T2 ON T2.LocationID = T1.LocationID WHERE T2.Country = 'Argentina' LIMIT 1",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "t2",
+      "twitter"
+    ],
+    "gold_columns": [
+      {
+        "table": "location",
+        "column": "Country"
+      }
+    ],
+    "matched_values": [
+      "Argentina"
+    ],
+    "extracted_values_from_NL": [
+      "Agrentina"
+    ]
+  },
+  {
+    "db_id": "social_media",
+    "question": "What is the average number of tweets posted by the users in a city in Agrentina?",
+    "evidence": "\"Argentina\" is the Country; average number of tweets in a city = Divide (Count(TweetID where Country = 'Argentina'), Count (City))",
+    "SQL": "SELECT SUM(CASE WHEN T2.City = 'Buenos Aires' THEN 1.0 ELSE 0 END) / COUNT(T1.TweetID) AS avg FROM twitter AS T1 INNER JOIN location AS T2 ON T2.LocationID = T1.LocationID WHERE T2.Country = 'Argentina'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "t2",
+      "twitter"
+    ],
+    "gold_columns": [
+      {
+        "table": "location",
+        "column": "Country"
+      }
+    ],
+    "matched_values": [
+      "Argentina"
+    ],
+    "extracted_values_from_NL": [
+      "Agrentina"
+    ]
+  },
+  {
+    "db_id": "social_media",
+    "question": "What is the percentage of the tweets from Claifornia are positive?",
+    "evidence": "\"California\" is the State; positive tweet refers to Sentiment > 0; percentage = Divide (Count(TweetID where Sentiment > 0), Count (TweetID)) * 100",
+    "SQL": "SELECT SUM(CASE WHEN T1.Sentiment > 0 THEN 1.0 ELSE 0 END) / COUNT(T1.TweetID) AS percentage FROM twitter AS T1 INNER JOIN location AS T2 ON T2.LocationID = T1.LocationID WHERE State = 'California'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "t2",
+      "twitter"
+    ],
+    "gold_columns": [
+      {
+        "table": "location",
+        "column": "State"
+      }
+    ],
+    "matched_values": [
+      "California"
+    ],
+    "extracted_values_from_NL": [
+      "Claifornia"
+    ]
+  },
+  {
+    "db_id": "superstore",
+    "question": "Who is the customer from the Esat region that purchased the order with the highest profit?",
+    "evidence": "highest profit refers to MAX(profit); Region = 'East'",
+    "SQL": "SELECT T2.`Customer Name` FROM east_superstore AS T1 INNER JOIN people AS T2 ON T1.`Customer ID` = T2.`Customer ID` WHERE T1.Region = 'East' ORDER BY T1.Profit DESC LIMIT 1",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "east_superstore",
+      "people",
+      "profit"
+    ],
+    "gold_columns": [
+      {
+        "table": "people",
+        "column": "Region"
+      }
+    ],
+    "matched_values": [
+      "East"
+    ],
+    "extracted_values_from_NL": [
+      "Esat"
+    ]
+  },
+  {
+    "db_id": "superstore",
+    "question": "Who is the customer from the Wset region that received the highest discount?",
+    "evidence": "received the highest discount refers to MAX(discount); customer refers to \"Customer Name\"",
+    "SQL": "SELECT T2.`Customer Name` FROM west_superstore AS T1 INNER JOIN people AS T2 ON T1.`Customer ID` = T2.`Customer ID` WHERE T1.Region = 'West' ORDER BY T1.Discount DESC LIMIT 1",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "discount",
+      "people",
+      "west_superstore"
+    ],
+    "gold_columns": [
+      {
+        "table": "people",
+        "column": "Region"
+      }
+    ],
+    "matched_values": [
+      "West"
+    ],
+    "extracted_values_from_NL": [
+      "Wset"
+    ]
+  },
+  {
+    "db_id": "superstore",
+    "question": "List the products ordered by customers in Caochella.",
+    "evidence": "in Coachella refers to City = 'Coachella'; products refers to \"Product Name\"",
+    "SQL": "SELECT DISTINCT T3.`Product Name` FROM west_superstore AS T1 INNER JOIN people AS T2 ON T1.`Customer ID` = T2.`Customer ID` INNER JOIN product AS T3 ON T3.`Product ID` = T1.`Product ID` WHERE T2.City = 'Coachella'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "people",
+      "product",
+      "west_superstore"
+    ],
+    "gold_columns": [
+      {
+        "table": "people",
+        "column": "City"
+      }
+    ],
+    "matched_values": [
+      "Coachella"
+    ],
+    "extracted_values_from_NL": [
+      "Caochella"
+    ]
+  },
+  {
+    "db_id": "works_cycles",
+    "question": "What is the currency of Barzil?",
+    "evidence": "",
+    "SQL": "SELECT T1.Name FROM Currency AS T1 INNER JOIN CountryRegionCurrency AS T2 ON T1.CurrencyCode = T2.CurrencyCode INNER JOIN CountryRegion AS T3 ON T2.CountryRegionCode = T3.CountryRegionCode WHERE T3.Name = 'Brazil'",
+    "fuzzy_type": "typo",
+    "used_tables": [
+      "countryregion",
+      "countryregioncurrency",
+      "currency"
+    ],
+    "gold_columns": [
+      {
+        "table": "CountryRegion",
+        "column": "Name"
+      }
+    ],
+    "matched_values": [
+      "Brazil"
+    ],
+    "extracted_values_from_NL": [
+      "Barzil"
+    ]
+  }
+]

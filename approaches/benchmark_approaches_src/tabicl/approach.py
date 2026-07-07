@@ -192,9 +192,9 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             )
             
             train_df_processed = self._preprocess_for_tabicl(train_df)
-            print(f"Done preprocessing the table, now starting to fit the model")
+            logger.info("Done preprocessing the table, now starting to fit the model")
             self.model.fit(train_df_processed, train_labels)
-            print(f"Finished fitting the TabICL model for classification.")
+            logger.info("Finished fitting the TabICL model for classification.")
             
         elif task_type == "regression":
             if not is_v2:
@@ -210,9 +210,9 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             )
             
             train_df_processed = self._preprocess_for_tabicl(train_df)
-            print(f"Done preprocessing the table, now starting to fit the model")
+            logger.info("Done preprocessing the table, now starting to fit the model")
             self.model.fit(train_df_processed, train_labels)
-            print(f"Finished fitting the TabICL model for regression.")
+            logger.info("Finished fitting the TabICL model for regression.")
             
         else:
             raise ValueError(f"Unknown task_type: {task_type}")
@@ -228,15 +228,15 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         """
         if task_type == "classification":
             test_df_processed = self._preprocess_for_tabicl(test_df)
-            print(f"Done preprocessing the table, now starting to predict the {len(test_df_processed)} test cases")
+            logger.info(f"Done preprocessing the table, now starting to predict the {len(test_df_processed)} test cases")
             proba_tuple = self.model.predict_proba(test_df_processed)
-            print(f"Finished predicting with the TabICL model.")
-            
+            logger.info("Finished predicting with the TabICL model.")
+
             if isinstance(proba_tuple, tuple):
                 logits = proba_tuple[0]
                 return logits
             else:
-                print(f"Is not tuple")
+                logger.debug("predict_proba did not return a tuple")
                 return proba_tuple
         
         elif task_type == "regression":
@@ -249,9 +249,9 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
                 raise NotImplementedError("TabICL regression is only supported with v2 checkpoints. Please use a v2 checkpoint.")
             
             test_df_processed = self._preprocess_for_tabicl(test_df)
-            print(f"Done preprocessing the table, now starting to predict the {len(test_df_processed)} test cases")
+            logger.info(f"Done preprocessing the table, now starting to predict the {len(test_df_processed)} test cases")
             predictions = self.model.predict(test_df_processed)
-            print(f"Finished predicting with the TabICL model for regression.")
+            logger.info("Finished predicting with the TabICL model for regression.")
             return predictions
             
         else:
@@ -302,17 +302,17 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
                 - input_table_clean: preprocessed input table
         """
         self.load_trained_model()
-        
-        print("input_table shape:", input_table.shape)
-        
+
+        logger.debug(f"input_table shape: {input_table.shape}")
+
         input_table_clean = self._preprocess_for_tabicl(input_table)
-        
-        print(f"input_table_clean shape after base preprocessing: {input_table_clean.shape}")
-        print(f"Original columns: {len(input_table.columns)}, Clean table columns: {len(input_table_clean.columns)}")
-        
+
+        logger.debug(f"input_table_clean shape after base preprocessing: {input_table_clean.shape}")
+        logger.debug(f"Original columns: {len(input_table.columns)}, Clean table columns: {len(input_table_clean.columns)}")
+
         # Always use all data as training for embeddings
         y = np.zeros(len(input_table_clean))
-        logger.info("Fitting model for embeddings")
+        logger.debug("Fitting model for embeddings")
         self.model.fit(input_table_clean, y)
         
         # Convert to torch tensors and get column embeddings directly
@@ -338,11 +338,11 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         # Get the feature names that TabICL actually used after its internal preprocessing
         if hasattr(self.model, 'feature_names_in_') and self.model.feature_names_in_ is not None:
             column_names = self.model.feature_names_in_
-            print(f"Columns kept after TabICL's internal preprocessing: {list(column_names)}")
+            logger.debug(f"Columns kept after TabICL's internal preprocessing: {list(column_names)}")
         else:
             # Fallback to input_table_clean columns if feature_names_in_ is not available
             column_names = input_table_clean.columns
-            print(f"Using input_table_clean columns (feature_names_in_ not available): {list(column_names)}")
+            logger.debug(f"Using input_table_clean columns (feature_names_in_ not available): {list(column_names)}")
         
         return col_embeddings_without_cls, column_names, input_table_clean
 
@@ -357,15 +357,26 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
             tuple: (column_embeddings, column_names) where column_embeddings has shape (num_columns, embedding_dim)
         """
         # Get raw column embeddings without CLS tokens
-        col_embeddings_without_cls, column_names, _ = self._get_col_embeddings_without_cls(input_table)
-        
+        try:
+            col_embeddings_without_cls, column_names, _ = self._get_col_embeddings_without_cls(input_table)
+        except Exception as e:
+            # TabICL's Latin square shuffler fails on tables where all columns are constant
+            # (zero variance → no features survive internal preprocessing). Use a minimal
+            # synthetic table to determine the embedding dimension and return zeros.
+            logger.info(f"TabICL embedding failed ({e}); returning zero embeddings for this table.")
+            probe = pd.DataFrame({"a": [0.0, 1.0], "b": [0.0, 1.0]})
+            probe_emb, _, _ = self._get_col_embeddings_without_cls(probe)
+            embedding_dim = probe_emb.mean(dim=1).squeeze(0).shape[-1]
+            column_names = list(input_table.columns)
+            return np.zeros((len(column_names), embedding_dim)), column_names
+
         # Aggregate across rows (T dimension) to get per-column embeddings
         # Take mean across the row dimension to get (B, H-cls, D), then squeeze batch dimension
         column_embeddings = col_embeddings_without_cls.mean(dim=1).squeeze(0).cpu().numpy()
         
-        print(f"column_embeddings shape: {column_embeddings.shape}")
-        print(f"Number of column names: {len(column_names)}")
-        
+        logger.debug(f"column_embeddings shape: {column_embeddings.shape}")
+        logger.debug(f"Number of column names: {len(column_names)}")
+
         return column_embeddings, column_names
 
     def get_cell_embeddings(self, input_table: pd.DataFrame) -> tuple:
@@ -433,9 +444,9 @@ class TabICLEmbedder(BaseTabularEmbeddingApproach):
         cell_embeddings_with_header = np.concatenate([header_embeddings, cell_embeddings], axis=0)
         # Final shape: (num_rows + 1, num_columns, embedding_dim)
         
-        print(f"cell_embeddings_with_header shape: {cell_embeddings_with_header.shape}")
-        print(f"Number of rows (including header): {cell_embeddings_with_header.shape[0]}, Number of columns: {cell_embeddings_with_header.shape[1]}")
-        print(f"Number of column names: {len(column_names)}")
+        logger.debug(f"cell_embeddings_with_header shape: {cell_embeddings_with_header.shape}")
+        logger.debug(f"Number of rows (including header): {cell_embeddings_with_header.shape[0]}, Number of columns: {cell_embeddings_with_header.shape[1]}")
+        logger.debug(f"Number of column names: {len(column_names)}")
         
         return cell_embeddings_with_header, column_names
 

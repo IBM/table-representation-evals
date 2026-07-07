@@ -1,0 +1,22 @@
+# Task configuration for NL2Cell2Column Mapping benchmark
+# Uses cell embeddings to identify relevant columns for text-to-SQL queries
+
+task_name: nl2cell2column_mapping
+
+elo_metric: "mean_mrr"
+
+# Maximum number of queries to process (for testing/debugging)
+# Set to null or remove to process all queries
+max_queries: null
+
+# Maximum number of unique values to sample per column when creating cell embeddings
+# Reduces memory usage for columns with many unique values
+# Note: Matched values from benchmark queries are ALWAYS included regardless of this limit
+max_unique_values_per_column: 1000
+
+# Number of top columns to retrieve via search_groups
+top_k_columns: 50
+
+# Query embedding mode: "full_nl" or "extracted_values"
+query_mode: extracted_values
+

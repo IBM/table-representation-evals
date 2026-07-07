@@ -1,0 +1,13 @@
+benchmark_output_dir: tmp
+approaches:
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+      table_row_limit: 100
+    tasks:
+      - table_shuffling
+    task_datasets:
+      table_shuffling:
+        - fetaqa@@v0
+        - tabfact@@v0
+        - fetaqa@@v1

@@ -36,12 +36,12 @@ class CellEmbeddingComponent(CellEmbeddingInterface):
         Returns:
             np.ndarray: Matrix of cell embeddings with shape [num_rows, num_columns, embedding_dim]
         """
-        logger.info(f"Creating cell embeddings for table of shape {input_table.shape}")
-        
+        logger.debug(f"Creating cell embeddings for table of shape {input_table.shape}")
+
         # Use the approach's get_cell_embeddings method
         cell_embeddings, column_names = self.approach_instance.get_cell_embeddings(input_table)
-        
-        logger.info(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
+
+        logger.debug(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
         
         return cell_embeddings
 

@@ -17,14 +17,18 @@ performance_cols = {
     "MLP_log_loss (↓)": 'lower_is_better',
     # accuracy
     'accuracy': 'higher_is_better',
+    'accuracy (↑)': 'higher_is_better',
     'accuracy_easy': 'higher_is_better',
     'accuracy_medium': 'higher_is_better',
     'accuracy_hard': 'higher_is_better',
+    # column type annotation
+    'macro_f1 (↑)': 'higher_is_better',
     'In top-1 [%]': 'higher_is_better',
     'In top-3 [%]': 'higher_is_better',
     'In top-5 [%]': 'higher_is_better',
     'In top-10 [%]': 'higher_is_better',
     'MRR': 'higher_is_better',  # mean reciprocal rank
+    'MAP': 'higher_is_better',  # mean average precision
     'Recall@1': 'higher_is_better',
     # table shuffling / triplet metrics
     'TripletAccuracy': 'higher_is_better',
@@ -44,7 +48,14 @@ def to_slug(s: str) -> str:
 
 def get_setup_infos(results_file: Path):
     """
-    Extract setup information from result file path
+    Extract setup information from result file path.
+
+    Handles two path structures:
+      approach/[param_slug/]task/dataset/results.json
+      approach/[param_slug/]task/task_param_slug/dataset/results.json
+
+    The task_param_slug level (if present) is detected by the presence of '=' in
+    the folder name and is appended to configuration so variants remain distinct.
 
         Args:
             results_file: pathlib.Path  the path to extract from
@@ -52,10 +63,23 @@ def get_setup_infos(results_file: Path):
         Returns:
             str: dataset name
             str: task name
-            str: configuration 
+            str: configuration
     """
     dataset_folder = results_file.parent
-    task_folder = dataset_folder.parent
-    configuration_folder = task_folder.parent
+    task_or_slug_folder = dataset_folder.parent
 
-    return dataset_folder.name, task_folder.name, configuration_folder.name
+    if "=" in task_or_slug_folder.name:
+        # task_param_slug level is present (e.g. query_mode=full_nl)
+        task_param_slug = task_or_slug_folder.name
+        task_folder = task_or_slug_folder.parent
+        param_slug_folder = task_folder.parent
+        if "=" in param_slug_folder.name:
+            configuration = f"{param_slug_folder.name},{task_param_slug}"
+        else:
+            configuration = task_param_slug
+    else:
+        task_folder = task_or_slug_folder
+        configuration_folder = task_folder.parent
+        configuration = configuration_folder.name
+
+    return dataset_folder.name, task_folder.name, configuration

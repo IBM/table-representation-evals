@@ -1,0 +1,14 @@
+benchmark_output_dir: main_experiments
+approaches:
+
+  - name: tabicl
+    params:
+      run_task_based_on: row_embeddings  # default from approach config; can be omitted
+    task_exclude_datasets:
+      predictive_ml:
+        - kddcup09_appetency
+
+  - name: tabicl
+    params:
+      run_task_based_on: custom_predictiveML_model
+    tasks: [predictive_ml]

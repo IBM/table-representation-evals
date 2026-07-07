@@ -1,0 +1,7 @@
+benchmark_output_dir: nl2column_experiments
+approaches:
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+    tasks:
+      - nl2column_mapping

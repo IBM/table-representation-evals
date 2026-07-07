@@ -30,7 +30,7 @@ class GritLMEmbedder(BaseTabularEmbeddingApproach):
         super().__init__(cfg) # IMPORTANT: Call the base class constructor first
 
         # initialize your approach, save everything you need as custom class attributes
-        # with cfg.approach.<your_parameter> you can access the custom parameters you set for your approach in the hydra config.
+        # cfg.approach.<param> gives access to parameters defined in configs/approaches/<name>.yaml
         # e.g. self.<your_parameter> = cfg.approach.<your_parameter>
 
         assert cfg.approach.embedding_model is not None, f"Please pass an embedding_model name"
@@ -69,7 +69,7 @@ class GritLMEmbedder(BaseTabularEmbeddingApproach):
         for name, module in model.named_modules():
             if "Attention" in type(module).__name__:
                 if hasattr(module, "flash"):
-                    logger.info(f"{name} uses FlashAttention: {module.flash}")
+                    logger.debug(f"{name} uses FlashAttention: {module.flash}")
                     uses_flash_attention = True
         if not uses_flash_attention:
             logger.info(f"No flash attention is used")

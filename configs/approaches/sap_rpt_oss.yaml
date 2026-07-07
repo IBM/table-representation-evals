@@ -1,0 +1,24 @@
+approach_name: sap_rpt_oss
+conda_env: benchmark_env
+module_path: "approaches/benchmark_approaches_src/sap_rpt_oss"
+class_name: SAP_RPT_OSS_Embedder
+
+bagging: 1
+max_context_size: 2048
+device: "auto"
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+    exclude_datasets:  # OOM on 80GB VRAM
+      - DBLP-GoogleScholar
+      - iTunes-Amazon
+  more_similar_than: {}
+  column_similarity_search:
+    run_similarity_search_based_on: column_embeddings
+  cell_task: {}
+  predictive_ml:
+    run_task_based_on: row_embeddings  # default; override to custom_predictiveML_model in pred run
+  nl2column_mapping: {}
+  nl2cell2column_mapping: {}
+  column_type_annotation: {}

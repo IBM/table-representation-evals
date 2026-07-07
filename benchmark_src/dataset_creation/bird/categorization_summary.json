@@ -1,0 +1,480 @@
+{
+  "total_queries": 9428,
+  "pure_concept_mapping_count": 2974,
+  "cell_value_matching_count": 4136,
+  "breakdown": {
+    "concept_only": 2974,
+    "value_only": 1246,
+    "mixed": 2890,
+    "unknown": 2318
+  },
+  "percentages": {
+    "pure_concept_mapping": 31.54,
+    "cell_value_matching": 43.87
+  },
+  "pure_concept_samples": [
+    {
+      "db_id": "movie_platform",
+      "question": "State the most popular movie? When was it released and who is the director for the movie?",
+      "evidence": "most popular movie refers to MAX(movie_popularity); when it was released refers to movie_release_year; director for the movie refers to director_name;",
+      "SQL": "SELECT movie_title, movie_release_year, director_name FROM movies ORDER BY movie_popularity DESC LIMIT 1 ",
+      "category": "concept_only",
+      "used_tables": [
+        "movie_popularity",
+        "movies"
+      ],
+      "gold_columns": [
+        {
+          "table": "movies",
+          "column": "movie_title"
+        },
+        {
+          "table": "movies",
+          "column": "movie_release_year"
+        },
+        {
+          "table": "movies",
+          "column": "director_name"
+        },
+        {
+          "table": "movies",
+          "column": "movie_popularity"
+        }
+      ],
+      "matched_values": []
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "What is the name of the longest movie title? When was it released?",
+      "evidence": "longest movie title refers to MAX(LENGTH(movie_title)); when it was released refers to movie_release_year;",
+      "SQL": "SELECT movie_title, movie_release_year FROM movies ORDER BY LENGTH(movie_popularity) DESC LIMIT 1",
+      "category": "concept_only",
+      "used_tables": [
+        "movies"
+      ],
+      "gold_columns": [
+        {
+          "table": "movies",
+          "column": "movie_title"
+        },
+        {
+          "table": "movies",
+          "column": "movie_release_year"
+        },
+        {
+          "table": "movies",
+          "column": "movie_popularity"
+        }
+      ],
+      "matched_values": []
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "Name the movie with the most ratings.",
+      "evidence": "movie with the most rating refers to MAX(SUM(rating_score));",
+      "SQL": "SELECT movie_title FROM movies GROUP BY movie_title ORDER BY COUNT(movie_title) DESC LIMIT 1",
+      "category": "concept_only",
+      "used_tables": [
+        "movie_title",
+        "movies"
+      ],
+      "gold_columns": [
+        {
+          "table": "movies",
+          "column": "movie_title"
+        }
+      ],
+      "matched_values": []
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "For all ratings which are rated in year 2020, name the movies which has the rating scored 4 and above.",
+      "evidence": "ratings in year 2020 refers to rating_timestamp_utc like '%2020%'; rating_score > = 4;",
+      "SQL": "SELECT T2.movie_title FROM ratings AS T1 INNER JOIN movies AS T2 ON T1.movie_id = T2.movie_id WHERE CAST(SUBSTR(T1.rating_timestamp_utc, 1, 4) AS INTEGER) = 2020 AND CAST(SUBSTR(T1.rating_timestamp_utc, 6, 2) AS INTEGER) > 4",
+      "category": "concept_only",
+      "used_tables": [
+        "movies",
+        "ratings"
+      ],
+      "gold_columns": [
+        {
+          "table": "movies",
+          "column": "movie_title"
+        },
+        {
+          "table": "movies",
+          "column": "movie_id"
+        }
+      ],
+      "matched_values": [
+        "4",
+        "2020",
+        "2",
+        "4"
+      ]
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "For all movies where users left a critic, find the movie name, user, rating and critics comments from the user.",
+      "evidence": "movies where users left a critic refers to critic IS NOT NULL; critic comments refers to critic;",
+      "SQL": "SELECT T2.movie_title, T1.user_id, T1.rating_score, T1.critic FROM ratings AS T1 INNER JOIN movies AS T2 ON T1.movie_id = T2.movie_id WHERE T1.critic IS NOT NULL",
+      "category": "concept_only",
+      "used_tables": [
+        "movies",
+        "ratings"
+      ],
+      "gold_columns": [
+        {
+          "table": "movies",
+          "column": "movie_title"
+        },
+        {
+          "table": "lists",
+          "column": "user_id"
+        },
+        {
+          "table": "ratings",
+          "column": "rating_score"
+        },
+        {
+          "table": "ratings",
+          "column": "critic"
+        },
+        {
+          "table": "movies",
+          "column": "movie_id"
+        }
+      ],
+      "matched_values": []
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "What is the percentage of rated movies were released in year 2021?",
+      "evidence": "percentage = DIVIDE(SUM(movie_release_year = 2021), COUNT(rating_id)) as percent; movies released in year 2021 refers to movie_release_year = 2021;",
+      "SQL": "SELECT CAST(SUM(CASE WHEN T1.movie_release_year = 2021 THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*) FROM movies AS T1 INNER JOIN ratings AS T2 ON T1.movie_id = T2.movie_id",
+      "category": "concept_only",
+      "used_tables": [
+        "movies",
+        "ratings"
+      ],
+      "gold_columns": [
+        {
+          "table": "movies",
+          "column": "movie_id"
+        }
+      ],
+      "matched_values": []
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "What is the name of the most followed list?",
+      "evidence": "most followed list refers to MAX(list_followers);",
+      "SQL": "SELECT list_title FROM lists ORDER BY list_followers DESC LIMIT 1",
+      "category": "concept_only",
+      "used_tables": [
+        "list_followers"
+      ],
+      "gold_columns": [
+        {
+          "table": "lists",
+          "column": "list_title"
+        },
+        {
+          "table": "lists",
+          "column": "list_followers"
+        }
+      ],
+      "matched_values": []
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "What are the URL to the list page on Mubi of the lists with followers between 1-2 and whose last update timestamp was on 2012?",
+      "evidence": "URL to the list page on Mubi refers to list_url; list_followers = 1 OR list_followers = 2; last update timestamp was on 2012 refers to list_update_timestamp_utc BETWEEN '2012-1-1' AND '2012-12-31';",
+      "SQL": "SELECT list_url FROM lists WHERE list_update_timestamp_utc LIKE '2012%' AND list_followers BETWEEN 1 AND 2 ORDER BY list_update_timestamp_utc DESC LIMIT 1",
+      "category": "concept_only",
+      "used_tables": [
+        "list_update_timestamp_utc"
+      ],
+      "gold_columns": [
+        {
+          "table": "lists",
+          "column": "list_url"
+        },
+        {
+          "table": "lists",
+          "column": "list_update_timestamp_utc"
+        },
+        {
+          "table": "lists",
+          "column": "list_followers"
+        }
+      ],
+      "matched_values": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "When was the first movie released and who directed it?",
+      "evidence": "first movie refers to oldest movie_release_year;",
+      "SQL": "SELECT movie_release_year, director_name FROM movies WHERE movie_release_year IS NOT NULL ORDER BY movie_release_year ASC LIMIT 1",
+      "category": "concept_only",
+      "used_tables": [
+        "movie_release_year",
+        "movies"
+      ],
+      "gold_columns": [
+        {
+          "table": "movies",
+          "column": "movie_release_year"
+        },
+        {
+          "table": "movies",
+          "column": "director_name"
+        }
+      ],
+      "matched_values": []
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "How many movies were added to the list with the most number of movies? Indicate whether the user was a paying subscriber or not when he created the list.",
+      "evidence": "list with the most number of movies refers to MAX(list_movie_number); user_has_payment_method = 1 means the user was a paying subscriber when he created the list; user_has_payment_method = 0 means the user was not a paying subscriber when he created the list;",
+      "SQL": "SELECT T1.list_movie_number, T2.user_has_payment_method FROM lists AS T1 INNER JOIN lists_users AS T2 ON T1.list_id = T2.list_id ORDER BY T1.list_movie_number DESC LIMIT 1",
+      "category": "concept_only",
+      "used_tables": [
+        "list_movie_number",
+        "lists_users",
+        "t1"
+      ],
+      "gold_columns": [
+        {
+          "table": "lists",
+          "column": "list_movie_number"
+        },
+        {
+          "table": "ratings_users",
+          "column": "user_has_payment_method"
+        },
+        {
+          "table": "lists",
+          "column": "list_id"
+        }
+      ],
+      "matched_values": []
+    }
+  ],
+  "cell_value_samples": [
+    {
+      "db_id": "movie_platform",
+      "question": "How many movie lists were created by user 83373278 when he or she was a subscriber?",
+      "evidence": "the user was a subscriber when he created the list refers to user_subscriber = 1; user 83373278 refers to user_id = 83373278;",
+      "SQL": "SELECT COUNT(*) FROM lists_users WHERE user_id = 83373278 AND user_subscriber = 1",
+      "category": "value_only",
+      "used_tables": [
+        "lists_users"
+      ],
+      "gold_columns": [
+        {
+          "table": "lists",
+          "column": "user_id"
+        },
+        {
+          "table": "ratings_users",
+          "column": "user_subscriber"
+        }
+      ],
+      "matched_values": [
+        "83373278",
+        "1"
+      ]
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "How many films were released in 2007?",
+      "evidence": "film released in 2007 refers to movie_release_year = 2007; film refers to movie",
+      "SQL": "SELECT COUNT(*) FROM movies WHERE movie_release_year = 2007",
+      "category": "value_only",
+      "used_tables": [
+        "movies"
+      ],
+      "gold_columns": [
+        {
+          "table": "movies",
+          "column": "movie_release_year"
+        }
+      ],
+      "matched_values": [
+        "2007"
+      ]
+    },
+    {
+      "db_id": "book_publishing_company",
+      "question": "Who are the employees working for publisher not located in USA? State the employee's name and publisher name.",
+      "evidence": "not located at USA refers to country! = 'USA'",
+      "SQL": "SELECT T1.fname, T1.lname, T2.pub_name FROM employee AS T1 INNER JOIN publishers AS T2 ON T1.pub_id = T2.pub_id WHERE T2.country != 'USA'",
+      "category": "value_only",
+      "used_tables": [
+        "employee",
+        "publishers"
+      ],
+      "gold_columns": [
+        {
+          "table": "publishers",
+          "column": "country"
+        }
+      ],
+      "matched_values": [
+        "USA"
+      ]
+    },
+    {
+      "db_id": "book_publishing_company",
+      "question": "How many publishers are in the USA?",
+      "evidence": "",
+      "SQL": "SELECT COUNT(pub_id) FROM publishers WHERE country = 'USA'",
+      "category": "value_only",
+      "used_tables": [
+        "publishers"
+      ],
+      "gold_columns": [
+        {
+          "table": "publishers",
+          "column": "country"
+        }
+      ],
+      "matched_values": [
+        "USA"
+      ]
+    },
+    {
+      "db_id": "book_publishing_company",
+      "question": "Among the publishers in the USA, how many of them have published books that are over $15?",
+      "evidence": "are over $15 refers to price>15",
+      "SQL": "SELECT COUNT(DISTINCT T1.pub_id) FROM titles AS T1 INNER JOIN publishers AS T2 ON T1.pub_id = T2.pub_id WHERE T2.country = 'USA' AND T1.price > 15",
+      "category": "value_only",
+      "used_tables": [
+        "publishers",
+        "titles"
+      ],
+      "gold_columns": [
+        {
+          "table": "publishers",
+          "column": "country"
+        },
+        {
+          "table": "titles",
+          "column": "price"
+        }
+      ],
+      "matched_values": [
+        "USA",
+        "15"
+      ]
+    },
+    {
+      "db_id": "book_publishing_company",
+      "question": "Show me the employ id of the highest employee who doesn't have a middle name.",
+      "evidence": "highest employee refers to employee with the highest job level; MAX(job_lvl)",
+      "SQL": "SELECT emp_id FROM employee WHERE minit = '' ORDER BY job_lvl DESC LIMIT 1",
+      "category": "value_only",
+      "used_tables": [
+        "employee",
+        "job_lvl"
+      ],
+      "gold_columns": [
+        {
+          "table": "employee",
+          "column": "minit"
+        }
+      ],
+      "matched_values": [
+        ""
+      ]
+    },
+    {
+      "db_id": "book_publishing_company",
+      "question": "What's Pedro S Afonso's job title?",
+      "evidence": "job title means job description which refers to job_desc",
+      "SQL": "SELECT T2.job_desc FROM employee AS T1 INNER JOIN jobs AS T2 ON T1.job_id = T2.job_id WHERE T1.fname = 'Pedro' AND T1.minit = 'S' AND T1.lname = 'Afonso'",
+      "category": "value_only",
+      "used_tables": [
+        "employee",
+        "jobs"
+      ],
+      "gold_columns": [
+        {
+          "table": "employee",
+          "column": "minit"
+        }
+      ],
+      "matched_values": [
+        "Pedro",
+        "S",
+        "Afonso"
+      ]
+    },
+    {
+      "db_id": "book_publishing_company",
+      "question": "How many levels are there left for Diego W Roel to reach if he/she could go to the max level for his/her position?",
+      "evidence": "max level for his position refers to max_lvl; job level refers to job_lvl; level left to reach the max = SUBTRACT(max_lvl, job_lvl)",
+      "SQL": "SELECT T2.max_lvl - T1.job_lvl FROM employee AS T1 INNER JOIN jobs AS T2 ON T1.job_id = T2.job_id WHERE T1.fname = 'Diego' AND T1.minit = 'W' AND T1.lname = 'Roel'",
+      "category": "value_only",
+      "used_tables": [
+        "employee",
+        "jobs"
+      ],
+      "gold_columns": [
+        {
+          "table": "employee",
+          "column": "minit"
+        }
+      ],
+      "matched_values": [
+        "Diego",
+        "W",
+        "Roel"
+      ]
+    },
+    {
+      "db_id": "book_publishing_company",
+      "question": "Tell me about the information of the French publisher.",
+      "evidence": "French publisher means publisher in France where country = 'France'",
+      "SQL": "SELECT T1.pr_info FROM pub_info AS T1 INNER JOIN publishers AS T2 ON T1.pub_id = T2.pub_id WHERE T2.country = 'France'",
+      "category": "value_only",
+      "used_tables": [
+        "pub_info",
+        "publishers"
+      ],
+      "gold_columns": [
+        {
+          "table": "publishers",
+          "column": "country"
+        }
+      ],
+      "matched_values": [
+        "France"
+      ]
+    },
+    {
+      "db_id": "book_publishing_company",
+      "question": "What's the publisher of the book \"Silicon Valley Gastronomic Treats\"? Give the publisher's name.",
+      "evidence": "publisher name refers to pub_name; Silicon Valley Gastronomic Treats is the title of a book",
+      "SQL": "SELECT T2.pub_name FROM titles AS T1 INNER JOIN publishers AS T2 ON T1.pub_id = T2.pub_id WHERE T1.title = 'Silicon Valley Gastronomic Treats'",
+      "category": "value_only",
+      "used_tables": [
+        "publishers",
+        "titles"
+      ],
+      "gold_columns": [
+        {
+          "table": "titles",
+          "column": "title"
+        }
+      ],
+      "matched_values": [
+        "Silicon Valley Gastronomic Treats"
+      ]
+    }
+  ]
+}

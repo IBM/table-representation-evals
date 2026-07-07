@@ -63,7 +63,7 @@ class CellEmbeddingComponent(CellEmbeddingInterface):
             )
 
         embedding_dim = embeddings_flat.shape[1]
-        logger.info(f"GritLM embedding dim={embedding_dim}")
+        logger.debug(f"GritLM embedding dim={embedding_dim}")
 
         # Reshape into [num_rows+1, num_cols, embedding_dim]
         cell_embeddings = embeddings_flat.reshape((num_rows + 1, num_cols, embedding_dim))

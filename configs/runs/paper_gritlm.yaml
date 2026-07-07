@@ -1,0 +1,5 @@
+benchmark_output_dir: main_experiments
+approaches:
+  - name: GritLM
+    params:
+      embedding_model: GritLM/GritLM-7B

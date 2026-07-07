@@ -1,13 +1,12 @@
-from omegaconf import DictConfig
 import multiprocessing
 import logging
 from pathlib import Path
 import sklearn
 import pandas
-from hydra.utils import get_original_cwd
 import json
 import pickle
 import os
+from omegaconf import DictConfig
 
 from benchmark_src.approach_interfaces.row_embedding_interface import RowEmbeddingInterface
 from benchmark_src.utils.resource_monitoring import monitor_resources, save_resource_metrics_to_disk
@@ -20,7 +19,7 @@ from sklearn.metrics import silhouette_score
 logger = logging.getLogger(__name__)
 
 def load_benchmark_data(cfg):
-    dataset_name = str(Path(get_original_cwd()) / "ContextAwareJoin" / "datasets" / cfg.dataset_name) + '.csv'
+    dataset_name = str(Path(cfg.project_root) / "ContextAwareJoin" / "datasets" / cfg.dataset_name) + '.csv'
     input_table = pandas.read_csv(dataset_name, engine='c', on_bad_lines='skip')
     return input_table
 
@@ -30,7 +29,7 @@ def run_inference_based_on_row_embeddings(cluster_ranges, cfg):
     # get row embeddings and assert they have the correct format and shape
     # instantiate the embedding approach class
 
-    row_file = "row_embeddings.pkl"
+    row_file = Path(cfg.output_dir) / "row_embeddings.pkl"
     if not os.path.exists(row_file):
         embedding_approach_class = framework.get_approach_class(cfg)
         embedder = embedding_approach_class(cfg)
@@ -51,7 +50,7 @@ def run_inference_based_on_row_embeddings(cluster_ranges, cfg):
         test_row_embeddings = row_embedding_component.create_row_embeddings_for_table(input_table=test_table)
         component_utils.assert_row_embedding_format(row_embeddings=test_row_embeddings, input_table=test_table)
 
-        with open("row_embeddings.pkl", "wb") as file:
+        with open(row_file, "wb") as file:
             pickle.dump(test_row_embeddings, file)
     else:
         print('re-using row embeddings')
@@ -115,7 +114,7 @@ def main(cfg: DictConfig):
 
     # save results to disk
     # save prediction labels to a seperate file:
-    with open("clustering_hdb_labels.json", "w") as file:
+    with open(Path(cfg.output_dir) / "clustering_hdb_labels.json", "w") as file:
         json.dump(result_metrics["pred_labels"], file)
     # remove prediction labels from result metrics
     del result_metrics["pred_labels"]

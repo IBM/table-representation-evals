@@ -1,9 +1,11 @@
 #!/bin/bash
-set -e 
+set -e
 
 # =================================
 # Parameter, select what to set up
 # =================================
+SETUP_GENERAL=false
+SETUP_DATASETS=false
 
 SETUP_TABICL=false
 SETUP_HYTREL=false
@@ -13,21 +15,11 @@ SETUP_GRITLM=false
 SETUP_TABPFN=false # requires huggingface token
 
 # ============================
-# Benchmark Environment Setup
+# Shared setup
 # ============================
 ENV_FILE=".env"
 
-# -----------------------------
-# Create .env if it doesn't exist
-# -----------------------------
-if [[ ! -f "$ENV_FILE" ]]; then
-    echo "Creating $ENV_FILE..."
-    touch "$ENV_FILE"
-fi
-
-# -----------------------------
 # Function to update or add a key=value in .env
-# -----------------------------
 update_env() {
     local key="$1"
     local value="$2"
@@ -35,97 +27,162 @@ update_env() {
     if grep -q "^${key}=" "$ENV_FILE"; then
         # Key exists, replace the line
         sed -i.bak "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+        rm -f "${ENV_FILE}.bak"
     else
         # Key does not exist, append
         echo "${key}=${value}" >> "$ENV_FILE"
     fi
 }
 
-# -----------------------------
-# Prompt for HF_HOME
-# -----------------------------
-current_hf_home=$(grep "^HF_HOME=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || true)
-
-if [[ -n "$current_hf_home" ]]; then
-    echo "Current HF_HOME is set to: $current_hf_home"
-    read -rp "Do you want to change HF_HOME? (y/N) " change_hf_home
-    if [[ "$change_hf_home" =~ ^[Yy]$ ]]; then
-        read -rp "Enter new HF_HOME path: " hf_home
-        update_env "HF_HOME" "$hf_home"
-    else
-        echo "Keeping existing HF_HOME: $current_hf_home"
-    fi
-else
-    read -rp "HF_HOME is not set. Enter HF_HOME path (or leave blank to skip): " hf_home
-    if [[ -n "$hf_home" ]]; then
-        update_env "HF_HOME" "$hf_home"
-    fi
-fi
-
-
-# ============================
-# Create cache directory
-# ============================
-if [ ! -d "cache" ]; then
-    mkdir cache
-    mkdir cache/raw_datasets
-else
-    echo "Cache directory already exists"
-fi
-
-# ============================
-# Download code for submodules
-# ============================
-
-# Initialize and update git submodules
-echo "Initializing git submodules..."
-git submodule init
-echo "Updating git submodules..."
-git submodule update
-echo "Done with the submodules"
-
-if [ ! -d "ContextAwareJoin" ] || [ -z "$(ls -A ContextAwareJoin)" ]; then
-    git clone git@github.com:IBM/ContextAwareJoin.git
-else
-    echo "Directory ContextAwareJoin already exists and is not empty. Skipping clone."
-fi
-# =====================================================
-# create general conda environment for the benchmark
-# =====================================================
 # initialize conda
 eval "$(conda shell.bash hook)"
 
-# Create environment if it doesn't exist
-conda create -n benchmark_env python=3.13
+# ============================
+# Benchmark Environment Setup
+# ============================
+if [ "$SETUP_GENERAL" = true ]; then
 
-conda activate benchmark_env
+    # -----------------------------
+    # Create .env if it doesn't exist
+    # -----------------------------
+    if [[ ! -f "$ENV_FILE" ]]; then
+        echo "Creating $ENV_FILE..."
+        touch "$ENV_FILE"
+    fi
 
-pip install -r reqs_benchmark.txt
-pip install hydra-joblib-launcher --upgrade
+    # -----------------------------
+    # Prompt for HF_HOME
+    # -----------------------------
+    current_hf_home=$(grep "^HF_HOME=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || true)
 
-pip install -e .
-pip install -e approaches/ .
+    if [[ -n "$current_hf_home" ]]; then
+        echo "Current HF_HOME is set to: $current_hf_home"
+        read -rp "Do you want to change HF_HOME? (y/N) " change_hf_home
+        if [[ "$change_hf_home" =~ ^[Yy]$ ]]; then
+            read -rp "Enter new HF_HOME path: " hf_home
+            update_env "HF_HOME" "$hf_home"
+        else
+            echo "Keeping existing HF_HOME: $current_hf_home"
+        fi
+    else
+        read -rp "HF_HOME is not set. Enter HF_HOME path (or leave blank to skip): " hf_home
+        if [[ -n "$hf_home" ]]; then
+            update_env "HF_HOME" "$hf_home"
+        fi
+    fi
 
-conda deactivate
+    # ============================
+    # Create cache directory
+    # ============================
+    if [ ! -d "cache" ]; then
+        mkdir cache
+        mkdir cache/raw_datasets
+    else
+        echo "Cache directory already exists"
+    fi
+
+    # ============================
+    # Download code for submodules
+    # ============================
+
+    # Initialize and update git submodules
+    echo "Initializing git submodules..."
+    git submodule init
+    echo "Updating git submodules..."
+    git submodule update
+    echo "Done with the submodules"
+
+    if [ ! -d "ContextAwareJoin" ] || [ -z "$(ls -A ContextAwareJoin)" ]; then
+        git clone git@github.com:IBM/ContextAwareJoin.git
+    else
+        echo "Directory ContextAwareJoin already exists and is not empty. Skipping clone."
+    fi
+
+    # =====================================================
+    # create general conda environment for the benchmark
+    # =====================================================
+
+    # Create environment if it doesn't exist
+    conda info --envs | grep -q "^benchmark_env " || conda create -n benchmark_env python=3.13 --yes
+
+    conda activate benchmark_env
+
+    pip install -r reqs_benchmark.txt
+
+    pip install -e . -e approaches/
+
+    conda deactivate
+
+fi
 
 # ============================
 # Download/Create datasets
 # ============================
-conda activate benchmark_env
-chmod +x ./benchmark_src/dataset_creation/create_join_benchmark.sh
-./benchmark_src/dataset_creation/create_join_benchmark.sh
-conda deactivate
+if [ "$SETUP_DATASETS" = true ]; then
 
-
-if [ -d "./cache/row_similarity_data_full" ] && [ "$(ls -A ./cache/row_similarity_data_full)" ]; then
-    echo "row similarity data found in cache"
-else
-    echo "creating row similarity data"
     conda activate benchmark_env
-    chmod +x ./benchmark_src/dataset_creation/em_datasets/create_benchmark.sh
-    ./benchmark_src/dataset_creation/em_datasets/create_benchmark.sh
-
+    chmod +x ./benchmark_src/dataset_creation/create_join_benchmark.sh
+    ./benchmark_src/dataset_creation/create_join_benchmark.sh
     conda deactivate
+
+    if [ -d "./cache/row_similarity_data_full" ] && [ "$(ls -A ./cache/row_similarity_data_full)" ]; then
+        echo "row similarity data found in cache"
+    else
+        echo "creating row similarity data"
+        conda activate benchmark_env
+        chmod +x ./benchmark_src/dataset_creation/em_datasets/create_benchmark.sh
+        ./benchmark_src/dataset_creation/em_datasets/create_benchmark.sh
+        conda deactivate
+    fi
+
+    # ============================
+    # Setup BIRD dataset
+    # ============================
+    if [ -d "./cache/datasets/bird/train/train_databases" ] && [ "$(ls -A ./cache/datasets/bird/train/train_databases)" ]; then
+        echo "the BIRD dataset was already downloaded"
+    else
+        echo "Setting up BIRD dataset"
+        conda activate benchmark_env
+
+        mkdir -p ./cache/datasets/bird
+
+        # Copy benchmark JSON files from dataset_creation/bird to cache
+        echo "Copying benchmark JSON files..."
+        cp ./benchmark_src/dataset_creation/bird/pure_concept_mapping_queries.json ./cache/datasets/bird/
+        cp ./benchmark_src/dataset_creation/bird/cell_value_matching_queries.json ./cache/datasets/bird/
+        cp ./benchmark_src/dataset_creation/bird/semantic_fuzzy_matching.json ./cache/datasets/bird/
+
+        # Download and extract train.zip only if train/ not yet available.
+        # If train/ already exists (e.g. previous run extracted it before failing),
+        # skip both download and extraction — train.zip is no longer needed.
+        if [ ! -d "./cache/datasets/bird/train" ]; then
+            if [ ! -f "./cache/datasets/bird/train.zip" ]; then
+                echo "Downloading BIRD train.zip..."
+                curl -L -o ./cache/datasets/bird/train.zip https://bird-bench.oss-cn-beijing.aliyuncs.com/train.zip
+            else
+                echo "train.zip already exists, skipping download"
+            fi
+            echo "Unzipping train.zip..."
+            ( cd ./cache/datasets/bird && unzip -q train.zip )
+            rm -f ./cache/datasets/bird/train.zip
+        else
+            echo "train/ already extracted, skipping download and extraction"
+            rm -f ./cache/datasets/bird/train.zip
+        fi
+
+        # Unzip train_databases.zip only if not yet extracted
+        if [ ! -d "./cache/datasets/bird/train/train_databases" ]; then
+            echo "Unzipping train_databases.zip..."
+            ( cd ./cache/datasets/bird/train && unzip -q train_databases.zip )
+            rm -f ./cache/datasets/bird/train/train_databases.zip
+        else
+            echo "train_databases/ already extracted, skipping"
+        fi
+
+        echo "BIRD Setup Done"
+        conda deactivate
+    fi
+
 fi
 
 # ===================================
@@ -137,15 +194,13 @@ fi
 ##################################
 if [ "$SETUP_TABICL" = true ]; then
     # because tabicl needs python < 3.13
-    conda create -n benchmark_env_tabicl python=3.12
+    conda info --envs | grep -q "^benchmark_env_tabicl " || conda create -n benchmark_env_tabicl python=3.12 --yes
     conda activate benchmark_env_tabicl
 
     pip install -r reqs_benchmark.txt
     ./approaches/benchmark_approaches_src/tabicl/setup.sh
 
-    pip install hydra-joblib-launcher --upgrade
-    pip install -e .
-    pip install -e approaches/ .
+    pip install -e . -e approaches/
 
     conda deactivate
 fi
@@ -156,16 +211,14 @@ fi
 
 if [ "$SETUP_HYTREL" = true ]; then
     # because of torch_scatter hytrel needs 3.12
-    conda create -n benchmark_env_hytrel python=3.12
+    conda info --envs | grep -q "^benchmark_env_hytrel " || conda create -n benchmark_env_hytrel python=3.12 --yes
     conda activate benchmark_env_hytrel
 
     pip install -r reqs_benchmark.txt
 
     ./approaches/benchmark_approaches_src/hytrel/setup.sh
 
-    pip install hydra-joblib-launcher --upgrade
-    pip install -e .
-    pip install -e approaches/ .
+    pip install -e . -e approaches/
 
     conda deactivate
 fi
@@ -227,7 +280,7 @@ fi
 # Setup for GritLM
 ##################################
 if [ "$SETUP_GRITLM" = true ]; then
-    conda create -n benchmark_env_gritlm python=3.12
+    conda info --envs | grep -q "^benchmark_env_gritlm " || conda create -n benchmark_env_gritlm python=3.12 --yes
 
     conda activate benchmark_env_gritlm
 
@@ -237,9 +290,7 @@ if [ "$SETUP_GRITLM" = true ]; then
     pip uninstall transformers -y
     pip install transformers==4.40.2
 
-    pip install hydra-joblib-launcher --upgrade
-    pip install -e .
-    pip install -e approaches/ .
+    pip install -e . -e approaches/
     pip install gritlm
 
     conda deactivate

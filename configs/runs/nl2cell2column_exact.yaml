@@ -1,0 +1,20 @@
+benchmark_output_dir: nl2cell2column_experiments
+task_params:
+  max_queries: 100
+approaches:
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+    tasks:
+      - nl2cell2column_mapping
+    task_params:
+      nl2cell2column_mapping:
+        query_mode: full_nl
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+    tasks:
+      - nl2cell2column_mapping
+    task_params:
+      nl2cell2column_mapping:
+        query_mode: extracted_values
