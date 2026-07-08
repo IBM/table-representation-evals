@@ -30,6 +30,8 @@ performance_cols = {
     'MRR': 'higher_is_better',  # mean reciprocal rank
     'MAP': 'higher_is_better',  # mean average precision
     'Recall@1': 'higher_is_better',
+    # nl2 schema linking
+    'mean_mrr': 'higher_is_better',
     # table shuffling / triplet metrics
     'TripletAccuracy': 'higher_is_better',
     'Triplet Silhouette Score': 'higher_is_better',

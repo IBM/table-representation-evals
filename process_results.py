@@ -3,7 +3,7 @@ import sys
 
 task = sys.argv[1]
 
-df = pd.read_csv('all_results_aggregated.csv') 
+df = pd.read_csv('all_results.csv')
 df = df[df['task'] == task]
 
 keep = ['Approach', 'task', 'dataset']

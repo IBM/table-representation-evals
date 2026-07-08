@@ -169,11 +169,9 @@ def gather_results(results_folder: Path, detailed_results_folder: Path):
     # drop all completely empty columns
     gathered_results_df = gathered_results_df.dropna(axis=1, how='all')
 
-    gathered_results_df.to_csv(results_folder/"all_results.csv", index=False)
-
     grouping_columns = ["approach", "configuration", "task", "dataset"]
     results_df = prepare_results_for_reporting(gathered_results_df, grouping_columns)
-    results_df.to_csv(results_folder/"all_results_aggregated.csv", index=False)
+    results_df.to_csv(results_folder/"all_results.csv", index=False)
 
     # create an excel sheet for each individual task with one sheet per dataset
     create_excel_files_per_dataset(results_df, results_folder=detailed_results_folder)

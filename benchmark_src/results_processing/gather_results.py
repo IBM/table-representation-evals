@@ -4,7 +4,7 @@ from typing import Annotated
 
 import typer
 
-from benchmark_src.results_processing import aggregate, resources
+from benchmark_src.results_processing import aggregate, create_plots, resources
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,9 @@ def run(results_folder_name: str) -> None:
 
     logger.info(f"Gathering resource metrics from {results_folder}")
     resources.gather_resources(results_folder, detailed_results_folder)
+
+    logger.info(f"Creating general plots for {results_folder}")
+    create_plots.run(results_folder_name)
 
 
 def main(

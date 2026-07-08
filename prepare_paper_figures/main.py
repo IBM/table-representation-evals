@@ -4,6 +4,8 @@
 from pathlib import Path
 import pandas as pd
 
+from benchmark_src.utils import cfg_utils
+
 import ranking_table
 import row_sim_plot_aggregated, row_sim_linechart_topk, row_sim_results_table, quadrant_chart_row
 import col_sim_results_table, col_sim_bar_plot_per_dataset
@@ -12,84 +14,13 @@ import cell_bar_plot, cell_bar_plot_stacked, cell_results_table, quadrant_chart_
 import triplet_row_results_table, triplet_row_bar_plot_original
 import table_retrieval_tables
 
-color_mapping = {
-    ("GritLM", "embedding_model=GritLM_GritLM-7B"): "#2c3e50",
-    ("GritLM", "embedding_model=GritLM_GritLM-7B,table_row_limit=0"): "#2c3e50",
-    ("baseline", "baseline"): "#bdc3c7",
-    ("hytrel", "hytrel"): "#2980b9",
-    ("hytrel", "table_row_limit=0"): "#2980b9",
-    ("sap_rpt_oss", "bagging=8,max_context_size=8192,predML_based_on=custom_predictiveML_model"): "#16a085",
-    ("sap_rpt_oss", "bagging=8,max_context_size=8192,predML_based_on=row_embeddings"): "#16a085",
-    ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2,table_row_limit=0"): "#f1c40f",
-    ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2"): "#f1c40f",
-    ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2"): "#8e44ad",
-    ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=0"): "#8e44ad",
-    ("tabicl", "n_estimators=32,predML_based_on=custom_predictiveML_model"): "#f39c12",
-    ("tabicl", "n_estimators=32,predML_based_on=row_embeddings"): "#f39c12",
-    ("tabpfn", "predML_based_on=custom_predictiveML_model"): "#7f8c8d",
-    ("tabpfn", "predML_based_on=row_embeddings"): "#7f8c8d",
-    ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"): "#c0392b",
-    ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=custom_predictiveML_model"): "#c0392b",
-    ("tabula_8b", "batch_size=8,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=32,predML_based_on=custom_predictiveML_model"): "#c0392b",
-}
-
-name_mapping = {
-    ("GritLM", "embedding_model=GritLM_GritLM-7B"): "GritLM",
-    ("GritLM", "embedding_model=GritLM_GritLM-7B,table_row_limit=0"): "GritLM",
-    ("baseline", "baseline"): "Baseline",
-    ("hytrel", "hytrel"): "HyTrel",
-    ("hytrel", "table_row_limit=0"): "HyTrel",
-    ("sap_rpt_oss", "bagging=8,max_context_size=8192,predML_based_on=custom_predictiveML_model"): "SAP-RPT-1",
-    ("sap_rpt_oss", "bagging=8,max_context_size=8192,predML_based_on=row_embeddings"): "SAP-RPT-1*",
-    ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2"): "MiniLM",
-    ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2,table_row_limit=0"): "MiniLM",
-    ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2"): "IBM Granite R2",
-    ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=0"): "IBM Granite R2",
-    ("tabicl", "n_estimators=32,predML_based_on=custom_predictiveML_model"): "TabICL v2",
-    ("tabicl", "n_estimators=32,predML_based_on=row_embeddings"): "TabICL v2*",
-    ("tabpfn", "predML_based_on=custom_predictiveML_model"): "TabPFN v2.5",
-    ("tabpfn", "predML_based_on=row_embeddings"): "TabPFN v2.5*",
-    ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"): "TabuLa-8B*",
-    ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=custom_predictiveML_model"): "TabuLa-8B",
-    ("tabula_8b", "batch_size=8,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=32,predML_based_on=custom_predictiveML_model"): "TabuLa-8B_updated",
-}
-
-
-# #############################################
-# # Old names
-# #############################################
-# color_mapping = {
-#     ("GritLM", "embedding_model=GritLM_GritLM-7B,table_row_limit=100"): "#2c3e50",
-#     ("baseline", "baseline"): "#bdc3c7",
-#     ("hytrel", "hytrel"): "#2980b9",
-#     ("sap_rpt_oss", "bagging=1,max_context_size=2048,predML_based_on=custom_predictiveML_model"): "#16a085",
-#     ("sap_rpt_oss", "bagging=1,max_context_size=2048,predML_based_on=row_embeddings"): "#16a085",
-#     ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2,table_row_limit=100"): "#f1c40f",
-#     ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=100"): "#8e44ad",
-#     ("tabicl", "n_estimators=32,predML_based_on=custom_predictiveML_model"): "#f39c12",
-#     ("tabicl", "n_estimators=32,predML_based_on=row_embeddings"): "#f39c12",
-#     ("tabpfn", "device=cuda,predML_based_on=custom_predictiveML_model"): "#7f8c8d",
-#     ("tabpfn", "device=cuda,predML_based_on=row_embeddings"): "#7f8c8d",
-#     ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"): "#c0392b",
-#     ("tabula_8b", "batch_size=16,device=cuda,max_length=512,predML_based_on=custom_predictiveML_model"): "#c0392b",
-# }
-
-# name_mapping = {
-#     ("GritLM", "embedding_model=GritLM_GritLM-7B,table_row_limit=100"): "GritLM",
-#     ("baseline", "baseline"): "Baseline",
-#     ("hytrel", "hytrel"): "HyTrel",
-#     ("sap_rpt_oss", "bagging=1,max_context_size=2048,predML_based_on=custom_predictiveML_model"): "SAP-RPT-1",
-#     ("sap_rpt_oss", "bagging=1,max_context_size=2048,predML_based_on=row_embeddings"): "SAP-RPT-1_row",
-#     ("sentence_transformer", "embedding_model=all-MiniLM-L6-v2,table_row_limit=100"): "MiniLM",
-#     ("sentence_transformer", "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=100"): "IBM Granite R2",
-#     ("tabicl", "n_estimators=32,predML_based_on=custom_predictiveML_model"): "TabICL",
-#     ("tabicl", "n_estimators=32,predML_based_on=row_embeddings"): "TabICL_row",
-#     ("tabpfn", "device=cuda,predML_based_on=custom_predictiveML_model"): "TabPFN",
-#     ("tabpfn", "device=cuda,predML_based_on=row_embeddings"): "TabPFN_row",
-#     ("tabula_8b", "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"): "TabuLa-8B_row",
-#     ("tabula_8b", "batch_size=16,device=cuda,max_length=512,predML_based_on=custom_predictiveML_model"): "TabuLa-8B",
-# }
-
+# Shared with the general post-run plots in benchmark_src/results_processing/create_plots.py
+# so both pipelines render the same approach with the same name/color; edit
+# configs/approach_plotting.yaml (missing entries here raise a ValueError below,
+# since paper figures require a complete, curated mapping rather than a fallback).
+_approach_plotting = cfg_utils.load_approach_plotting()
+color_mapping = {key: entry["color"] for key, entry in _approach_plotting.items() if "color" in entry}
+name_mapping = {key: entry["name"] for key, entry in _approach_plotting.items() if "name" in entry}
 
 
 RESULTS_FOLDER = Path("results")
@@ -110,7 +41,7 @@ if __name__ == "__main__":
     plots_folder = PLOTS_FOLDER
     plots_folder.mkdir(exist_ok=True)
 
-    all_results_df = pd.read_csv(results_folder / "all_results_aggregated.csv")
+    all_results_df = pd.read_csv(results_folder / "all_results.csv")
 
     print(all_results_df["Approach"].unique())
 

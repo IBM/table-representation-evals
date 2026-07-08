@@ -25,6 +25,24 @@ def load_task_config(task_name: str):
     return OmegaConf.load(task_config_path)
 
 
+def load_metric_ranges() -> dict:
+    """(min, max) axis domain per metric, from configs/metric_information.yaml."""
+    metric_info_path = _PROJECT_ROOT / "configs" / "metric_information.yaml"
+    cfg = OmegaConf.load(metric_info_path)
+    return OmegaConf.to_container(cfg.metric_ranges, resolve=True)
+
+
+def load_approach_plotting() -> dict[tuple[str, str], dict]:
+    """
+    Curated display name/color per (approach, configuration) pair, from
+    configs/approach_plotting.yaml. Entries may omit "name" or "color"; callers
+    should fall back for whichever field is absent.
+    """
+    approach_plotting_path = _PROJECT_ROOT / "configs" / "approach_plotting.yaml"
+    entries = OmegaConf.to_container(OmegaConf.load(approach_plotting_path), resolve=True)
+    return {(entry["approach"], entry["configuration"]): entry for entry in entries}
+
+
 def guard_cfg_no_none(cfg, path="cfg"):
     """
     Recursively checks that no value in the config is None.

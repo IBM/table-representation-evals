@@ -1,40 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
-import json
 from pathlib import Path
 
-
-def get_metric_domain(df_filtered: pd.DataFrame, selected_metric: str):
-    """
-    Determines the domain min and max for a given metric based on metric information or data.
-    Handles symbolic infinity '∞'.
-    """
-    try:
-        with open("./prepare_paper_figures/metric_information.json", "r", encoding="utf-8") as f:
-            metric_info = json.load(f)
-
-        metric_range = None
-        for key, value in metric_info.get("metric_ranges", {}).items():
-            if selected_metric.startswith(key):
-                metric_range = value
-                break
-
-        if metric_range is not None:
-            domain_min, domain_max = metric_range
-
-            if domain_max == "∞":
-                domain_max = df_filtered[selected_metric].max()
-            if domain_min == "∞":
-                domain_min = df_filtered[selected_metric].min()
-
-            return domain_min, domain_max
-
-    except FileNotFoundError:
-        pass
-
-    # Fallback: data-driven
-    return df_filtered[selected_metric].min(), df_filtered[selected_metric].max()
+from benchmark_src.results_processing.metric_info import get_metric_domain
 
 
 def build_quadrant_chart(df: pd.DataFrame, plots_folder: Path):
@@ -65,8 +34,8 @@ def build_quadrant_chart(df: pd.DataFrame, plots_folder: Path):
     # ----------------------------------------------------------------
     # Quadrant thresholds — midpoint of axis domain
     # ----------------------------------------------------------------
-    x_domain_min, x_domain_max = get_metric_domain(plot_df, second_metric)
-    y_domain_min, y_domain_max = get_metric_domain(plot_df, metric)
+    x_domain_min, x_domain_max = get_metric_domain(plot_df[second_metric], second_metric)
+    y_domain_min, y_domain_max = get_metric_domain(plot_df[metric], metric)
 
     x_domain_max *= 1.1  # padding so rightmost points aren't clipped
 

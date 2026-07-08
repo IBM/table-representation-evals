@@ -1,0 +1,99 @@
+# Curated display name + plot color per (approach, configuration) pair, shared by
+# prepare_paper_figures/ and the general post-run plots
+# (benchmark_src/results_processing/create_plots.py).
+# Any (approach, configuration) not listed here, or missing a color/name field, falls
+# back to an auto-assigned palette color / the raw approach name, and a warning is
+# logged naming the missing pair so it can be added here.
+
+- approach: GritLM
+  configuration: "embedding_model=GritLM_GritLM-7B"
+  color: "#2c3e50"
+  name: "GritLM"
+- approach: GritLM
+  configuration: "embedding_model=GritLM_GritLM-7B,table_row_limit=0"
+  color: "#2c3e50"
+  name: "GritLM"
+- approach: baseline
+  configuration: "baseline"
+  color: "#bdc3c7"
+  name: "Baseline"
+- approach: hytrel
+  configuration: "hytrel"
+  color: "#2980b9"
+  name: "HyTrel"
+- approach: hytrel
+  configuration: "table_row_limit=0"
+  color: "#2980b9"
+  name: "HyTrel"
+- approach: sap_rpt_oss
+  configuration: "bagging=8,max_context_size=8192,predML_based_on=custom_predictiveML_model"
+  color: "#16a085"
+  name: "SAP-RPT-1"
+- approach: sap_rpt_oss
+  configuration: "bagging=8,max_context_size=8192,predML_based_on=row_embeddings"
+  color: "#16a085"
+  name: "SAP-RPT-1*"
+- approach: sap_rpt_oss
+  configuration: "sap_rpt_oss"
+  color: "#16a085"
+  name: "SAP-RPT-1"
+- approach: sentence_transformer
+  configuration: "embedding_model=all-MiniLM-L6-v2"
+  color: "#f1c40f"
+  name: "MiniLM"
+- approach: sentence_transformer
+  configuration: "embedding_model=all-MiniLM-L6-v2,table_row_limit=0"
+  color: "#f1c40f"
+  name: "MiniLM"
+- approach: sentence_transformer
+  configuration: "embedding_model=all-MiniLM-L6-v2,table_row_limit=100"
+  color: "#f1c40f"
+  name: "MiniLM"
+- approach: sentence_transformer
+  configuration: "embedding_model=ibm-granite_granite-embedding-english-r2"
+  color: "#8e44ad"
+  name: "IBM Granite R2"
+- approach: sentence_transformer
+  configuration: "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=0"
+  color: "#8e44ad"
+  name: "IBM Granite R2"
+- approach: sentence_transformer
+  configuration: "embedding_model=ibm-granite_granite-embedding-english-r2,table_row_limit=100"
+  color: "#8e44ad"
+  name: "IBM Granite R2"
+- approach: tabicl
+  configuration: "n_estimators=32,predML_based_on=custom_predictiveML_model"
+  color: "#f39c12"
+  name: "TabICL v2"
+- approach: tabicl
+  configuration: "n_estimators=32,predML_based_on=row_embeddings"
+  color: "#f39c12"
+  name: "TabICL v2*"
+- approach: tabicl
+  configuration: "tabicl"
+  color: "#f39c12"
+  name: "TabICL v2"
+- approach: tabpfn
+  configuration: "predML_based_on=custom_predictiveML_model"
+  color: "#7f8c8d"
+  name: "TabPFN v2.5"
+- approach: tabpfn
+  configuration: "predML_based_on=row_embeddings"
+  color: "#7f8c8d"
+  name: "TabPFN v2.5*"
+- approach: tabpfn
+  configuration: "tabpfn"
+  color: "#7f8c8d"
+  name: "TabPFN v2.5"
+- approach: tabula_8b
+  configuration: "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"
+  color: "#c0392b"
+  name: "TabuLa-8B*"
+- approach: tabula_8b
+  configuration: "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=custom_predictiveML_model"
+  color: "#c0392b"
+  name: "TabuLa-8B"
+- approach: tabula_8b
+  configuration: "batch_size=8,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=32,predML_based_on=custom_predictiveML_model"
+  color: "#c0392b"
+  name: "TabuLa-8B_updated"
