@@ -172,9 +172,13 @@ class HyTrelEmbedder(BaseTabularEmbeddingApproach):
 
                 self.model.load_state_dict(new_state_dict, strict=True)
             else:
-                logger.warning("No pre-trained checkpoint found. Using randomly initialized model.")
-                if checkpoint_path:
-                    logger.warning(f"Checkpoint path provided but file not found: {checkpoint_path}")
+                raise FileNotFoundError(
+                    f"HyTrel checkpoint not found at: {checkpoint_path}. "
+                    "Row/column/cell/table embeddings would silently fall back to a randomly "
+                    "initialized model, which is not a supported evaluation mode in this benchmark. "
+                    "Re-run the checkpoint download step in "
+                    "approaches/benchmark_approaches_src/hytrel/setup.sh."
+                )
 
             self.model.to(self.device)
             self.model.eval()
