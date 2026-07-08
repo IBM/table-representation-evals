@@ -1,0 +1,56 @@
+# TABBIE approach configuration
+# Paper: https://arxiv.org/abs/2105.02584
+# Code:  https://github.com/SFIG611/tabbie
+#
+# Run setup first:
+#   bash approaches/benchmark_approaches_src/tabbie/setup.sh
+approach_name: tabbie
+conda_env: embedding-benchmark
+module_path: "approaches/benchmark_approaches_src/tabbie"
+class_name: TABBIEEmbedder
+
+# Path to the AllenNLP model archive (.tar.gz) extracted from mix.tar.gz.
+# Updated automatically by setup.sh.
+archive_path: "approaches/benchmark_approaches_src/tabbie/tabbie_src/model/mix/model.tar.gz"
+
+# CLS token numpy files (shipped with the TABBIE repo under data/).
+# Updated automatically by setup.sh.
+cls_col_path: "approaches/benchmark_approaches_src/tabbie/tabbie_src/data/clscol.npy"
+cls_row_path: "approaches/benchmark_approaches_src/tabbie/tabbie_src/data/clsrow.npy"
+
+# HuggingFace BERT model used for cell/header tokenization.
+# Must match the BERT version used during TABBIE pretraining.
+bert_model_name: "bert-base-uncased"
+
+# BERT max token length per cell. 16 matches TABBIE paper (short cell values).
+max_cell_len: 16
+
+# Row/column embedding dimensionality (from one transformer = 768).
+# Cell embedding dim is 2x this (row || col concatenation = 1536).
+embedding_dim: 768
+cell_embedding_dim: 1536
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+  more_similar_than: {}
+  column_similarity_search:
+    run_similarity_search_based_on: column_embeddings
+  cell_task: {}
+  table_retrieval: {}
+  predictive_ml:
+    run_task_based_on: row_embeddings
+    exclude_datasets:
+      # TABBIE encodes every cell through BERT; large tables are too expensive
+      - coil2000_insurance_policies
+      - kddcup09_appetency
+      - Diabetes130US
+      - customer_satisfaction_in_airline
+      - Bioresponse
+      - APSFailure
+      - GiveMeSomeCredit
+      - hiva_agnostic
+      - SDSS17
+      - QSAR_fish_toxicity
+      - QSAR-TID-11
+      - superconductivity

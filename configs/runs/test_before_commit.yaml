@@ -1,12 +1,13 @@
 benchmark_output_dir: just_testing
 log_level: DEBUG
 approaches:
-  - name: tabert
+  - name: tabbie
     tasks:
       - row_similarity_search
       - more_similar_than
       - column_similarity_search
       - predictive_ml
+      - cell_task
     task_datasets:
       row_similarity_search:
         - Amazon-Google
@@ -19,6 +20,8 @@ approaches:
         - credit-g
         - anneal
         - healthcare_insurance_expenses
+      cell_task:
+        - s2abel@clean
     task_params:
       column_similarity_search:
         test_case_limit: 5
