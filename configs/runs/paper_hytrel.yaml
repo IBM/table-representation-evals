@@ -1,3 +1,8 @@
 benchmark_output_dir: main_experiments
 approaches:
   - name: hytrel
+
+  - name: hytrel
+    params:
+      table_row_limit: 0  # "Just Schema" variant for the paper's table_retrieval comparison
+    tasks: [table_retrieval]

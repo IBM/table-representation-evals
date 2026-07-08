@@ -9,8 +9,20 @@ approaches:
 
   - name: sentence_transformer
     params:
+      embedding_model: all-MiniLM-L6-v2
+      table_row_limit: 0  # "Just Schema" variant for the paper's table_retrieval comparison
+    tasks: [table_retrieval]
+
+  - name: sentence_transformer
+    params:
       embedding_model: ibm-granite/granite-embedding-english-r2
       table_row_limit: 100
+
+  - name: sentence_transformer
+    params:
+      embedding_model: ibm-granite/granite-embedding-english-r2
+      table_row_limit: 0  # "Just Schema" variant for the paper's table_retrieval comparison
+    tasks: [table_retrieval]
 
   # ── XGBoost baseline ──────────────────────────────────────────────────────
   - name: baseline
@@ -20,32 +32,14 @@ approaches:
     params:
       run_task_based_on: row_embeddings  # default from approach config; can be omitted
 
-  - name: tabula_8b
-    params:
-      run_task_based_on: custom_predictiveML_model
-    tasks: [predictive_ml]
-    # Regression datasets only — disjoint from the default classification run above,
-    # so both entries write to different dataset subdirs without collision.
-    task_datasets:
-      predictive_ml:
-        - healthcare_insurance_expenses
-        - Another-Dataset-on-used-Fiat-500
-        - wine_quality
-        - Food_Delivery_Time
-        - diamonds
-        - QSAR_fish_toxicity
-        - concrete_compressive_strength
-        - airfoil_self_noise
-        - QSAR-TID-11
-        - miami_housing
-        - houses
-        - superconductivity
-        - physiochemical_protein
+  # custom_predictiveML_model mode is skipped for tabula_8b: it didn't produce reliable output (empty generations)
 
   # ── SAP RPT OSS ───────────────────────────────────────────────────────────
   - name: sap_rpt_oss
     params:
       run_task_based_on: row_embeddings  # default from approach config; can be omitted
+      bagging: 8
+      max_context_size: 8192
     task_exclude_datasets:
       predictive_ml:  # OOM on 80GB VRAM in row-embeddings mode
         - kddcup09_appetency
@@ -63,6 +57,8 @@ approaches:
   - name: sap_rpt_oss
     params:
       run_task_based_on: custom_predictiveML_model
+      bagging: 8
+      max_context_size: 8192
     tasks: [predictive_ml]
 
   # ── TabPFN ────────────────────────────────────────────────────────────────

@@ -4,10 +4,10 @@ module_path: "approaches/benchmark_approaches_src/tabula_8b"
 class_name: TabuLA8BEmbedder
 
 model_name: "mlfoundations/tabula-8b"
-device: ~
-max_length: ~
-batch_size: ~
-n_few_shot_examples: 10
+device: "cuda"
+max_length: 2048  # context length recommended by TabuLA-8B's own evaluation code
+batch_size: 1  # TabuLA-8B's own evaluation code processes one row at a time
+n_few_shot_examples: 8  # a shot count TabuLA-8B's paper reports on that fits max_length=2048
 
 supported_tasks:
   row_similarity_search:

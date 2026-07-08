@@ -3,7 +3,11 @@ conda_env: benchmark_env_tabicl
 module_path: "approaches/benchmark_approaches_src/tabicl"
 class_name: TabICLEmbedder
 
-n_estimators: 32
+# More ensemble members = better accuracy but slower inference. Our predictive_ml datasets
+# are TabArena's own suite (see benchmark_src/tasks/tabarena_datasets.py), so we match the
+# TabICLv2 paper's TabArena protocol (n_estimators=8, chosen there to align with
+# RealTabPFN-2.5) rather than the 32 it reports for its broader TALENT-benchmark evaluation.
+n_estimators: 8
 use_memory_efficient_model: false
 device: "auto"
 checkpoint_version: "tabicl-classifier-v2-20260212.ckpt"

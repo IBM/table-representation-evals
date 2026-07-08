@@ -3,11 +3,15 @@ conda_env: benchmark_env_hytrel
 module_path: "approaches/benchmark_approaches_src/hytrel"
 class_name: HyTrelEmbedder
 
+# Path to pre-trained HyTrel contrast checkpoint
 checkpoint_path: "approaches/benchmark_approaches_src/hytrel/hytrel_src/checkpoints/ckpt_data/checkpoints/contrast/epoch=4-step=32690.ckpt/checkpoint/mp_rank_00_model_states.pt"
 table_row_limit: -1
 embedding_dim: 768
 
+# Use default HyTrel model configuration (from bert-base-uncased + custom tokens)
+# This matches the configuration used in HyTrel evaluation scripts
 model_config:
+  # Default BERT-base-uncased configuration  
   vocab_size: 30527
   hidden_size: 768
   num_layers: 12
@@ -19,10 +23,14 @@ model_config:
   hidden_dropout_prob: 0.1
   attention_probs_dropout_prob: 0.1
   pad_token_id: 0
+
+  # HyTrel-specific configuration (from evaluation scripts)
   pre_norm: false
   activation_dropout: 0.1
   gated_proj: false
   num_hidden_layers: 12
+
+  # Additional attributes required by HyTrel layers
   hidden_act: "gelu"
 
 supported_tasks:
