@@ -30,6 +30,7 @@ Direct usage (must be in benchmark_env):
     python run_experiments.py <run_config_name>
 """
 
+import gc
 import json
 import logging
 import subprocess
@@ -581,6 +582,17 @@ def _run_inline(
             if stop_on_error:
                 logger.error("Stopping after first failure (--stop-on-error)")
                 break
+        finally:
+            # A failed job's exception traceback keeps its frame locals (including any
+            # partially-loaded GPU model) reachable until the cyclic GC runs; without this,
+            # PyTorch can't reclaim that memory and the next job OOMs immediately too.
+            gc.collect()
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except ImportError:
+                pass
 
     if failed:
         logger.error(f"{failed}/{len(jobs)} jobs failed")
