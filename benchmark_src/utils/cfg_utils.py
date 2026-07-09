@@ -54,7 +54,7 @@ def guard_cfg_no_none(cfg, path="cfg"):
     Raises:
         ValueError: If any value in cfg is None.
     """
-    allow_none_keys = set(["cfg.test_case_limit", "cfg.task.max_queries"])
+    allow_none_keys = set(["cfg.test_case_limit", "cfg.approach.model_path", "cfg.task.max_queries"])
     # approach.supported_tasks is orchestrator metadata with intentional nulls (e.g. max_queries: null)
     allow_none_prefixes = ("cfg.approach.supported_tasks", "cfg.approach.model_config")
     if any(path.startswith(p) for p in allow_none_prefixes):

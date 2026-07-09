@@ -385,17 +385,21 @@ def run_table_retrieval(
     except Exception:
         force_embed = False
 
+    # Include approach name in collection name to avoid cross-approach embedding reuse
+    approach_name = cfg.get("approach", {}).get("approach_name", "unknown")
+    collection_name = f"{cfg.run_identifier},approach={approach_name}"
+
     # Embed corpus before evaluation if forced or not already embedded
-    if force_embed or not embeddings_exist(client, cfg.run_identifier):
+    if force_embed or not embeddings_exist(client, collection_name):
         _populate_vectordb(
             client=client,
-            collection_name=cfg.run_identifier,
+            collection_name=collection_name,
             table_embedding_component=table_embedding_component,
             corpus_dataset=dataset_bundle.corpus,
         )
     else:
         logger.info(
-            f"Skipping corpus embedding as vectorDB collection '{cfg.run_identifier}' is already populated."
+            f"Skipping corpus embedding as vectorDB collection '{collection_name}' is already populated."
             f" Set force_embed_corpus to True to re-embed."
         )
 
@@ -403,7 +407,7 @@ def run_table_retrieval(
 
     evaluation_results = _evaluate_retrieval(
         client=client,
-        collection_name=cfg.run_identifier,
+        collection_name=collection_name,
         table_component=table_embedding_component,
         queries_dataset=dataset_bundle.queries,
         top_ks=list(cfg.task.top_ks)

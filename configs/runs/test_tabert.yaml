@@ -1,0 +1,37 @@
+benchmark_output_dir: just_testing
+log_level: DEBUG
+approaches:
+  - name: tabert
+    tasks:
+      - row_similarity_search
+      - more_similar_than
+      - column_similarity_search
+      - column_type_annotation
+      - cell_task
+      - nl2column_mapping
+      - nl2cell2column_mapping
+      - table_retrieval
+      - predictive_ml
+    task_datasets:
+      row_similarity_search:
+        - Amazon-Google
+      more_similar_than:
+        - wikidata_books
+      column_similarity_search:
+        - valentine
+        - opendata
+      column_type_annotation:
+        - sotab
+      predictive_ml:
+        - credit-g
+        - anneal
+        - healthcare_insurance_expenses
+    task_params:
+      column_similarity_search:
+        test_case_limit: 5
+      column_type_annotation:
+        test_case_limit: 5
+      nl2column_mapping:
+        max_queries: 5
+      nl2cell2column_mapping:
+        max_queries: 5
