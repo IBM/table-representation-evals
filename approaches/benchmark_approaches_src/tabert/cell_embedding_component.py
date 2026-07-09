@@ -46,11 +46,7 @@ class CellEmbeddingComponent(CellEmbeddingInterface):
         """
         approach = self.approach_instance
         approach.load_trained_model()
-
-        # Apply row limit
-        if approach.table_row_limit != -1 and len(input_table) > approach.table_row_limit:
-            input_table = input_table.head(approach.table_row_limit)
-
+        
         df = approach.preprocessing(input_table)
         model = approach.model
         empty_context = model.tokenizer.tokenize("")
@@ -83,5 +79,5 @@ class CellEmbeddingComponent(CellEmbeddingInterface):
         cell_embeddings = np.concatenate(
             [header_embs[np.newaxis, :, :], row_embs_arr], axis=0
         )
-        logger.info(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
+        logger.debug(f"Generated cell embeddings with shape: {cell_embeddings.shape}")
         return cell_embeddings

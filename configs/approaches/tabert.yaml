@@ -1,9 +1,12 @@
 approach_name: tabert
-conda_env: embedding-benchmark
+conda_env: benchmark_env_tabert
 module_path: "approaches/benchmark_approaches_src/tabert"
 class_name: TaBertEmbedder
 
 table_row_limit: 100
+# Path to the pretrained TaBERT_Base_(K=1) checkpoint, populated by tabert/setup.sh.
+# Falls back to bert-base-uncased initialisation if the file isn't present.
+model_path: "approaches/benchmark_approaches_src/tabert/tabert_src/pretrained_weights/tabert_base_k1/model.bin"
 
 supported_tasks:
   row_similarity_search:
@@ -12,6 +15,9 @@ supported_tasks:
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
   cell_task: {}
+  column_type_annotation: {}
+  nl2column_mapping: {}
+  nl2cell2column_mapping: {}
   table_retrieval: {}
   predictive_ml:
     run_task_based_on: row_embeddings

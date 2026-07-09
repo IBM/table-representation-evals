@@ -1,15 +1,16 @@
 benchmark_output_dir: just_testing
 log_level: DEBUG
 approaches:
-  - name: sentence_transformer
-    params:
-      embedding_model: all-MiniLM-L6-v2
-      table_row_limit: 100
+  - name: tabert
     tasks:
       - row_similarity_search
       - more_similar_than
       - column_similarity_search
       - column_type_annotation
+      - cell_task
+      - nl2column_mapping
+      - nl2cell2column_mapping
+      - table_retrieval
       - predictive_ml
     task_datasets:
       row_similarity_search:
@@ -30,3 +31,7 @@ approaches:
         test_case_limit: 5
       column_type_annotation:
         test_case_limit: 5
+      nl2column_mapping:
+        max_queries: 5
+      nl2cell2column_mapping:
+        max_queries: 5

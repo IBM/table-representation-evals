@@ -17,7 +17,6 @@ from typing import Optional, List
 import numpy as np
 import pandas as pd
 import torch
-from hydra.utils import get_original_cwd
 from omegaconf import DictConfig
 
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
@@ -74,8 +73,18 @@ class TaBertEmbedder(BaseTabularEmbeddingApproach):
         if self.model is not None:
             return
 
+        # The (expected) `pytorch_pretrained_bert` codepath logs a "you are using the old
+        # version" warning straight to the root logger on import, and the library itself
+        # logs every checkpoint/archive download at INFO level - both are noise here since
+        # this is the intended, default loading path (per TaBERT's own README).
+        logging.getLogger("pytorch_pretrained_bert").setLevel(logging.ERROR)
         try:
-            from table_bert import TableBertModel
+            previous_disable_level = logging.root.manager.disable
+            logging.disable(logging.WARNING)
+            try:
+                from table_bert import TableBertModel
+            finally:
+                logging.disable(previous_disable_level)
         except ImportError as exc:
             raise ImportError(
                 "Failed to import TaBERT. "
@@ -83,7 +92,7 @@ class TaBertEmbedder(BaseTabularEmbeddingApproach):
             ) from exc
 
         if self.model_path:
-            resolved = Path(get_original_cwd()) / Path(self.model_path)
+            resolved = Path(self.cfg.project_root) / Path(self.model_path)
             if resolved.exists():
                 logger.info(f"Loading TaBERT checkpoint from: {resolved}")
                 self.model = TableBertModel.from_pretrained(str(resolved))
@@ -200,9 +209,9 @@ class TaBertEmbedder(BaseTabularEmbeddingApproach):
 
         if train_size is not None:
             embeddings = embeddings[train_size:]
-            logger.info(f"Returning {len(embeddings)} test-row embeddings.")
+            logger.debug(f"Returning {len(embeddings)} test-row embeddings.")
 
-        logger.info(f"Generated row embeddings with shape: {embeddings.shape}")
+        logger.debug(f"Generated row embeddings with shape: {embeddings.shape}")
         return embeddings
 
     # ------------------------------------------------------------------
@@ -251,7 +260,7 @@ class TaBertEmbedder(BaseTabularEmbeddingApproach):
             )
             column_embeddings = np.zeros((len(column_names), DEFAULT_EMBEDDING_DIM), dtype=np.float32)
 
-        logger.info(f"Generated column embeddings with shape: {column_embeddings.shape}")
+        logger.debug(f"Generated column embeddings with shape: {column_embeddings.shape}")
         return column_embeddings, column_names
 
     # ------------------------------------------------------------------
@@ -273,5 +282,5 @@ class TaBertEmbedder(BaseTabularEmbeddingApproach):
         """
         column_embeddings, _ = self.get_column_embeddings(input_table)
         table_embedding = column_embeddings.mean(axis=0)
-        logger.info(f"Generated table embedding with shape: {table_embedding.shape}")
+        logger.debug(f"Generated table embedding with shape: {table_embedding.shape}")
         return table_embedding

@@ -13,6 +13,7 @@ SETUP_SAP_RPT_OSS=false # requires huggingface token
 SETUP_TABULA=false
 SETUP_GRITLM=false
 SETUP_TABPFN=false # requires huggingface token
+SETUP_TABERT=false
 
 # ============================
 # Shared setup
@@ -217,6 +218,24 @@ if [ "$SETUP_HYTREL" = true ]; then
     pip install -r reqs_benchmark.txt
 
     ./approaches/benchmark_approaches_src/hytrel/setup.sh
+
+    pip install -e . -e approaches/
+
+    conda deactivate
+fi
+
+##################################
+# Setup for TaBERT
+##################################
+
+if [ "$SETUP_TABERT" = true ]; then
+    # because of torch_scatter tabert needs 3.12
+    conda info --envs | grep -q "^benchmark_env_tabert " || conda create -n benchmark_env_tabert python=3.12 --yes
+    conda activate benchmark_env_tabert
+
+    pip install -r reqs_benchmark.txt
+
+    ./approaches/benchmark_approaches_src/tabert/setup.sh
 
     pip install -e . -e approaches/
 
