@@ -32,6 +32,8 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         """
         if len(input_table) == 0:
             raise ValueError("Input table is empty.")
+        if self.approach_instance.table_row_limit != -1:
+            input_table = input_table.head(self.approach_instance.table_row_limit)
         return self.approach_instance.get_table_embedding(input_table)
 
     def create_query_embedding(self, query: str) -> np.ndarray:

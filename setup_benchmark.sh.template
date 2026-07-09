@@ -14,6 +14,7 @@ SETUP_TABULA=false
 SETUP_GRITLM=false
 SETUP_TABPFN=false # requires huggingface token
 SETUP_TABERT=false
+SETUP_TABBIE=false
 
 # ============================
 # Shared setup
@@ -349,6 +350,18 @@ if [ "$SETUP_TABPFN" = true ]; then
 
     chmod +x ./approaches/benchmark_approaches_src/tabpfn/setup.sh
     ./approaches/benchmark_approaches_src/tabpfn/setup.sh
+
+    conda deactivate
+fi
+
+##################################
+# Setup for TABBIE
+##################################
+if [ "$SETUP_TABBIE" = true ]; then
+    conda activate benchmark_env
+
+    chmod +x ./approaches/benchmark_approaches_src/tabbie/setup.sh
+    ./approaches/benchmark_approaches_src/tabbie/setup.sh
 
     conda deactivate
 fi

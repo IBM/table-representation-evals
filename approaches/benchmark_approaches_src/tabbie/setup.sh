@@ -4,20 +4,20 @@
 #
 # What this script does:
 #   1. Clones the TABBIE repository (for CLS .npy files and source reference).
-#   2. Checks for the pretrained 'mix' model weights (must be placed manually).
+#   2. Checks for the pretrained 'mix' model weights; if missing, prompts for a
+#      Google Drive download URL and fetches them (see step 2 below).
 #   3. Updates approaches/configs/approach/tabbie.yaml with resolved paths.
 #
 # Requirements:
 #   - git
-#   - conda activate embedding-benchmark (transformers, torch already present)
+#   - run inside benchmark_env (already has torch/transformers via reqs_benchmark.txt)
 #
-# Before running, download 'mix.tar.gz' (or 'mix.tar') manually:
-#   1. Open in your browser:
-#      https://drive.google.com/drive/folders/1vAMv09j-VlWHKd5djiRGuC16yb-lhJO0
-#   2. Download 'mix.tar.gz' (~600 MB)
-#   3. Place it at:
-#      approaches/benchmark_approaches_src/tabbie/tabbie_src/model/mix.tar.gz
-#      (mix.tar is also accepted)
+# If the weights aren't already present, the script will ask you to open
+# https://drive.google.com/drive/folders/1vAMv09j-VlWHKd5djiRGuC16yb-lhJO0 ,
+# start (then cancel) downloading 'mix.tar.gz' in your browser, and paste the
+# resolved download URL — same pattern as hytrel/setup.sh's checkpoint download.
+# If you already have mix.tar.gz/mix.tar, place it at
+# approaches/benchmark_approaches_src/tabbie/tabbie_src/model/ to skip the prompt.
 set -e
 
 echo "=== Setting up TABBIE approach ==="
@@ -50,7 +50,8 @@ fi
 echo "CLS token files present."
 
 # ------------------------------------------------------------------
-# 2. Locate pretrained weights (mix variant, must be placed manually)
+# 2. Locate pretrained weights (mix variant); download interactively if
+#    not already present at $MODEL_DIR.
 #    Source: https://drive.google.com/drive/folders/1vAMv09j-VlWHKd5djiRGuC16yb-lhJO0
 #    File:   mix.tar or mix.tar.gz  (~600 MB)
 # ------------------------------------------------------------------
@@ -74,41 +75,45 @@ if [ -f "$MODEL_EXTRACTED/config.json" ] && { [ -f "$MODEL_EXTRACTED/weights.th"
     echo "Pretrained weights already present at $MODEL_EXTRACTED"
 else
     if [ -z "$MODEL_ARCHIVE" ]; then
-        echo "ERROR: weights archive not found. Expected one of:"
-        echo "  $(pwd)/$MODEL_DIR/mix.tar.gz"
-        echo "  $(pwd)/$MODEL_DIR/mix.tar"
-        echo ""
-        echo "Please download 'mix.tar.gz' manually:"
-        echo "  1. Open in your browser:"
-        echo "     https://drive.google.com/drive/folders/1vAMv09j-VlWHKd5djiRGuC16yb-lhJO0"
-        echo "  2. Download 'mix.tar.gz' (~600 MB)"
-        echo "  3. Place it at:"
-        echo "     $(pwd)/$MODEL_DIR/mix.tar.gz"
-        echo "  4. Re-run this script."
-        echo ""
-        exit 1
+        echo "--------------- Please take action: --------------------------------------"
+        echo "The pretrained weights (mix.tar.gz, ~600 MB) are hosted on Google Drive and"
+        echo "can't be fetched with a plain URL:"
+        echo "  https://drive.google.com/drive/folders/1vAMv09j-VlWHKd5djiRGuC16yb-lhJO0"
+        echo "Open that folder, start downloading 'mix.tar.gz', then cancel the download"
+        echo "in your browser and copy the resolved download URL (browser download manager"
+        echo "or dev tools network tab)."
+        echo "----------------------------------------------------------------------------"
+
+        read -p "Paste the resolved download URL for mix.tar.gz: " URL
+        if [[ -z "$URL" ]]; then
+            echo "No URL entered. Exiting."
+            exit 1
+        fi
+
+        MODEL_ARCHIVE="$MODEL_DIR/mix.tar.gz"
+        TAR_FLAGS="-xzf"
+        echo "Downloading mix.tar.gz..."
+        curl --http1.1 -L -o "$MODEL_ARCHIVE" "$URL"
     else
         echo "Archive found at $MODEL_ARCHIVE"
     fi
 
     echo "Extracting weights..."
-    tar $TAR_FLAGS "$MODEL_ARCHIVE" -C "$MODEL_DIR"
+    # Extract to a scratch dir so $MODEL_EXTRACTED is never among the items being moved.
+    EXTRACT_TMP=$(mktemp -d)
+    tar $TAR_FLAGS "$MODEL_ARCHIVE" -C "$EXTRACT_TMP"
 
-    # Locate extracted config.json and normalise directory name to 'mix'
-    EXTRACTED_CFG=$(find "$MODEL_DIR" -name "config.json" | head -1)
+    EXTRACTED_CFG=$(find "$EXTRACT_TMP" -name "config.json" | head -1)
     if [ -z "$EXTRACTED_CFG" ]; then
-        echo "ERROR: config.json not found after extraction. Contents of $MODEL_DIR:"
-        ls -R "$MODEL_DIR"
+        echo "ERROR: config.json not found after extraction. Contents of $EXTRACT_TMP:"
+        ls -R "$EXTRACT_TMP"
+        rm -rf "$EXTRACT_TMP"
         exit 1
     fi
 
-    EXTRACTED_DIR=$(realpath "$(dirname "$EXTRACTED_CFG")")
-    TARGET_DIR=$(realpath "$MODEL_EXTRACTED")
-    if [ "$EXTRACTED_DIR" != "$TARGET_DIR" ]; then
-        mkdir -p "$TARGET_DIR"
-        mv "$EXTRACTED_DIR"/* "$TARGET_DIR"/
-        rmdir "$EXTRACTED_DIR" 2>/dev/null || true
-    fi
+    mkdir -p "$MODEL_EXTRACTED"
+    mv "$(dirname "$EXTRACTED_CFG")"/* "$MODEL_EXTRACTED"/
+    rm -rf "$EXTRACT_TMP"
 
     echo "Weights extracted to $MODEL_EXTRACTED"
 fi

@@ -5,7 +5,7 @@
 # Run setup first:
 #   bash approaches/benchmark_approaches_src/tabbie/setup.sh
 approach_name: tabbie
-conda_env: embedding-benchmark
+conda_env: benchmark_env
 module_path: "approaches/benchmark_approaches_src/tabbie"
 class_name: TABBIEEmbedder
 
@@ -29,6 +29,10 @@ max_cell_len: 16
 # Cell embedding dim is 2x this (row || col concatenation = 1536).
 embedding_dim: 768
 cell_embedding_dim: 1536
+
+# Max rows passed to get_table_embedding; -1 for no limit. Row/column/cell
+# embeddings are unaffected (chunking handles arbitrarily large tables there).
+table_row_limit: 100
 
 supported_tasks:
   row_similarity_search:

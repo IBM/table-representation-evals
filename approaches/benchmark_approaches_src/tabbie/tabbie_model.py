@@ -13,7 +13,6 @@ Paper: https://arxiv.org/abs/2105.02584
 
 from __future__ import annotations
 
-import copy
 import json
 import math
 import os
@@ -441,9 +440,15 @@ class TABBIEModel(nn.Module):
             t2 = StackedSelfAttentionEncoder(**transformer_params)
             setattr(self, f"transformer_row{i}", t2)
 
-        # CLS tokens (loaded from .npy files, not in weights.th)
+        # CLS tokens (loaded from .npy files, not in weights.th). cls_col/cls_row
+        # are the raw numpy arrays; cls_col_t/cls_row_t are the same values cached
+        # as tensors already on the target device, built once in load_tabbie_model
+        # so get_tabemb doesn't redo the numpy->tensor conversion and host->device
+        # transfer on every forward call.
         self.cls_col: Optional[np.ndarray] = None
         self.cls_row: Optional[np.ndarray] = None
+        self.cls_col_t: Optional[torch.Tensor] = None
+        self.cls_row_t: Optional[torch.Tensor] = None
 
         # BERT embedder (loaded separately, not in weights.th)
         self.bert_embedder = None
@@ -539,8 +544,8 @@ class TABBIEModel(nn.Module):
         n_rows_cls = n_rows + 1  # +1 for row-CLS token
         n_cols_cls = n_cols + 1  # +1 for col-CLS token
 
-        cls_col = torch.from_numpy(copy.deepcopy(self.cls_col)).to(device)
-        cls_row = torch.from_numpy(copy.deepcopy(self.cls_row)).to(device)
+        cls_col = self.cls_col_t
+        cls_row = self.cls_row_t
 
         row_pos_embs = self.row_pos_embedding(row_pos_ids[: n_rows_cls + 1])  # (n_rows+2, 768)
         col_pos_embs = self.col_pos_embedding(col_pos_ids[:n_cols_cls])       # (n_cols+1, 768)
@@ -904,4 +909,8 @@ def load_tabbie_model(
 
     model.to(device_obj)
     model.eval()
+
+    model.cls_col_t = torch.from_numpy(model.cls_col).to(device_obj)
+    model.cls_row_t = torch.from_numpy(model.cls_row).to(device_obj)
+
     return model

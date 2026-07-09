@@ -61,8 +61,9 @@ class TABBIEEmbedder(BaseTabularEmbeddingApproach):
         cls_col_path   — path to clscol.npy
         cls_row_path   — path to clsrow.npy
         bert_model_name — HuggingFace BERT identifier (default: bert-base-uncased)
-        table_row_limit — soft limit for row/col embeddings; -1 = no limit
-                          (chunking handles large tables automatically)
+        table_row_limit — max rows passed to get_table_embedding; -1 = no limit.
+                          Row/column/cell embeddings are unaffected (chunking
+                          handles arbitrarily large tables there instead).
         max_cell_len    — BERT max token length per cell (default: 16)
         embedding_dim   — 768 (row/col); cell dim is 1536
     """
@@ -307,9 +308,17 @@ class TABBIEEmbedder(BaseTabularEmbeddingApproach):
         self.load_trained_model()
         df = self.preprocessing(input_table)
         n_rows, n_cols = len(df), len(df.columns)
+        n_row_windows = (n_rows + MAX_ROWS - 1) // MAX_ROWS
 
         # (n_rows+1, n_cols, 1536): row 0 = header
         cell_embs_out = np.zeros((n_rows + 1, n_cols, 1536), dtype=np.float32)
+
+        # The header row is re-embedded (with different data-row context) by every
+        # row-window, so its contributions are accumulated here and averaged below,
+        # the same way get_column_embeddings averages its column-CLS token across
+        # row windows. Data rows need no such aggregation: each belongs to exactly
+        # one row-window.
+        header_accum = np.zeros((n_cols, 1536), dtype=np.float32)
 
         for r_start in range(0, n_rows, MAX_ROWS):
             r_end = min(r_start + MAX_ROWS, n_rows)
@@ -329,8 +338,7 @@ class TABBIEEmbedder(BaseTabularEmbeddingApproach):
                 # combined: (window_n_rows+1, window_n_cols, 1536)
                 # row 0 = header, rows 1..window_n_rows = data rows r_start..r_end-1
 
-                # Write header row (row 0 in output, col window)
-                cell_embs_out[0, c_start:c_end, :] = combined[0, :window_n_cols, :]
+                header_accum[c_start:c_end, :] += combined[0, :window_n_cols, :]
 
                 # Write data rows
                 out_row_start = 1 + r_start
@@ -338,6 +346,8 @@ class TABBIEEmbedder(BaseTabularEmbeddingApproach):
                 cell_embs_out[out_row_start:out_row_end, c_start:c_end, :] = (
                     combined[1 : 1 + window_n_rows, :window_n_cols, :]
                 )
+
+        cell_embs_out[0, :, :] = header_accum / n_row_windows
 
         logger.info("TABBIE cell embeddings shape: %s", cell_embs_out.shape)
         return cell_embs_out
