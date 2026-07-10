@@ -1,0 +1,52 @@
+# TUTA approach configuration
+# Paper: TUTA: Tree-based Transformers for Generally Structured Table Pre-training (KDD 2021)
+# Code:  https://github.com/microsoft/TUTA_table_understanding
+#
+# Run setup first:
+#   bash approaches/benchmark_approaches_src/tuta/setup.sh
+#
+# Then download pretrained weights from Google Drive (see setup.sh for links)
+# and set checkpoint_path below.
+approach_name: tuta
+conda_env: embedding-benchmark
+
+module_path: "approaches/benchmark_approaches_src/tuta"
+class_name: TUTAEmbedder
+
+# Path to a pretrained TUTA .bin state-dict file.
+# Download manually from Google Drive (see setup.sh for links).
+# Set to null to use random initialisation (pipeline testing only).
+checkpoint_path: "/dccstor/fmfortabulardata/graphRAG/table-representation-evals/approaches/benchmark_approaches_src/tuta/tuta.bin"
+
+# TUTA variant — must match the downloaded checkpoint.
+#   "tuta"          -> BbForTuta   (implicit tree positional encoding)
+#   "tuta_explicit" -> BbForTutaExplicit
+#   "base"          -> BbForBase   (no tree positional encoding)
+target: "tuta"
+
+# HuggingFace tokenizer. Must match TUTA pretraining (bert-base-uncased).
+lm: "bert-base-uncased"
+
+# Max total token sequence length (TUTA was pretrained with 512).
+max_seq_len: 512
+
+# Max body tokens per cell (excluding the SEP separator).
+# TUTA's order_weight embedding has size max_cell_length=64 (indices 0–63).
+# SEP uses order 0; body tokens use orders 1–63, so the max here is up to 63.
+# In practice 16 balances coverage against the 512-token sequence budget.
+max_cell_tokens: 16
+
+# Max data rows included in a single forward pass.
+# Rows beyond this limit receive zero embeddings.
+max_rows: 50
+
+supported_tasks:
+  cell_task: {}
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+  more_similar_than: {}
+  clustering: {}
+  predictive_ml:
+    run_task_based_on: row_embeddings
+  table_retrieval: {}
+  table_shuffling: {}

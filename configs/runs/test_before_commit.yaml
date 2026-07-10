@@ -1,30 +1,27 @@
 benchmark_output_dir: just_testing
 log_level: DEBUG
 approaches:
-  - name: sentence_transformer
-    params:
-      embedding_model: all-MiniLM-L6-v2
-      table_row_limit: 100
+  - name: tuta
     tasks:
       - row_similarity_search
       - more_similar_than
-      - column_similarity_search
-      - column_type_annotation
+      #- column_similarity_search
       - predictive_ml
+      - cell_task
     task_datasets:
       row_similarity_search:
         - Amazon-Google
       more_similar_than:
         - wikidata_books
-      column_similarity_search:
-        - valentine
-        - opendata
-      column_type_annotation:
-        - sotab
+      #column_similarity_search:
+        #- valentine
+        #- opendata
       predictive_ml:
         - credit-g
         - anneal
         - healthcare_insurance_expenses
+      cell_task:
+        - s2abel@clean
     task_params:
       column_similarity_search:
         test_case_limit: 5
