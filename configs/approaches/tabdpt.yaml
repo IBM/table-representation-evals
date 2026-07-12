@@ -1,0 +1,37 @@
+approach_name: tabdpt
+conda_env: embedding-benchmark
+module_path: "approaches/benchmark_approaches_src/tabdpt"
+class_name: TabDPTEmbedder
+
+# Device for inference. "auto" selects CUDA if available, otherwise CPU.
+device: "auto"
+
+# Number of context rows passed to the model per forward pass.
+# Larger values give richer context but use more VRAM.
+# TabDPT was trained with context sizes up to ~1024.
+context_size: 1024
+
+# Cell / column embeddings are not available: TabDPT projects all features
+# of a row into a single vector via Linear(F→ninp) at the input — there is
+# no per-column dimension in the network.
+#
+# table_retrieval is excluded because create_query_embedding() requires NL
+# understanding, which TabDPT does not have (operates on raw floats only).
+# nl2* tasks are excluded for the same reason.
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+    exclude_datasets:
+      - DBLP-GoogleScholar   # >100k rows; OOM risk at context_size=1024
+      - iTunes-Amazon
+  more_similar_than: {}
+  clustering: {}
+  predictive_ml:
+    run_task_based_on: custom_predictiveML_model
+    exclude_datasets:
+      - customer_satisfaction_in_airline
+      - APSFailure
+      - GiveMeSomeCredit
+      - SDSS17
+  table_shuffling: {}
