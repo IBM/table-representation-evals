@@ -24,6 +24,7 @@ from typing import List, Dict, Tuple
 import statistics
 
 import gc
+import shutil
 import torch
 
 from qdrant_client import QdrantClient
@@ -255,7 +256,9 @@ def run_nl2column_mapping_benchmark(
     # Limit number of queries if specified
     max_queries = cfg.task.get("max_queries", len(queries))
     queries = queries[:max_queries]
-    
+
+    force_embed_corpus = cfg.task.get("force_embed_corpus", False)
+
     for query_idx, query in enumerate(tqdm(queries, desc="Processing queries")):
         db_id = query["db_id"]
         question = query["question"]
@@ -272,17 +275,24 @@ def run_nl2column_mapping_benchmark(
                 continue
             
             collection_name = f"bird_columns_{db_id}"
-            completed_file_path = qdrant_path / "collection" / collection_name / "COMPLETED"
-            
+            collection_dir = qdrant_path / "collection" / collection_name
+            completed_file_path = collection_dir / "COMPLETED"
+
             # Check if collection already exists and is complete
-            if client.collection_exists(collection_name=collection_name) and completed_file_path.exists():
+            if client.collection_exists(collection_name=collection_name) and completed_file_path.exists() and not force_embed_corpus:
                 logger.info(f"Collection {collection_name} already exists and is complete")
             else:
-                # Delete if exists but incomplete
+                # Delete if exists but incomplete, or if a re-embed was forced
                 if client.collection_exists(collection_name=collection_name):
                     client.delete_collection(collection_name=collection_name)
-                    logger.info(f"Deleted incomplete collection {collection_name}")
-                
+                    logger.info(
+                        f"Deleted {'existing' if force_embed_corpus else 'incomplete'} collection {collection_name}"
+                    )
+                # Wipe any leftover collection directory (e.g. a stale COMPLETED marker)
+                # rather than relying on delete_collection to have fully cleaned it up
+                if collection_dir.exists():
+                    shutil.rmtree(collection_dir)
+
                 # Create new collection
                 logger.info(f"Creating column embeddings for database {db_id}")
                 schema = load_database_schema(db_path)

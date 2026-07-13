@@ -18,3 +18,7 @@ max_rows_per_table: 1000
 # Should be large enough to cover all relevant columns
 top_k_columns: 50
 
+# Force re-embedding of a database's column collection even if a complete cached
+# Qdrant collection already exists (e.g. after a component/model change)
+force_embed_corpus: false
+

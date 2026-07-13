@@ -20,3 +20,7 @@ top_k_columns: 50
 # Query embedding mode: "full_nl" or "extracted_values"
 query_mode: extracted_values
 
+# Force re-embedding of a database's cell collection even if a complete cached
+# Qdrant collection already exists (e.g. after a component/model change)
+force_embed_corpus: false
+
