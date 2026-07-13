@@ -33,6 +33,7 @@ Direct usage (must be in benchmark_env):
 import gc
 import json
 import logging
+import os
 import subprocess
 import sys
 from datetime import datetime
@@ -457,14 +458,19 @@ def main(
     logger.info(f"Results will be saved to: {results_folder}")
 
     # ── Multi-env dispatch ────────────────────────────────────────────────────
-    # When this is the top-level invocation (not a subprocess), check if the run
-    # config spans multiple conda envs. If so, dispatch one subprocess per env
-    # via `conda run` so the user never has to switch envs manually.
+    # When this is the top-level invocation (not a subprocess), check if any
+    # declared conda_env differs from the currently active one (set by `conda
+    # activate` in run.sh). If so, dispatch a subprocess per named env via
+    # `conda run` so the user never has to switch envs manually. This also
+    # covers the single-named-env case: without it, a run config whose lone
+    # approach declares a conda_env other than the current one would silently
+    # run inline in the wrong env instead of dispatching or erroring.
     if conda_env is None:
         env_groups = _collect_env_groups(run_cfg, project_root / "configs")
         named_envs = [e for e in env_groups if e is not None]
+        current_env = os.environ.get("CONDA_DEFAULT_ENV")
 
-        if len(named_envs) > 1:
+        if any(e != current_env for e in named_envs):
             logger.info(
                 f"Multi-env run: dispatching subprocesses for envs: {named_envs}"
                 + (f" + current env (no conda_env)" if None in env_groups else "")
@@ -475,6 +481,10 @@ def main(
             failed_envs = []
 
             for env_name in named_envs:
+                if planned_per_env[env_name] == 0:
+                    logger.info(f"--- Skipping env '{env_name}': 0 jobs planned ---")
+                    continue
+
                 logger.info(
                     f"--- Activating env '{env_name}' "
                     f"({env_groups[env_name]}) ---"
