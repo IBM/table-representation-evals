@@ -33,6 +33,8 @@ metric_ranges:
   accuracy: [0, 1]
   accuracy_easy: [0, 1]
   accuracy_medium: [0, 1]
+  macro_f1: [0, 1]
+  mean_mrr: [0, 1]
   "In top-1 [%]": [0, 100]
   "In top-3 [%]": [0, 100]
   "In top-5 [%]": [0, 100]

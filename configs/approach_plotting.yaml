@@ -97,3 +97,15 @@
   configuration: "batch_size=8,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=32,predML_based_on=custom_predictiveML_model"
   color: "#c0392b"
   name: "TabuLa-8B_updated"
+- approach: tabula_8b
+  configuration: "tabula_8b"
+  color: "#c0392b"
+  name: "TabuLa-8B"
+- approach: tabbie
+  configuration: "tabbie"
+  color: "#27ae60"
+  name: "TABBIE"
+- approach: tabert
+  configuration: "tabert"
+  color: "#d35400"
+  name: "TaBERT"

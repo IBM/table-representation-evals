@@ -6,6 +6,7 @@ from typing import Annotated
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import typer
 from omegaconf import ListConfig
@@ -155,6 +156,78 @@ def _create_bar_chart(task_df: pd.DataFrame, metric: str, task: str, plots_folde
     plt.close(fig)
 
 
+def _create_per_dataset_bar_chart(task_df: pd.DataFrame, metric: str, task: str, plots_folder: Path) -> None:
+    """
+    Grouped bar chart with one group per dataset (plus a trailing "Mean" group
+    averaging across datasets) and one bar per (approach, configuration) within
+    each group. task_df must already be restricted to full-coverage datasets
+    (see _datasets_with_full_coverage) so every group has the same set of bars.
+    """
+    agg_df = (
+        task_df.groupby("chart_name")
+        .agg(metric_mean=(metric, "mean"), color=("color", "first"), Approach=("Approach", "first"))
+        .reset_index()
+        .sort_values("Approach")
+    )
+    chart_names = agg_df["chart_name"].tolist()
+    color_map = dict(zip(agg_df["chart_name"], agg_df["color"]))
+
+    mean_df = agg_df.rename(columns={"metric_mean": metric})[["chart_name", metric]].copy()
+    mean_df["dataset"] = "Mean"
+    plot_df = pd.concat([task_df[["dataset", "chart_name", metric]], mean_df], ignore_index=True)
+
+    datasets = sorted(task_df["dataset"].unique()) + ["Mean"]
+
+    domain_min, domain_max = get_metric_domain(agg_df["metric_mean"], metric)
+
+    n_datasets = len(datasets)
+    n_methods = len(chart_names)
+    gap = 0.025
+    bar_width = (0.8 - gap * (n_methods - 1)) / n_methods
+    x = np.arange(n_datasets)
+    total_group_width = n_methods * bar_width + (n_methods - 1) * gap
+    group_centers = x + total_group_width / 2
+
+    fig, ax = plt.subplots(figsize=(max(8, n_datasets * n_methods * 0.35), 6))
+
+    label_offset = (domain_max - domain_min) * 0.02
+    for i, chart_name in enumerate(chart_names):
+        method_df = (
+            plot_df[plot_df["chart_name"] == chart_name]
+            .set_index("dataset")
+            .reindex(datasets)
+        )
+        positions = x + i * (bar_width + gap)
+        bars = ax.bar(positions, method_df[metric], width=bar_width, color=color_map[chart_name], label=chart_name)
+
+        for dataset_name, bar in zip(datasets, bars):
+            height = bar.get_height()
+            if pd.isna(height):
+                continue
+            if dataset_name == "Mean":
+                bar.set_alpha(0.8)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                height + label_offset,
+                f"{height:.2f}",
+                ha="center", va="bottom", fontsize=8,
+            )
+
+    ax.set_xticks(group_centers)
+    ax.set_xticklabels(datasets, rotation=30, ha="right")
+    ax.set_ylim(domain_min, domain_max)
+    ax.set_ylabel(metric)
+    ax.set_title(f"{task}: {metric} per dataset")
+    ax.grid(axis="y", linestyle="--", alpha=0.3)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=min(6, n_methods), frameon=False, fontsize=9)
+
+    plt.tight_layout()
+
+    filename = f"{task}_{results_helper.to_slug(metric)}_bar_per_dataset.png"
+    plt.savefig(plots_folder / filename)
+    plt.close(fig)
+
+
 def _to_markdown_table(df: pd.DataFrame) -> str:
     """Minimal DataFrame -> pipe-delimited markdown table (avoids a `tabulate` dependency)."""
     headers = [df.index.name or ""] + [str(col) for col in df.columns]
@@ -225,6 +298,8 @@ def run(results_folder_name: str) -> None:
             else:
                 logger.info(f"Creating general plots for task {task}, metric {metric}")
                 _create_bar_chart(common_df, metric, task, plots_folder)
+                if common_df["dataset"].nunique() > 1:
+                    _create_per_dataset_bar_chart(common_df, metric, task, plots_folder)
 
             _create_results_table(metric_df, metric, task, plots_folder)
 
