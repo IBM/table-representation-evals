@@ -304,14 +304,26 @@ if [ "$SETUP_GRITLM" = true ]; then
 
     conda activate benchmark_env_gritlm
 
-    pip install -r reqs_benchmark.txt
+    # GritLM's own repo pins torch==2.2.0 and transformers==4.37.2 (it patches Mistral's
+    # attention internals for its bidirectional "bbcc" mode, which breaks silently on other
+    # versions). Install torch first so nothing later pulls in a newer, untested one.
+    pip install torch==2.2.0
 
-    # GritLM needs older transformers version to work
-    pip uninstall transformers -y
-    pip install transformers==4.40.2
+    pip install -r reqs_benchmark.txt
 
     pip install -e . -e approaches/
     pip install gritlm
+
+    # Re-pin last: reqs_benchmark.txt / the editable installs / gritlm itself can otherwise
+    # silently pull in a newer transformers than GritLM was built against.
+    pip uninstall transformers -y
+    pip install transformers==4.37.2
+
+    # reqs_benchmark.txt pins numpy==2.3.4 for the other approaches, but torch==2.2.0 predates
+    # NumPy 2.0 and was built against its C-API, so numpy 2.x breaks torch's numpy interop
+    # (torch.from_numpy/.numpy()) entirely. Re-pin to the last NumPy 1.x release.
+    pip uninstall numpy -y
+    pip install numpy==1.26.4
 
     conda deactivate
 fi
