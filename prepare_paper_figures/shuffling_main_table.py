@@ -31,17 +31,40 @@ def create_accuracy_table(df: pd.DataFrame, plots_folder: Path):
         aggfunc='mean',
     )
 
+    # Build CI map for Accuracy
+    ci_map = None
+    ci_path = Path(__file__).parent / 'bootstrap_cis.csv'
+    if ci_path.exists():
+        ci_df = pd.read_csv(ci_path)
+        ci_acc = ci_df[(ci_df['Metric'] == 'Accuracy') & (ci_df['Dataset'].str.endswith('@@v0'))]
+        if len(ci_acc) > 0:
+            # Build mapping: (chart_name, dataset_stripped) -> (ci_lower, ci_upper)
+            filtered_for_map = filtered[['chart_name', 'Approach', 'Configuration', 'dataset']].drop_duplicates()
+            name_to_keys = {}
+            for _, row in filtered_for_map.iterrows():
+                ds_stripped = row['dataset'].replace('@@v0', '')
+                name_to_keys[(row['Approach'], row['Configuration'], ds_stripped)] = (row['chart_name'], ds_stripped)
+
+            ci_map = {}
+            for _, row in ci_acc.iterrows():
+                ds_stripped = row['Dataset'].replace('@@v0', '')
+                mapped = name_to_keys.get((row['Approach'], row['Configuration'], ds_stripped))
+                if mapped:
+                    ci_map[mapped] = (row['CI_lower'], row['CI_upper'])
+
     h.write_latex_table(
         pivoted,
         plots_folder,
         filename='shuffling_accuracy_table.tex',
         caption='Table Shuffling accuracy per dataset (v0: hi-pos/hi-neg, both row+col perturbation, '
-                'default window). Best per column in bold, second-best underlined.',
+                'default window). Best per column in bold, second-best underlined. Bracketed values show bootstrapped 95\\% CIs.',
         label='tab:shuffling_accuracy',
         index_name='Approach',
         float_fmt='.4f',
         axis='columns',
         add_mean_column=True,
+        ci_map=ci_map,
+        tabcolsep=3.84,
     )
 
 

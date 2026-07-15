@@ -53,11 +53,28 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
 
     # Wider inter-group gaps to visually separate dataset clusters
     n_approaches = len(approaches)
-    bar_width = 0.70 / n_approaches
-    gap_factor = 1.3
+    bar_width = 0.805 / n_approaches
+    gap_factor = 1.1
     x = np.arange(len(datasets)) * gap_factor
 
-    fig, ax = plt.subplots(figsize=(max(10, len(datasets) * 2.0), 5.2 * 0.7))
+    # Load bootstrap CIs
+    ci_path = Path(__file__).parent / 'bootstrap_cis.csv'
+    ci_df = pd.read_csv(ci_path) if ci_path.exists() else None
+
+    # Build mapping from (chart_name, dataset) -> (ci_lower, ci_upper) for MRR@10
+    ci_map = {}
+    if ci_df is not None:
+        ci_mrr = ci_df[(ci_df['Metric'] == 'MRR@10') & (ci_df['Dataset'] != '__aggregate__')]
+        # Build approach+config -> chart_name mapping
+        key_to_name = {}
+        for _, row in filtered[['chart_name', 'Approach', 'Configuration']].drop_duplicates().iterrows():
+            key_to_name[(row['Approach'], row['Configuration'])] = row['chart_name']
+        for _, row in ci_mrr.iterrows():
+            name = key_to_name.get((row['Approach'], row['Configuration']))
+            if name:
+                ci_map[(name, row['Dataset'])] = (row['CI_lower'], row['CI_upper'])
+
+    fig, ax = plt.subplots(figsize=(max(10, len(datasets) * 2.0) * 1.034, 5.2 * 0.724))
 
     for i, approach in enumerate(approaches):
         approach_data = agg[agg['chart_name'] == approach].set_index('dataset')
@@ -66,17 +83,32 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
 
         values = [approach_data.loc[d, metric_col] if d in approach_data.index else 0
                   for d in datasets]
-        ax.bar(x + i * bar_width, values, bar_width, label=approach, color=color)
+
+        # Build yerr for this approach
+        yerr_lower = np.zeros(len(datasets))
+        yerr_upper = np.zeros(len(datasets))
+        for j, ds in enumerate(datasets):
+            ci_tuple = ci_map.get((approach, ds))
+            if ci_tuple is not None and values[j] > 0:
+                lo, hi = ci_tuple
+                yerr_lower[j] = max(0.0, values[j] - lo)
+                yerr_upper[j] = max(0.0, hi - values[j])
+        yerr = [yerr_lower, yerr_upper]
+
+        ax.bar(x + i * bar_width, values, bar_width, label=approach, color=color,
+               edgecolor='white', linewidth=0.5,
+               yerr=yerr, capsize=5, error_kw={'linewidth': 2.0, 'ecolor': '#111111'})
 
     ax.set_ylabel('MRR@10', fontsize=18)
 
     ax.set_xticks(x + bar_width * (n_approaches - 1) / 2)
-    ax.set_xticklabels(datasets, rotation=0, ha='center', fontsize=15)
-    ax.set_ylim(0, 0.98)
-    ax.tick_params(labelsize=15)
+    ax.set_xticklabels(datasets, rotation=0, ha='center', fontsize=16)
+    ax.set_ylim(0, 1.05)
+    ax.tick_params(labelsize=16)
     ax.yaxis.grid(True, linestyle='--', alpha=0.4)
     ax.set_axisbelow(True)
-    ax.legend(loc='upper right', fontsize=13, ncol=1)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
+              fontsize=13, ncol=n_approaches, frameon=True, framealpha=0.9, edgecolor='#cccccc')
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'retrieval_per_dataset_bars.pdf', bbox_inches='tight')

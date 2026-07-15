@@ -30,6 +30,8 @@ setup_benchmark.sh
 CLAUDE.md
 
 # Generated figure/table outputs
+prepare_paper_figures/main_experiments/
 prepare_paper_figures/main_table_experiments/*.pdf
 prepare_paper_figures/main_table_experiments/*.tex
+prepare_paper_figures/main_table_experiments/*.csv
 prepare_paper_figures/main_table_experiments/tables/*.pdf

@@ -114,6 +114,14 @@ OLD_TABLE_RETRIEVAL_PLOTS = False
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
 
+    # ---- Bootstrap CIs (prerequisite for error bars in plots/tables) ----
+    import bootstrap_cis
+    if not bootstrap_cis.OUTPUT_PATH.exists():
+        print("Running bootstrap CIs (one-time)...")
+        bootstrap_cis.main()
+    else:
+        print(f"Bootstrap CIs already exist at {bootstrap_cis.OUTPUT_PATH}, skipping.")
+
     results_folder = RESULTS_FOLDER
     assert results_folder.exists(), f"Could not find results folder at {results_folder}"
 

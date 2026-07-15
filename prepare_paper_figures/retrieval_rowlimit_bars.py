@@ -27,7 +27,18 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
     approaches = sorted(agg['chart_name'].unique())
 
     x = np.arange(len(approaches))
-    bar_width = 0.35
+    bar_width = 0.40
+
+    # Load bootstrap CIs
+    ci_path = Path(__file__).parent / 'bootstrap_cis.csv'
+    ci_df = pd.read_csv(ci_path) if ci_path.exists() else None
+
+    # Build (Approach, Configuration) -> CI for MRR@10 aggregate
+    ci_agg = {}
+    if ci_df is not None:
+        ci_mrr = ci_df[(ci_df['Metric'] == 'MRR@10') & (ci_df['Dataset'] == '__aggregate__')]
+        for _, row in ci_mrr.iterrows():
+            ci_agg[(row['Approach'], row['Configuration'])] = (row['CI_lower'], row['CI_upper'], row['Mean'])
 
     fig, ax = plt.subplots(figsize=(max(8, len(approaches) * 1.2), 3.8 * 0.9))
 
@@ -43,23 +54,34 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
                 continue
             value = rl_data[metric_col].iloc[0]
             all_values.append(value)
+
+            # Look up CI for this approach+config
+            yerr = None
+            sub = approach_df[approach_df['Configuration'].apply(h.extract_row_limit) == rl]
+            if len(sub) > 0:
+                config = sub['Configuration'].iloc[0]
+                ci_tuple = ci_agg.get((sub['Approach'].iloc[0], config))
+                if ci_tuple is not None:
+                    lo, hi, _ = ci_tuple
+                    yerr = [[max(0.0, value - lo)], [max(0.0, hi - value)]]
+
             bar = ax.bar(x[i] + offset, value, bar_width,
                          color=color, hatch=hatch,
-                         edgecolor='white', linewidth=0.5)
-
+                         edgecolor='white', linewidth=0.5,
+                         yerr=yerr, capsize=8,
+                         error_kw={'linewidth': 2.0, 'ecolor': '#111111'})
             if value > 0:
-                ax.text(bar[0].get_x() + bar[0].get_width() / 2,
-                        bar[0].get_height() + 0.01,
-                        f'{value:.3f}', ha='center', va='bottom',
-                        fontsize=9, rotation=90)
+                ax.bar_label(bar, fmt='%.2f', fontsize=15, padding=3)
 
-    ax.set_ylabel('MRR@10', fontsize=14)
+    ax.set_ylabel('MRR@10', fontsize=18)
 
     ax.set_xticks(x + bar_width / 2)
     labels = [a.replace(' (md)', '\n(md)') for a in approaches]
-    ax.set_xticklabels(labels, rotation=0, ha='center', fontsize=10)
-    ax.set_ylim(0, 0.88)
-    ax.tick_params(labelsize=13)
+    ax.set_xticklabels(labels, rotation=0, ha='center', fontsize=15)
+    ax.set_ylim(0, 1.05)
+    ax.tick_params(labelsize=15)
+    ax.yaxis.grid(True, linestyle='--', alpha=0.4)
+    ax.set_axisbelow(True)
 
     # Legend inside plot (top-right): gray exemplars for the two conditions
     legend_elements = [
@@ -68,7 +90,7 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
         Patch(facecolor='lightgray', edgecolor='white', linewidth=0.5,
               label='Schema + 100 rows'),
     ]
-    ax.legend(handles=legend_elements, loc='upper right', fontsize=11)
+    ax.legend(handles=legend_elements, loc='upper right', fontsize=14)
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'retrieval_rowlimit_bars.pdf', bbox_inches='tight')

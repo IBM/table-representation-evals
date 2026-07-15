@@ -83,17 +83,18 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
 
     for _, row in merged.iterrows():
         ax.scatter(row['time'], row['avg_quality'], color=row['color'],
-                   s=240, edgecolors='white', linewidth=1, zorder=5)
+                   s=312, edgecolors='white', linewidth=1, zorder=5)
         ax.annotate(row['chart_name'],
                     (row['time'], row['avg_quality']),
                     textcoords='offset points', xytext=(8, 6),
-                    fontsize=18, color=row['color'],
+                    fontsize=23, color=row['color'],
                     path_effects=[pe.withStroke(linewidth=2, foreground='white')])
 
-    ax.set_xlabel('Execution Time (s)', fontsize=14)
-    ax.set_ylabel('Average Quality (pooled across tasks, normalized)', fontsize=16)
+    ax.set_xlabel('Execution Time (s)', fontsize=18)
+    ax.set_ylabel('Average Quality (pooled across tasks, normalized)', fontsize=21)
 
-    ax.tick_params(labelsize=13)
+    ax.tick_params(labelsize=17)
+    ax.grid(True, alpha=0.3)
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'cost_quality_quadrant.pdf', bbox_inches='tight')

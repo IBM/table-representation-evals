@@ -28,27 +28,71 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
         color=('color', 'first'),
     ).reset_index().dropna(subset=['sil_mean'])
 
-    # Use SEM (std / sqrt(n)) for error bars: quantifies uncertainty of the mean
-    # across datasets, not the spread of individual dataset scores
-    avg['sil_sem'] = avg['sil_std'] / np.sqrt(avg['sil_count'])
+    # Load bootstrap CIs for Silhouette (per-dataset, v0 only)
+    ci_path = Path(__file__).parent / 'bootstrap_cis.csv'
+    ci_lower_map = {}
+    ci_upper_map = {}
+    if ci_path.exists():
+        ci_df = pd.read_csv(ci_path)
+        ci_sil = ci_df[(ci_df['Metric'] == 'Silhouette') &
+                       (ci_df['Dataset'].str.endswith('@@v0'))]
+        # Build approach+config -> chart_name mapping from v0
+        key_to_name = {}
+        for _, row in v0[['chart_name', 'Approach', 'Configuration']].drop_duplicates().iterrows():
+            key_to_name[(row['Approach'], row['Configuration'])] = row['chart_name']
+        for _, row in ci_sil.iterrows():
+            name = key_to_name.get((row['Approach'], row['Configuration']))
+            if name:
+                ci_lower_map.setdefault(name, []).append(row['CI_lower'])
+                ci_upper_map.setdefault(name, []).append(row['CI_upper'])
 
-    # Sort by silhouette
+    # Sort by silhouette first
     avg = avg.sort_values('sil_mean', ascending=True)
+
+    # Compute pooled CI error bars from per-dataset bootstrap CIs
+    yerr_lower = np.zeros(len(avg))
+    yerr_upper = np.zeros(len(avg))
+    for i, (_, row) in enumerate(avg.iterrows()):
+        name = row['chart_name']
+        if name in ci_lower_map and len(ci_lower_map[name]) > 0:
+            lowers = np.array(ci_lower_map[name])
+            uppers = np.array(ci_upper_map[name])
+            # Pooled CI: average of per-dataset half-widths via sqrt(sum(hw²))/n
+            half_widths = (uppers - lowers) / 2
+            pooled_hw = np.sqrt(np.sum(half_widths ** 2)) / len(half_widths)
+            yerr_lower[i] = pooled_hw
+            yerr_upper[i] = pooled_hw
+        else:
+            # Fallback to SEM
+            sem = row['sil_std'] / np.sqrt(row['sil_count']) if row['sil_count'] > 0 else 0
+            yerr_lower[i] = sem
+            yerr_upper[i] = sem
+
+    yerr = [yerr_lower, yerr_upper]
 
     fig, ax = plt.subplots(figsize=(10, 4.0))
 
     bars = ax.bar(
         avg['chart_name'], avg['sil_mean'],
-        yerr=avg['sil_sem'],
+        yerr=yerr,
         color=avg['color'], edgecolor='white', linewidth=0.5,
-        capsize=4, width=0.6,
+        capsize=12, width=0.6,
+        error_kw={'linewidth': 2.0, 'ecolor': '#111111'},
     )
+    # Horizontal labels above bars
+    for bar, val in zip(bars, avg['sil_mean']):
+        y_pos = bar.get_height() + 0.02 if bar.get_height() >= 0 else bar.get_height() - 0.06
+        va = 'bottom' if bar.get_height() >= 0 else 'top'
+        ax.text(bar.get_x() + bar.get_width() / 2, y_pos,
+                f'{val:.2f}', ha='center', va=va, fontsize=18)
 
     ax.axhline(y=0, color='black', linewidth=0.8)
-    ax.set_ylabel('Silhouette Score', fontsize=16)
+    ax.set_ylabel('Silhouette Score', fontsize=22)
     ax.set_xticks(range(len(avg)))
-    ax.set_xticklabels(avg['chart_name'], rotation=30, ha='right', fontsize=13)
-    ax.tick_params(axis='y', labelsize=13)
+    ax.set_xticklabels(avg['chart_name'], rotation=0, ha='center', fontsize=16)
+    ax.tick_params(axis='y', labelsize=18)
+    ax.yaxis.grid(True, linestyle='--', alpha=0.4)
+    ax.set_axisbelow(True)
     ax.set_ylim(-1.0, 1.0)
 
     fig.tight_layout()

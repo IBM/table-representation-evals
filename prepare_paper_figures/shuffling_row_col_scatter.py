@@ -59,7 +59,7 @@ def create_scatter(df: pd.DataFrame, plots_folder: Path):
 
     ax.set_xlim(min_val, max_val)
     ax.set_ylim(min_val, max_val)
-    ax.legend(fontsize=11)
+    ax.legend(fontsize=12)
     ax.grid(True, alpha=0.3)
     ax.set_aspect('equal')
     ax.tick_params(labelsize=13)

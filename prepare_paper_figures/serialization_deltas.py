@@ -36,7 +36,14 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
         ('Table Type Detection', 'table_type_detection', 'XGBoost_f1_macro (↑)_mean'),
     ]
 
-    colors = {'GritLM': '#1f77b4', 'MiniLM': '#ff7f0e', 'Granite-R2': '#9467bd'}
+    # Build color map from df for each base approach
+    color_map = {}
+    for _, row in df[['chart_name', 'color']].drop_duplicates().iterrows():
+        base = row['chart_name']
+        for suffix in [' (md)', ' (csv)']:
+            if base.endswith(suffix):
+                color_map[base.replace(suffix, '')] = row['color']
+                break
 
     all_deltas = []
     for task_label, task_key, metric in tasks:
@@ -64,16 +71,18 @@ def create_plot(df: pd.DataFrame, plots_folder: Path):
             row = combined[(combined['approach'] == approach) & (combined['task'] == tl)]
             vals.append(row['delta'].iloc[0] if len(row) > 0 else 0)
         ax.bar(x + i * bar_width, vals, bar_width,
-               label=approach, color=colors.get(approach, '#333'))
+               label=approach, color=color_map.get(approach, '#333'),
+               edgecolor='white', linewidth=0.5)
 
     ax.axhline(0, color='black', linewidth=0.8)
     ax.set_xticks(x + bar_width)
-    ax.set_xticklabels(task_labels, fontsize=15)
-    ax.set_ylabel(r'$\Delta$ (csv $-$ markdown)', fontsize=16)
+    ax.set_xticklabels(task_labels, fontsize=20)
+    ax.set_ylabel(r'$\Delta$ (csv $-$ markdown)', fontsize=24)
 
-    ax.legend(loc='lower right', fontsize=13)
-    ax.grid(axis='y', alpha=0.3)
-    ax.tick_params(labelsize=15)
+    ax.legend(loc='lower right', fontsize=18)
+    ax.yaxis.grid(True, linestyle='--', alpha=0.4)
+    ax.set_axisbelow(True)
+    ax.tick_params(labelsize=20)
 
     fig.tight_layout()
     fig.savefig(plots_folder / 'serialization_deltas.pdf', bbox_inches='tight')

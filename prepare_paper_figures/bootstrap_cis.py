@@ -4,23 +4,32 @@ Computes 95% bootstrap CIs for retrieval (MRR, MAP, Recall, Precision at k=1,3,5
 and shuffling (Accuracy, Silhouette, Contrastive). Writes one CSV with per-dataset
 and __aggregate__ (pooled across datasets) rows.
 
+Uses multiprocessing (16 workers) with batched bootstrap to stay within memory limits.
+
 Run once before main.py:
     python prepare_paper_figures/bootstrap_cis.py
 """
 
 import json
 import logging
+import sys
+import time
+from collections import defaultdict
+from multiprocessing import Pool
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 RESULTS_ROOT = Path("results_complete/results/table_paper_experiments")
 OUTPUT_PATH = Path(__file__).parent / "bootstrap_cis.csv"
 N_BOOTSTRAP = 10_000
+BATCH_SIZE = 1000  # bootstrap iterations per batch — keeps memory low
 RANDOM_SEED = 42
 K_VALUES = [1, 3, 5, 10]
+N_WORKERS = 16
 
 RETRIEVAL_METRIC_MAP = {
     "MRR": "reciprocal_rank",
@@ -30,48 +39,44 @@ RETRIEVAL_METRIC_MAP = {
 }
 
 
-def bootstrap_ci(scores: np.ndarray, n_bootstrap: int = N_BOOTSTRAP,
-                 ci: float = 95.0, random_seed: int = RANDOM_SEED) -> dict:
-    """Compute bootstrap confidence intervals for a mean.
+def bootstrap_ci_batched(scores: np.ndarray, n_bootstrap: int = N_BOOTSTRAP,
+                         batch_size: int = BATCH_SIZE,
+                         ci: float = 95.0, random_seed: int = RANDOM_SEED) -> dict:
+    """Batched bootstrap — processes n_bootstrap iterations in batches to limit memory.
 
-    Args:
-        scores: 1D array of per-instance values.
-        n_bootstrap: Number of bootstrap resamples.
-        ci: Confidence level (percent).
-        random_seed: Random seed for reproducibility.
-
-    Returns:
-        dict with keys: mean, se, ci_lower, ci_upper, n.
+    Instead of allocating (n_bootstrap × n) at once, allocates (batch_size × n)
+    and accumulates mean + sum-of-squares for the bootstrap distribution.
     """
     rng = np.random.default_rng(random_seed)
     n = len(scores)
-    means = np.empty(n_bootstrap)
-    for i in range(n_bootstrap):
-        sample = rng.choice(scores, size=n, replace=True)
-        means[i] = sample.mean()
+    n_batches = (n_bootstrap + batch_size - 1) // batch_size
+
+    # We need percentiles, so we must store all means. But we batch the sampling.
+    all_means = np.empty(n_bootstrap)
+    for b in range(n_batches):
+        start = b * batch_size
+        end = min(start + batch_size, n_bootstrap)
+        bs = end - start
+        indices = rng.integers(0, n, size=(bs, n))
+        all_means[start:end] = scores[indices].mean(axis=1)
+
     alpha = (100 - ci) / 2
     return {
-        "mean": float(means.mean()),
-        "se": float(means.std(ddof=0)),
-        "ci_lower": float(np.percentile(means, alpha)),
-        "ci_upper": float(np.percentile(means, 100 - alpha)),
+        "mean": float(all_means.mean()),
+        "se": float(all_means.std(ddof=0)),
+        "ci_lower": float(np.percentile(all_means, alpha)),
+        "ci_upper": float(np.percentile(all_means, 100 - alpha)),
         "n": n,
     }
 
 
-def parse_path(file_path: Path) -> dict:
-    """Extract Approach, Configuration, Task, Dataset from a full_results.json path.
-
-    Path structure:
-        .../table_paper_experiments/{Approach}/{Config}/{task}/{dataset}/full_results.json
-    """
-    parts = file_path.parts
-    # Find the index of 'table_paper_experiments' and take the 4 components after it
+def parse_path(file_path: str) -> dict:
+    """Extract Approach, Configuration, Task, Dataset from a full_results.json path."""
+    parts = Path(file_path).parts
     try:
         idx = parts.index("table_paper_experiments")
     except ValueError:
         raise ValueError(f"Cannot find 'table_paper_experiments' in path: {file_path}")
-
     return {
         "Approach": parts[idx + 1],
         "Configuration": parts[idx + 2],
@@ -80,46 +85,74 @@ def parse_path(file_path: Path) -> dict:
     }
 
 
-def process_retrieval(file_path: Path) -> list[dict]:
-    """Extract per-query scores from a retrieval full_results.json and bootstrap them.
+def process_one_file(file_path: str) -> tuple[list[dict], dict]:
+    """Read one full_results.json, bootstrap per-dataset CIs, return (rows, pool_arrays).
 
-    Returns a list of row dicts, one per (metric, k) combination.
+    pool_arrays maps pool_key -> np.ndarray of scores (instead of individual tuples).
+    This avoids millions of tiny Python objects in the main process.
     """
     with open(file_path) as f:
         data = json.load(f)
 
-    per_query = data.get("per_query_results", [])
-    if not per_query:
-        logger.warning(f"No per_query_results in {file_path}")
-        return []
-
-    n_queries = len(per_query)
     info = parse_path(file_path)
+    task = info["Task"]
     rows = []
+    pool_arrays: dict[tuple, np.ndarray] = {}
 
-    for k in K_VALUES:
-        k_str = str(k)
-        for metric_name, field in RETRIEVAL_METRIC_MAP.items():
-            scores = np.empty(n_queries)
-            missing = 0
-            for i, q in enumerate(per_query):
-                try:
-                    scores[i] = q["metrics"]["metrics_per_k"][k_str][field]
-                except (KeyError, TypeError):
-                    scores[i] = np.nan
-                    missing += 1
+    if task == "table_retrieval":
+        per_query = data.get("per_query_results", [])
+        if not per_query:
+            return rows, pool_arrays
 
-            if missing > 0:
-                logger.warning(f"{file_path}: {missing}/{n_queries} missing {metric_name}@{k}")
+        n_queries = len(per_query)
 
-            valid = scores[~np.isnan(scores)]
-            if len(valid) == 0:
-                continue
+        for k in K_VALUES:
+            k_str = str(k)
+            for metric_name, field in RETRIEVAL_METRIC_MAP.items():
+                scores = np.empty(n_queries)
+                missing = 0
+                for i, q in enumerate(per_query):
+                    try:
+                        scores[i] = q["metrics"]["metrics_per_k"][k_str][field]
+                    except (KeyError, TypeError):
+                        scores[i] = np.nan
+                        missing += 1
 
-            ci = bootstrap_ci(valid)
+                valid = scores[~np.isnan(scores)]
+                if len(valid) == 0:
+                    continue
+
+                metric_key = f"{metric_name}@{k}"
+                ci = bootstrap_ci_batched(valid)
+                rows.append({
+                    **info,
+                    "Metric": metric_key,
+                    "Mean": ci["mean"],
+                    "SE": ci["se"],
+                    "CI_lower": ci["ci_lower"],
+                    "CI_upper": ci["ci_upper"],
+                    "N": ci["n"],
+                })
+
+                pool_key = (info["Approach"], info["Configuration"], task, metric_key)
+                pool_arrays[pool_key] = valid
+
+    elif task == "table_shuffling":
+        triplets = data.get("triplets", [])
+        if not triplets:
+            return rows, pool_arrays
+
+        acc_scores = np.array([1.0 if t["d_pos"] < t["d_neg"] else 0.0 for t in triplets])
+        sil_scores = np.array([t["silhouette"] for t in triplets])
+        con_scores = np.array([t["contrastive"] for t in triplets])
+
+        for metric_name, scores in [("Accuracy", acc_scores),
+                                     ("Silhouette", sil_scores),
+                                     ("Contrastive", con_scores)]:
+            ci = bootstrap_ci_batched(scores)
             rows.append({
                 **info,
-                "Metric": f"{metric_name}@{k}",
+                "Metric": metric_name,
                 "Mean": ci["mean"],
                 "SE": ci["se"],
                 "CI_lower": ci["ci_lower"],
@@ -127,165 +160,116 @@ def process_retrieval(file_path: Path) -> list[dict]:
                 "N": ci["n"],
             })
 
-    return rows
+            pool_key = (info["Approach"], info["Configuration"], task, metric_name)
+            pool_arrays[pool_key] = scores
+
+    return rows, pool_arrays
 
 
-def process_shuffling(file_path: Path) -> list[dict]:
-    """Extract per-triplet scores from a shuffling full_results.json and bootstrap them.
-
-    Returns a list of row dicts for Accuracy, Silhouette, Contrastive.
-    """
-    with open(file_path) as f:
-        data = json.load(f)
-
-    triplets = data.get("triplets", [])
-    if not triplets:
-        logger.warning(f"No triplets in {file_path}")
-        return []
-
-    n = len(triplets)
-    info = parse_path(file_path)
-
-    # Accuracy: derived binary (d_pos < d_neg)
-    acc_scores = np.array([
-        1.0 if t["d_pos"] < t["d_neg"] else 0.0
-        for t in triplets
-    ])
-    sil_scores = np.array([t["silhouette"] for t in triplets])
-    con_scores = np.array([t["contrastive"] for t in triplets])
-
-    rows = []
-    for metric_name, scores in [("Accuracy", acc_scores),
-                                 ("Silhouette", sil_scores),
-                                 ("Contrastive", con_scores)]:
-        ci = bootstrap_ci(scores)
-        rows.append({
-            **info,
-            "Metric": metric_name,
-            "Mean": ci["mean"],
-            "SE": ci["se"],
-            "CI_lower": ci["ci_lower"],
-            "CI_upper": ci["ci_upper"],
-            "N": ci["n"],
-        })
-
-    return rows
-
-
-def collect_all_scores() -> tuple[list[dict], dict]:
-    """Walk all full_results.json files and collect per-instance scores.
-
-    Returns:
-        all_rows: list of per-dataset bootstrap rows.
-        pooled_scores: dict keyed by (Approach, Config, Task, Metric) -> list of scalars
-                       for computing __aggregate__ CIs.
-    """
-    all_rows = []
-    pooled_scores: dict[tuple, list[float]] = {}  # (Approach, Config, Task, Metric) -> scores
-
-    files = sorted(RESULTS_ROOT.glob("**/full_results.json"))
-    total = len(files)
-    logger.info(f"Found {total} full_results.json files")
-
-    for i, fp in enumerate(files):
-        if (i + 1) % 50 == 0:
-            logger.info(f"Processed {i + 1}/{total} files...")
-
-        try:
-            info = parse_path(fp)
-        except ValueError as e:
-            logger.warning(f"Skipping {fp}: {e}")
-            continue
-
-        task = info["Task"]
-        if task == "table_retrieval":
-            rows = process_retrieval(fp)
-        elif task == "table_shuffling":
-            rows = process_shuffling(fp)
-        else:
-            continue  # TTD or other — no per-instance data
-
-        all_rows.extend(rows)
-
-        # Collect per-instance scores for __aggregate__ pooling
-        # We need to re-read the file to get raw scores per instance
-        with open(fp) as f:
-            data = json.load(f)
-
-        if task == "table_retrieval":
-            per_query = data.get("per_query_results", [])
-            if not per_query:
-                continue
-            n_queries = len(per_query)
-            for k in K_VALUES:
-                k_str = str(k)
-                for metric_name, field in RETRIEVAL_METRIC_MAP.items():
-                    key = (info["Approach"], info["Configuration"], task, f"{metric_name}@{k}")
-                    if key not in pooled_scores:
-                        pooled_scores[key] = []
-                    for q in per_query:
-                        try:
-                            pooled_scores[key].append(
-                                q["metrics"]["metrics_per_k"][k_str][field]
-                            )
-                        except (KeyError, TypeError):
-                            pass
-
-        elif task == "table_shuffling":
-            triplets = data.get("triplets", [])
-            if not triplets:
-                continue
-            acc = [1.0 if t["d_pos"] < t["d_neg"] else 0.0 for t in triplets]
-            sil = [t["silhouette"] for t in triplets]
-            con = [t["contrastive"] for t in triplets]
-            for metric_name, scores in [("Accuracy", acc), ("Silhouette", sil),
-                                         ("Contrastive", con)]:
-                key = (info["Approach"], info["Configuration"], task, metric_name)
-                if key not in pooled_scores:
-                    pooled_scores[key] = []
-                pooled_scores[key].extend(scores)
-
-    logger.info(f"Processed {total}/{total} files. {len(all_rows)} per-dataset rows collected.")
-    return all_rows, pooled_scores
-
-
-def compute_aggregate_rows(pooled_scores: dict) -> list[dict]:
-    """Bootstrap pooled per-instance scores across all datasets for __aggregate__ rows."""
-    rows = []
-    for (approach, config, task, metric), scores in pooled_scores.items():
-        if not scores:
-            continue
-        ci = bootstrap_ci(np.array(scores))
-        rows.append({
-            "Approach": approach,
-            "Configuration": config,
-            "Task": task,
-            "Dataset": "__aggregate__",
-            "Metric": metric,
-            "Mean": ci["mean"],
-            "SE": ci["se"],
-            "CI_lower": ci["ci_lower"],
-            "CI_upper": ci["ci_upper"],
-            "N": ci["n"],
-        })
-    logger.info(f"Computed {len(rows)} __aggregate__ rows")
-    return rows
+def _bootstrap_one_aggregate(item: tuple) -> dict:
+    """Bootstrap a single aggregate key (called from worker pool)."""
+    (approach, config, task, metric), scores = item
+    ci = bootstrap_ci_batched(np.array(scores))
+    return {
+        "Approach": approach,
+        "Configuration": config,
+        "Task": task,
+        "Dataset": "__aggregate__",
+        "Metric": metric,
+        "Mean": ci["mean"],
+        "SE": ci["se"],
+        "CI_lower": ci["ci_lower"],
+        "CI_upper": ci["ci_upper"],
+        "N": ci["n"],
+    }
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s  %(levelname)s  %(message)s",
+                        datefmt="%H:%M:%S",
+                        stream=sys.stderr)
+    print("bootstrap_cis: starting up...", flush=True)
 
     if not RESULTS_ROOT.exists():
-        logger.error(f"Results root not found: {RESULTS_ROOT}")
+        logger.error(f"Results root not found: {RESULTS_ROOT.resolve()}")
         return
 
-    all_rows, pooled_scores = collect_all_scores()
-    aggregate_rows = compute_aggregate_rows(pooled_scores)
+    files = sorted(RESULTS_ROOT.glob("**/full_results.json"))
+    files = [str(f) for f in files]
+    total = len(files)
+    print(f"bootstrap_cis: found {total} full_results.json files", flush=True)
+    logger.info(f"Found {total} full_results.json files under {RESULTS_ROOT}")
 
+    retrieval_count = sum(1 for f in files if "/table_retrieval/" in f)
+    shuffling_count = sum(1 for f in files if "/table_shuffling/" in f)
+    logger.info(f"  Retrieval: {retrieval_count}  |  Shuffling: {shuffling_count}"
+                f"  |  Other: {total - retrieval_count - shuffling_count}")
+
+    # ---- Phase 1: process files in parallel ----
+    t_start = time.monotonic()
+    all_rows = []
+    pooled: dict[tuple, list[np.ndarray]] = defaultdict(list)
+    skipped = 0
+
+    print(f"bootstrap_cis: processing {total} files with {N_WORKERS} workers"
+          f" (batched bootstrap, batch={BATCH_SIZE})...", flush=True)
+
+    with Pool(N_WORKERS) as pool:
+        for i, (rows, pool_arrays) in enumerate(pool.imap_unordered(process_one_file, files)):
+            all_rows.extend(rows)
+            for key, arr in pool_arrays.items():
+                pooled[key].append(arr)
+
+            n_done = i + 1
+            if n_done % 50 == 0 or n_done == total:
+                elapsed = time.monotonic() - t_start
+                rate = n_done / elapsed if elapsed > 0 else 0
+                eta = (total - n_done) / rate if rate > 0 else 0
+                logger.info(f"[{n_done}/{total}] {n_done / total * 100:.0f}%  "
+                            f"rows={len(all_rows)}  "
+                            f"elapsed={elapsed:.0f}s  rate={rate:.1f} files/s  "
+                            f"ETA={eta:.0f}s")
+                sys.stderr.flush()
+
+    t_collect = time.monotonic() - t_start
+    logger.info(f"File processing done in {t_collect:.0f}s — "
+                f"{len(all_rows)} per-dataset rows, {len(pooled)} aggregate keys")
+
+    # ---- Merge pooled arrays into single arrays per key ----
+    logger.info("Merging pooled score arrays...")
+    pooled_merged: dict[tuple, np.ndarray] = {}
+    for key, arrays in pooled.items():
+        pooled_merged[key] = np.concatenate(arrays)
+    del pooled  # free memory
+    logger.info(f"Merged {len(pooled_merged)} aggregate keys, "
+                f"total scores: {sum(len(v) for v in pooled_merged.values()):,}")
+
+    # ---- Phase 2: bootstrap aggregate rows in parallel ----
+    logger.info(f"Bootstrapping {len(pooled_merged)} aggregate keys with {N_WORKERS} workers...")
+    t_agg = time.monotonic()
+
+    aggregate_rows = []
+    with Pool(N_WORKERS) as pool:
+        for i, row in enumerate(pool.imap_unordered(_bootstrap_one_aggregate,
+                                                     pooled_merged.items())):
+            aggregate_rows.append(row)
+            n_done = i + 1
+            if n_done % 50 == 0 or n_done == len(pooled_merged):
+                logger.info(f"  aggregate bootstrapping: {n_done}/{len(pooled_merged)} keys")
+                sys.stderr.flush()
+
+    t_agg_elapsed = time.monotonic() - t_agg
+    logger.info(f"Aggregate bootstrapping done in {t_agg_elapsed:.0f}s — {len(aggregate_rows)} rows")
+
+    # ---- Write CSV ----
     df = pd.DataFrame(all_rows + aggregate_rows)
     df = df.sort_values(["Approach", "Configuration", "Task", "Dataset", "Metric"]).reset_index(drop=True)
     df.to_csv(OUTPUT_PATH, index=False)
+
+    total_time = time.monotonic() - t_start
     logger.info(f"Wrote {len(df)} rows to {OUTPUT_PATH}")
+    logger.info(f"Total time: {total_time:.0f}s ({total_time / 60:.1f}m)")
 
 
 if __name__ == "__main__":

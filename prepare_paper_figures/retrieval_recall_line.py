@@ -25,6 +25,24 @@ def create_lineplot(df: pd.DataFrame, plots_folder: Path):
 
     approaches = sorted(filtered['chart_name'].unique())
 
+    # Load bootstrap CIs
+    ci_path = Path(__file__).parent / 'bootstrap_cis.csv'
+    ci_df = pd.read_csv(ci_path) if ci_path.exists() else None
+
+    # Build (Approach, Configuration) -> per-k CI lookup
+    ci_agg = {}
+    if ci_df is not None:
+        ci_recall = ci_df[(ci_df['Metric'].str.startswith('Recall@')) &
+                          (ci_df['Dataset'] == '__aggregate__')]
+        for _, row in ci_recall.iterrows():
+            ci_agg.setdefault((row['Approach'], row['Configuration']), {})[row['Metric']] = \
+                (row['CI_lower'], row['CI_upper'], row['Mean'])
+
+    # Build chart_name -> (Approach, Configuration)
+    key_to_name = {}
+    for _, row in filtered[['chart_name', 'Approach', 'Configuration']].drop_duplicates().iterrows():
+        key_to_name.setdefault(row['chart_name'], []).append((row['Approach'], row['Configuration']))
+
     fig, ax = plt.subplots(figsize=(7, 4.5))
 
     for approach in approaches:
@@ -34,6 +52,25 @@ def create_lineplot(df: pd.DataFrame, plots_folder: Path):
         mean_vals = app_df[recall_cols].mean()
         ax.plot(k_values, mean_vals.values, 'o-', label=approach, color=color,
                 linewidth=1.8, markersize=6)
+
+        # Add CI shaded band
+        if ci_df is not None:
+            lower_arr = np.empty(len(k_values))
+            upper_arr = np.empty(len(k_values))
+            has_ci = False
+            for approach_key, config_key in key_to_name.get(approach, []):
+                per_k = ci_agg.get((approach_key, config_key), {})
+                if per_k:
+                    for j, k in enumerate(k_values):
+                        metric = f'Recall@{k}'
+                        if metric in per_k:
+                            lo, hi, _ = per_k[metric]
+                            lower_arr[j] = lo
+                            upper_arr[j] = hi
+                            has_ci = True
+                    break  # Use first matching config
+            if has_ci:
+                ax.fill_between(k_values, lower_arr, upper_arr, alpha=0.15, color=color)
 
     ax.set_xlabel('k', fontsize=14)
     ax.set_ylabel('Recall@k', fontsize=16)

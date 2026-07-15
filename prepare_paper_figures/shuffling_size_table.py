@@ -57,6 +57,11 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         ('Col reorder', 'BIG'), ('Col reorder', 'SMALL'),
     ]
     pivoted = pivoted.reindex(columns=col_order)
+    # Flatten MultiIndex columns to tuples for consistent access
+    pivoted.columns = pivoted.columns.tolist()  # list of tuples
+    # Add Mean column
+    pivoted['Mean'] = pivoted.mean(numeric_only=True, axis=1)
+    all_cols = col_order + ['Mean']
 
     # Write custom LaTeX with 2-level header
     pert_types = ['Both', 'Row reorder', 'Col reorder']
@@ -65,13 +70,14 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
     with open(plots_folder / 'shuffling_size_table.tex', 'w') as f:
         f.write('\\begin{table*}[t]\n')
         f.write('\\centering\n')
-        f.write('\\begin{tabular*}{\\textwidth}{l' + 'c' * 6 + '}\n')
+        f.write('\\begin{tabular*}{\\textwidth}{l' + 'c' * 6 + '|c}\n')
         f.write('\\hline\n')
 
         # Level 1: perturbation type (spanning 2 cols each)
         f.write('Approach')
         for pt in pert_types:
             f.write(f' & \\multicolumn{{2}}{{c}}{{{pt}}}')
+        f.write(' & \\multicolumn{1}{c}{}')
         f.write(' \\\\\n')
 
         # Level 2: size
@@ -79,17 +85,33 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         for pt in pert_types:
             for sz in sizes:
                 f.write(f' & {sz}')
+        f.write(' & Mean')
         f.write(' \\\\\n')
         f.write('\\hline\n')
 
+        # Compute per-column best and second-best for bold/underline
+        col_best = {}
+        col_second = {}
+        for col in all_cols:
+            col_vals = pivoted[col].dropna()
+            if len(col_vals) >= 2:
+                sorted_vals = sorted(col_vals, reverse=True)
+                col_best[col] = sorted_vals[0]
+                col_second[col] = sorted_vals[1]
+
         for approach, row in pivoted.iterrows():
             formatted = []
-            for col in col_order:
-                v = row.get(col, None)
+            for col in all_cols:
+                v = row[col]
                 if pd.isna(v):
                     formatted.append('---')
                 else:
-                    formatted.append(f'{v:.4f}')
+                    s = f'{v:.4f}'
+                    if v == col_best.get(col):
+                        s = f'\\textbf{{{s}}}'
+                    elif v == col_second.get(col):
+                        s = f'\\underline{{{s}}}'
+                    formatted.append(s)
             f.write(f'{approach} & ' + ' & '.join(formatted) + ' \\\\\n')
 
         f.write('\\hline\n')

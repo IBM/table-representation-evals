@@ -11,6 +11,12 @@ MAG_LABELS = {
     'v2': 'hi-pos / lo-neg',
 }
 
+MAG_HEADERS_RAW = {
+    'hi-pos / hi-neg': r'\makecell{hi-pos \\ hi-neg}',
+    'lo-pos / hi-neg': r'\makecell{lo-pos \\ hi-neg}',
+    'hi-pos / lo-neg': r'\makecell{hi-pos \\ lo-neg}',
+}
+
 
 def create_table(df: pd.DataFrame, plots_folder: Path):
     filtered = df.copy()
@@ -55,4 +61,7 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         float_fmt='.4f',
         axis='columns',
         add_mean_column=True,
+        header_raw=MAG_HEADERS_RAW,
+        star=False,
+        tabcolsep=8.11,
     )

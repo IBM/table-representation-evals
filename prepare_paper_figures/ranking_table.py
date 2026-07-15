@@ -297,10 +297,7 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
 
         f.write("\\hline\n\\end{tabular*}\n")
         f.write(
-            "\\caption{Overall Ranking of approaches across tasks. "
-            "\\text{---} indicates the approach does not support the task. "
-            "$^\\dagger$ indicates the approach could not complete all datasets for the task; "
-            "missing datasets were imputed with a worst-case value.}\n"
+            "\\caption{Overall Ranking of approaches across tasks.}\n"
         )
         f.write("\\label{tab:overall_ranking}\n")
         f.write("\\end{table}\n")

@@ -78,6 +78,9 @@ def write_latex_table(
     table_env: bool = True,
     star: bool = True,
     add_mean_column: bool = False,
+    ci_map: dict | None = None,
+    tabcolsep: float | None = None,
+    header_raw: dict | None = None,
 ):
     """
     Write a LaTeX table from a pivoted DataFrame.
@@ -92,6 +95,14 @@ def write_latex_table(
            'columns' — best per column (e.g. best approach per perturbation type).
     add_mean_column : if True, add Mean as the final column (with | separator)
                       instead of as a row. Use when approaches are the rows.
+    ci_map : optional dict mapping (row_label, col_label) -> (ci_lower, ci_upper).
+             When provided, appends CI ranges after each value in small font.
+    tabcolsep : float or None
+        If set, emit \\setlength{\\tabcolsep}{Xpt} before the tabular to control
+        inter-column spacing. Default LaTeX tabcolsep is 6pt.
+    header_raw : dict or None
+        Mapping from original column name to raw LaTeX (e.g. \\makecell{...}).
+        When provided, matching column headers use the raw string without escaping.
     """
     df = pivoted_df.copy()
     value_cols = list(df.columns)
@@ -144,12 +155,19 @@ def write_latex_table(
         else:
             col_spec = f'l{"c" * n_cols}'
         if star:
+            if tabcolsep is not None:
+                f.write(f'\\setlength{{\\tabcolsep}}{{{tabcolsep}pt}}\n')
             f.write(f'\\begin{{tabular*}}{{\\textwidth}}{{{col_spec}}}\n')
         else:
-            f.write(f'\\begin{{tabular}}{{{col_spec}}}\n')
+            if tabcolsep is not None:
+                f.write(f'\\setlength{{\\tabcolsep}}{{{tabcolsep}pt}}\n')
+            f.write(f'\\begin{{tabular*}}{{\\columnwidth}}{{{col_spec}}}\n')
         f.write('\\hline\n')
 
-        header = f'{index_name} & ' + ' & '.join(escape_latex(c) for c in value_cols) + ' \\\\\n'
+        header = f'{index_name} & ' + ' & '.join(
+            header_raw.get(c, escape_latex(c)) if header_raw else escape_latex(c)
+            for c in value_cols
+        ) + ' \\\\\n'
         f.write(header)
         f.write('\\hline\n')
 
@@ -171,13 +189,17 @@ def write_latex_table(
                             s = f'\\textbf{{{s}}}'
                         elif is_second:
                             s = f'\\underline{{{s}}}'
+                    # Append CI range if available
+                    if ci_map and (idx, c) in ci_map:
+                        lo, hi = ci_map[(idx, c)]
+                        s = f'{s} {{\\scriptsize [{lo:.3f}, {hi:.3f}]}}'
                     formatted.append(s)
 
             row_label = escape_latex(idx)
             f.write(f'{row_label} & ' + ' & '.join(formatted) + ' \\\\\n')
 
         f.write('\\hline\n')
-        f.write('\\end{tabular*}\n' if star else '\\end{tabular}\n')
+        f.write('\\end{tabular*}\n')
 
         if table_env:
             if caption:

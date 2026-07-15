@@ -1,6 +1,7 @@
 """T14: Table Type Detection classifier table — accuracy & macro-F1 per classifier."""
 
 import pandas as pd
+import numpy as np
 from pathlib import Path
 import config_helpers as h
 
@@ -43,11 +44,35 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         aggfunc='mean',
     )
 
-    # Write custom LaTeX with 2-level header, spanning both columns
+    # Compute bold/underline per column (higher is better)
+    # Each column is a (classifier, metric) pair
+    value_cols = [(cls, ml) for ml, cls, _ in pairs]
+    cell_formats = {}  # (approach, (cls, metric)) -> (is_best, is_second)
+    for col in value_cols:
+        col_vals = {}
+        for idx in pivoted.index:
+            v = pivoted.loc[idx, col]
+            if pd.notna(v):
+                col_vals[idx] = v
+        if len(col_vals) < 2:
+            if len(col_vals) == 1:
+                idx = list(col_vals.keys())[0]
+                cell_formats[(idx, col)] = (True, False)
+            continue
+        sorted_items = sorted(col_vals.items(), key=lambda x: x[1], reverse=True)
+        best_idx = sorted_items[0][0]
+        second_idx = sorted_items[1][0] if len(sorted_items) > 1 else None
+        cell_formats[(best_idx, col)] = (True, False)
+        if second_idx is not None:
+            cell_formats[(second_idx, col)] = (False, True)
+
+    # Write custom LaTeX with 2-level header
     with open(plots_folder / 'ttd_classifier_table.tex', 'w') as f:
         f.write('\\begin{table*}[t]\n')
         f.write('\\centering\n')
-        f.write('\\begin{tabular*}{\\textwidth}{l' + 'c' * len(pairs) + '}\n')
+        n_cols = len(pairs)
+        col_spec = 'l' + 'c' * n_cols
+        f.write(f'\\begin{{tabular*}}{{\\textwidth}}{{{col_spec}}}\n')
         f.write('\\hline\n')
 
         # 2-level header
@@ -65,20 +90,28 @@ def create_table(df: pd.DataFrame, plots_folder: Path):
         f.write('\\hline\n')
 
         for approach, row in pivoted.iterrows():
-            if approach == 'Mean':
-                f.write('\\hline\n')
             formatted = []
             for metric_label, cls, _ in pairs:
-                v = row.get((cls, metric_label), None)
+                col_key = (cls, metric_label)
+                v = row[col_key]
                 if pd.isna(v):
                     formatted.append('---')
                 else:
-                    formatted.append(f'{v:.4f}')
-            f.write(f'{approach} & ' + ' & '.join(formatted) + ' \\\\\n')
+                    s = f'{v:.4f}'
+                    fmt = cell_formats.get((approach, col_key))
+                    if fmt:
+                        is_best, is_second = fmt
+                        if is_best:
+                            s = f'\\textbf{{{s}}}'
+                        elif is_second:
+                            s = f'\\underline{{{s}}}'
+                    formatted.append(s)
+            f.write(f'{h.escape_latex(approach)} & ' + ' & '.join(formatted) + ' \\\\\n')
 
         f.write('\\hline\n')
         f.write('\\end{tabular*}\n')
         f.write('\\caption{Table Type Detection: accuracy and macro-F1 per classifier '
-                'on WDC Schema.org (header-stripped, frozen embeddings).}\n')
+                'on WDC Schema.org (header-stripped, frozen embeddings). '
+                'Best per column in bold, second-best underlined.}\n')
         f.write('\\label{tab:ttd_classifier}\n')
         f.write('\\end{table*}\n')
