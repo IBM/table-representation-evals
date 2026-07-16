@@ -2,7 +2,10 @@
 # Build all result tables and plots for the paper
 ######################################################
 from pathlib import Path
+from typing import Annotated
+
 import pandas as pd
+import typer
 
 from benchmark_src.utils import cfg_utils
 
@@ -11,8 +14,10 @@ import row_sim_plot_aggregated, row_sim_linechart_topk, row_sim_results_table, q
 import col_sim_results_table, col_sim_bar_plot_per_dataset
 import tabular_prediction_result_tables, tabular_prediction_barchart_binary, tabular_prediction_barchart_multiclass, tabular_prediction_barchart_regression, tablular_prediction_elo_table
 import cell_bar_plot, cell_bar_plot_stacked, cell_results_table, quadrant_chart_cell
-import triplet_row_results_table, triplet_row_bar_plot_original
+import triplet_row_results_table, triplet_row_bar_plot_original, triplet_row_bar_plot_difficulty
 import table_retrieval_tables
+import column_type_annotation_bar_plot, column_type_annotation_results_table
+import nl2_bar_plot, nl2_results_table
 
 # Shared with the general post-run plots in benchmark_src/results_processing/create_plots.py
 # so both pipelines render the same approach with the same name/color; edit
@@ -23,23 +28,26 @@ color_mapping = {key: entry["color"] for key, entry in _approach_plotting.items(
 name_mapping = {key: entry["name"] for key, entry in _approach_plotting.items() if "name" in entry}
 
 
-RESULTS_FOLDER = Path("results")
-PLOTS_FOLDER = Path("./prepare_paper_figures/main_experiments")
 ROW_SIM_PLOTS = True
 TRIPLET_PLOTS = True
 COL_SIM_PLOTS = True
 TABULAR_PREDICTION_PLOTS = True
 CELL_SIM_PLOTS = True
 TABLE_RETRIEVAL_PLOTS = True
+CTA_PLOTS = True
+NL2_PLOTS = True
 
 
-if __name__ == "__main__": 
-
-    results_folder = RESULTS_FOLDER
+def main(
+    results_folder: Annotated[str, typer.Argument(help="Path to the results folder containing all_results.csv")] = "results",
+):
+    results_folder = Path(results_folder)
     assert results_folder.exists(), f"Could not find results folder at {results_folder}"
 
-    plots_folder = PLOTS_FOLDER
-    plots_folder.mkdir(exist_ok=True)
+    # keep each results folder's plots separate so different result sets don't clobber each other's output;
+    # nested under generated_figures/ so the whole tree can be gitignored in one line regardless of folder name
+    plots_folder = Path("./prepare_paper_figures/generated_figures") / results_folder.name
+    plots_folder.mkdir(parents=True, exist_ok=True)
 
     all_results_df = pd.read_csv(results_folder / "all_results.csv")
 
@@ -106,34 +114,37 @@ if __name__ == "__main__":
     if ROW_SIM_PLOTS:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "row_similarity_search"].copy()
-        # ----------------------------------------
-        # Average MRR scores over all datasets 
-        # ----------------------------------------
-        # TODO: (only 7 because some approaches were OOM? or on all 9 and exclude the two approaches?)
-        row_sim_plot_aggregated.create_barplot(df, plots_folder)
+        if df.empty:
+            print("No row_similarity_search results in this results folder, skipping.")
+        else:
+            # ----------------------------------------
+            # Average MRR scores over all datasets
+            # ----------------------------------------
+            # TODO: (only 7 because some approaches were OOM? or on all 9 and exclude the two approaches?)
+            row_sim_plot_aggregated.create_barplot(df, plots_folder)
 
-        # ------------------------------------------------
-        # Dataset-level bar plot (MRR as metric)
-        # ------------------------------------------------
-        # goal: show how approaches vary per dataset
+            # ------------------------------------------------
+            # Dataset-level bar plot (MRR as metric)
+            # ------------------------------------------------
+            # goal: show how approaches vary per dataset
 
 
-        # ------------------------------------------------
-        # Results table per dataset for all approaches
-        # ------------------------------------------------
-        row_sim_results_table.create_results_table(df, plots_folder)
+            # ------------------------------------------------
+            # Results table per dataset for all approaches
+            # ------------------------------------------------
+            row_sim_results_table.create_results_table(df, plots_folder)
 
-        # TODO: only if time
-        # ------------------------------------------------
-        # Line Plot with k on the x-axis and Recall@k on the y-axis
-        # ------------------------------------------------
-        row_sim_linechart_topk.create_lineplot(df, plots_folder)
+            # TODO: only if time
+            # ------------------------------------------------
+            # Line Plot with k on the x-axis and Recall@k on the y-axis
+            # ------------------------------------------------
+            row_sim_linechart_topk.create_lineplot(df, plots_folder)
 
-        # ------------------------------------------------
-        # Resource vs. performance tradeoff
-        # ------------------------------------------------
-        quadrant_chart_row.build_quadrant_chart(df, plots_folder)
-        quadrant_chart_row.build_quadrant_chart_vram(df, plots_folder)
+            # ------------------------------------------------
+            # Resource vs. performance tradeoff
+            # ------------------------------------------------
+            quadrant_chart_row.build_quadrant_chart(df, plots_folder)
+            quadrant_chart_row.build_quadrant_chart_vram(df, plots_folder)
 
     ##############################################################################################
     #
@@ -143,21 +154,24 @@ if __name__ == "__main__":
     if COL_SIM_PLOTS:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "column_similarity_search"].copy()
-        # ----------------------------------------
-        # Average MRR scores over all datasets ?
-        # ----------------------------------------
+        if df.empty:
+            print("No column_similarity_search results in this results folder, skipping.")
+        else:
+            # ----------------------------------------
+            # Average MRR scores over all datasets ?
+            # ----------------------------------------
 
 
-        # ------------------------------------------------
-        # Dataset-level bar plot (MRR as metric)?
-        # ------------------------------------------------
-        col_sim_bar_plot_per_dataset.create_barplot(df, plots_folder)
+            # ------------------------------------------------
+            # Dataset-level bar plot (MRR as metric)?
+            # ------------------------------------------------
+            col_sim_bar_plot_per_dataset.create_barplot(df, plots_folder)
 
 
-        # ------------------------------------------------
-        # Results table per dataset for all approaches
-        # ------------------------------------------------
-        col_sim_results_table.create_results_table(df, plots_folder)
+            # ------------------------------------------------
+            # Results table per dataset for all approaches
+            # ------------------------------------------------
+            col_sim_results_table.create_results_table(df, plots_folder)
 
 
     ##############################################################################################
@@ -170,14 +184,19 @@ if __name__ == "__main__":
         df = all_results_df[all_results_df['task'] == "more_similar_than"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
         df = df.dropna(axis=1, how="all")
+        if df.empty:
+            print("No more_similar_than results in this results folder, skipping.")
+        else:
+            # results table
+            triplet_row_results_table.create_results_table(df, plots_folder)
 
-        # results table
-        triplet_row_results_table.create_results_table(df, plots_folder)
+            # plot original
+            triplet_row_bar_plot_original.create_barplot(df, plots_folder)
 
-        # plot original 
-        triplet_row_bar_plot_original.create_barplot(df, plots_folder)
+            # plot easy vs. medium accuracy per approach on wikidata_books
+            triplet_row_bar_plot_difficulty.create_barplot(df, plots_folder)
 
-        # plot ablations for books and astronomical_objects
+            # plot ablations for books and astronomical_objects
 
     ##############################################################################################
     #
@@ -187,22 +206,24 @@ if __name__ == "__main__":
     if CELL_SIM_PLOTS:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "cell_task"].copy()
+        if df.empty:
+            print("No cell_task results in this results folder, skipping.")
+        else:
+            # ------------------------------------------------
+            # Dataset-level bar plot
+            # ------------------------------------------------
+            cell_bar_plot.create_barplot(df, plots_folder)
+            cell_bar_plot_stacked.create_barplot(df, plots_folder)
 
-        # ------------------------------------------------
-        # Dataset-level bar plot 
-        # ------------------------------------------------
-        cell_bar_plot.create_barplot(df, plots_folder)
-        cell_bar_plot_stacked.create_barplot(df, plots_folder)
+            # ------------------------------------------------
+            # Results table per dataset for all approaches
+            # ------------------------------------------------
+            cell_results_table.create_results_table(df, plots_folder)
 
-        # ------------------------------------------------
-        # Results table per dataset for all approaches
-        # ------------------------------------------------
-        cell_results_table.create_results_table(df, plots_folder)
-
-        # ------------------------------------------------
-        # Quadrant chart
-        # ------------------------------------------------
-        quadrant_chart_cell.build_quadrant_chart(df, plots_folder)
+            # ------------------------------------------------
+            # Quadrant chart
+            # ------------------------------------------------
+            quadrant_chart_cell.build_quadrant_chart(df, plots_folder)
 
     ##############################################################################################
     #
@@ -214,12 +235,14 @@ if __name__ == "__main__":
         df = all_results_df[all_results_df['task'] == "table_retrieval"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
         df = df.dropna(axis=1, how="all")
+        if df.empty:
+            print("No table_retrieval results in this results folder, skipping.")
+        else:
+            # results table for main text
+            table_retrieval_tables.create_results_table_small(df, plots_folder)
 
-        # results table for main text
-        table_retrieval_tables.create_results_table_small(df, plots_folder)
-
-        # results table for appendix
-        #table_retrieval_tables.create_results_table_appendix(df, plots_folder)
+            # results table for appendix
+            #table_retrieval_tables.create_results_table_appendix(df, plots_folder)
 
 
     ##############################################################################################
@@ -227,35 +250,79 @@ if __name__ == "__main__":
     #     Tabular Prediction
     # 
     ##############################################################################################
+    # Falls back to an empty table (all approaches penalized) if TABULAR_PREDICTION_PLOTS
+    # is off or predictive_ml has no data in this results folder, so ranking_table below
+    # always has a valid frame to consume.
+    elo_table = pd.DataFrame(columns=["chart_name", "elo_score_task"])
+
     if TABULAR_PREDICTION_PLOTS:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "predictive_ml"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
         df = df.dropna(axis=1, how="all")
-        print(df.columns)
-        # ----------------------------------------
-        # Result tables
-        # ----------------------------------------
-        tabular_prediction_result_tables.create_results_table_binary_classification(df, plots_folder)
-        tabular_prediction_result_tables.create_results_table_multiclass_classification(df, plots_folder)
-        tabular_prediction_result_tables.create_results_table_regression(df, plots_folder)
+        if df.empty:
+            print("No predictive_ml results in this results folder, skipping.")
+        else:
+            print(df.columns)
+            # ----------------------------------------
+            # Result tables
+            # ----------------------------------------
+            tabular_prediction_result_tables.create_results_table_binary_classification(df, plots_folder)
+            tabular_prediction_result_tables.create_results_table_multiclass_classification(df, plots_folder)
+            tabular_prediction_result_tables.create_results_table_regression(df, plots_folder)
 
-        # ----------------------------------------
-        # Plots as percentage to baseline
-        # ----------------------------------------
-        tabular_prediction_barchart_binary.create_barplot(df, plots_folder)
-        tabular_prediction_barchart_multiclass.create_barplot_multiclass(df, plots_folder)
-        tabular_prediction_barchart_regression.create_barplot_regression(df, plots_folder)
+            # ----------------------------------------
+            # Plots as percentage to baseline
+            # ----------------------------------------
+            tabular_prediction_barchart_binary.create_barplot(df, plots_folder)
+            tabular_prediction_barchart_multiclass.create_barplot_multiclass(df, plots_folder)
+            tabular_prediction_barchart_regression.create_barplot_regression(df, plots_folder)
 
-        # ----------------------------------------
-        # Elo table
-        # ----------------------------------------
-        # TODO: get elo scores to later use in ranking table!
-        elo_table = tablular_prediction_elo_table.create_elo_table(df, plots_folder)
+            # ----------------------------------------
+            # Elo table
+            # ----------------------------------------
+            # TODO: get elo scores to later use in ranking table!
+            elo_table = tablular_prediction_elo_table.create_elo_table(df, plots_folder)
+
+    ##############################################################################################
+    #
+    #     Column Type Annotation
+    #
+    ##############################################################################################
+    if CTA_PLOTS:
+        df = all_results_df[all_results_df['task'] == "column_type_annotation"].copy()
+        df = df.dropna(axis=1, how="all")
+        if df.empty:
+            print("No column_type_annotation results in this results folder, skipping.")
+        else:
+            column_type_annotation_bar_plot.create_barplot(df, plots_folder)
+            column_type_annotation_results_table.create_results_table(df, plots_folder)
+
+    ##############################################################################################
+    #
+    #     NL-to-Column / NL-to-Cell-to-Column Mapping (Schema Linking)
+    #
+    ##############################################################################################
+    if NL2_PLOTS:
+        for task_name, task_label, barplot_fn in [
+            ("nl2column_mapping", "column_mapping", nl2_bar_plot.create_barplot_single_dataset),
+            ("nl2cell2column_mapping", "cell2column_mapping", nl2_bar_plot.create_barplot_grouped),
+        ]:
+            df = all_results_df[all_results_df['task'] == task_name].copy()
+            df = df.dropna(axis=1, how="all")
+            if df.empty:
+                print(f"No {task_name} results in this results folder, skipping.")
+            else:
+                barplot_fn(df, plots_folder, task_label)
+                nl2_results_table.create_results_table(df, plots_folder, task_label)
 
     ##############################################################################################
     #
     #     Overall Ranking
-    # 
+    #
     ##############################################################################################
     ranking_table.create_table(all_results_df, plots_folder, elo_table)
+
+
+if __name__ == "__main__":
+    typer.run(main)

@@ -161,6 +161,8 @@ def create_barplot(df: pd.DataFrame, plots_folder: Path):
     # Grid
     ax.grid(axis='y', linestyle='--', alpha=0.3)
 
+    ax.axhline(0.5, color="gray", linestyle="--", linewidth=1.5, zorder=0, label="Random")
+
     # Legend below figure
     ax.legend(
         loc="upper center",
