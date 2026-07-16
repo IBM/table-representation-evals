@@ -1,16 +1,25 @@
 benchmark_output_dir: just_testing
 log_level: DEBUG
 approaches:
-  - name: tabdpt
+  - name: tarte
     tasks:
-      - row_similarity_search
-      - more_similar_than
-      - predictive_ml
+     # - row_similarity_search
+     # - more_similar_than
+     # - table_shuffling
+      - column_similarity_search
+      - cell_task
+     # - predictive_ml
     task_datasets:
       row_similarity_search:
         - Amazon-Google
       more_similar_than:
         - wikidata_books
+      table_shuffling:
+        - fetaqa@@v0
+      column_similarity_search:
+        - valentine
+      cell_task:
+        - s2abel@clean
       predictive_ml:
         - credit-g
         - anneal
@@ -19,4 +28,6 @@ approaches:
       column_similarity_search:
         test_case_limit: 5
       column_type_annotation:
+        test_case_limit: 5
+      cell_task:
         test_case_limit: 5
