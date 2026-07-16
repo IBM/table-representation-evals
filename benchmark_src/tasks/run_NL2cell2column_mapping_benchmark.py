@@ -166,20 +166,20 @@ def collect_matched_values_for_database(queries: List[Dict], db_id: str) -> Dict
         # Get matched values and gold columns from the query
         # matched_values is a list of strings: ["83373278", "1"]
         # gold_columns is a list of dicts: [{"table": "lists", "column": "user_id"}, ...]
+        # These are NOT aligned by index — matched_values and gold_columns have independent
+        # lengths. Add all matched values to every gold column so the corpus indexer
+        # always includes them regardless of cardinality differences.
         matched_values = query.get("matched_values", [])
         gold_columns = query.get("gold_columns", [])
-        
-        # Match values with their corresponding columns
-        # Assumes matched_values and gold_columns are aligned by index
-        for i, value in enumerate(matched_values):
-            if i < len(gold_columns):
-                col_info = gold_columns[i]
-                table = col_info.get("table")
-                column = col_info.get("column")
-                
-                if table and column and value is not None:
-                    table_column = f"{table}.{column}"
-                    matched_values_by_column[table_column].add(str(value))
+
+        for col_info in gold_columns:
+            table = col_info.get("table")
+            column = col_info.get("column")
+            if table and column:
+                table_column = f"{table}.{column}"
+                for value in matched_values:
+                    if value is not None:
+                        matched_values_by_column[table_column].add(str(value))
     
     return matched_values_by_column
 
