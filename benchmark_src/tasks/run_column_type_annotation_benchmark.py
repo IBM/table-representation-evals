@@ -16,8 +16,14 @@ from benchmark_src.utils.resource_monitoring import monitor_resources, save_reso
 from benchmark_src.utils import framework, result_utils, load_benchmark
 from benchmark_src.tasks import component_utils
 from benchmark_src.dataset_creation.sotab import download_sotab
+from benchmark_src.dataset_creation.gittables_cta import download_gittables_cta
 
 logger = logging.getLogger(__name__)
+
+DATASET_DOWNLOADERS = {
+    "sotab": download_sotab,
+    "gittables_cta": download_gittables_cta,
+}
 
 
 def load_benchmark_data(cfg):
@@ -31,12 +37,15 @@ def load_benchmark_data(cfg):
     dataset_cache_path = Path(cfg.cache_dir) / "datasets" / "column_type_annotation" / cfg.dataset_name
 
     if not (dataset_cache_path / "valid_data.json").exists():
-        if cfg.dataset_name == "sotab":
-            logger.info(f"Dataset '{cfg.dataset_name}' not found in cache, downloading/processing it now.")
-            raw_datasets_dir = Path(cfg.cache_dir) / "raw_datasets" / "sotab"
-            download_sotab.ensure_dataset(raw_datasets_dir=raw_datasets_dir, output_dir=dataset_cache_path)
-        else:
-            raise ValueError(f"Unknown column_type_annotation dataset_name '{cfg.dataset_name}', only 'sotab' is currently supported.")
+        downloader = DATASET_DOWNLOADERS.get(cfg.dataset_name)
+        if downloader is None:
+            raise ValueError(
+                f"Unknown column_type_annotation dataset_name '{cfg.dataset_name}', "
+                f"only {list(DATASET_DOWNLOADERS)} are currently supported."
+            )
+        logger.info(f"Dataset '{cfg.dataset_name}' not found in cache, downloading/processing it now.")
+        raw_datasets_dir = Path(cfg.cache_dir) / "raw_datasets" / cfg.dataset_name
+        downloader.ensure_dataset(raw_datasets_dir=raw_datasets_dir, output_dir=dataset_cache_path)
 
     with open(dataset_cache_path / "valid_data.json") as file:
         cached_data = json.load(file)

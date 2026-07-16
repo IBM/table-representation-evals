@@ -143,3 +143,4 @@ predictive_ml_datasets:
 
 column_type_annotation_datasets:
   - sotab
+  - gittables_cta
