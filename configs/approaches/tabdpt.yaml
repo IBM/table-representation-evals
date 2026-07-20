@@ -1,5 +1,5 @@
 approach_name: tabdpt
-conda_env: embedding-benchmark
+conda_env: benchmark_env
 module_path: "approaches/benchmark_approaches_src/tabdpt"
 class_name: TabDPTEmbedder
 
@@ -18,6 +18,16 @@ context_size: 1024
 # table_retrieval is excluded because create_query_embedding() requires NL
 # understanding, which TabDPT does not have (operates on raw floats only).
 # nl2* tasks are excluded for the same reason.
+#
+# Of the tasks below, only predictive_ml matches TabDPT's documented usage
+# (TabDPTClassifier/Regressor via fit()/predict_proba()/predict(), as
+# evaluated in the paper on OpenML CC18/CTR23). row_similarity_search,
+# more_similar_than, clustering, and table_shuffling all rely on "row
+# embeddings" pulled from a pre-head hidden state via a monkey-patched
+# forward() (see approach.py) — TabDPT has no official embedding-extraction
+# API (unlike e.g. TabPFN's documented get_embeddings()), so results on
+# these four tasks reflect a benchmark-side best-effort extraction, not a
+# capability TabDPT's authors designed or evaluated.
 
 supported_tasks:
   row_similarity_search:

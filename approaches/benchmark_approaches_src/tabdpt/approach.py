@@ -12,9 +12,11 @@ Supported embeddings
 --------------------
 Row embeddings  — the final-layer hidden state for each eval row, extracted
                   from just before the output head.  Shape: (n_rows, ninp).
-                  For unsupervised tasks (no labels available) dummy zero
-                  labels are used; the model still produces useful contextual
-                  row representations from its learned feature interactions.
+                  For unsupervised tasks (no labels available) a near-constant
+                  dummy label is used (all zero except one row, the minimum
+                  variation TabDPTClassifier's num_classes > 1 check allows);
+                  the model still produces useful contextual row
+                  representations from its learned feature interactions.
 
 Table embedding — mean-pool of the row embeddings across all eval rows.
                   Shape: (ninp,).
@@ -34,7 +36,7 @@ import numpy as np
 import pandas as pd
 import torch
 from omegaconf import DictConfig
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder
 
 from benchmark_src.approach_interfaces.base_interface import BaseTabularEmbeddingApproach
 
@@ -134,6 +136,9 @@ class TabDPTEmbedder(BaseTabularEmbeddingApproach):
         self._regressor = None    # TabDPTRegressor  — sklearn API for predictive_ml
         self._embed_model = None  # patched TabDPTModel for embedding extraction
 
+        self._pk_column: Optional[str] = None    # primary-key column to exclude from features, set by RowEmbeddingComponent
+        self._cat_encoder = None  # OrdinalEncoder fit on train_df, reused for test_df in predictive_ml
+
         logger.info(f"TabDPTEmbedder initialised (device={self.device})")
 
     # ------------------------------------------------------------------
@@ -188,14 +193,31 @@ class TabDPTEmbedder(BaseTabularEmbeddingApproach):
     # Preprocessing
     # ------------------------------------------------------------------
 
-    def preprocessing(self, input_table: pd.DataFrame) -> np.ndarray:
-        """Convert DataFrame to float64 numpy array (TabDPT requires raw floats)."""
+    def preprocessing(self, input_table: pd.DataFrame, fit_encoder: bool = True) -> np.ndarray:
+        """
+        Convert DataFrame to float64 numpy array (TabDPT requires raw floats).
+
+        Drops the primary-key column, if one was set by the caller (see
+        RowEmbeddingComponent.setup_model_for_task) — TabDPT was trained and
+        evaluated on OpenML tables, which never expose a raw row identifier
+        as a feature.
+
+        Categorical columns are ordinal-encoded. Pass fit_encoder=False to
+        reuse the encoder fit on a previous call (e.g. on train_df) instead
+        of fitting a new one, so train/test share one category->code mapping.
+        """
         df = input_table.copy()
-        for col in df.columns:
-            if df[col].dtype == "object" or hasattr(df[col].dtype, "categories"):
-                df[col] = LabelEncoder().fit_transform(
-                    df[col].astype(str).fillna("__nan__")
-                )
+        if self._pk_column and self._pk_column in df.columns:
+            df = df.drop(columns=[self._pk_column])
+
+        cat_cols = [c for c in df.columns if df[c].dtype == "object" or hasattr(df[c].dtype, "categories")]
+        if cat_cols:
+            df[cat_cols] = df[cat_cols].astype(str).fillna("__nan__")
+            if fit_encoder or self._cat_encoder is None:
+                self._cat_encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
+                self._cat_encoder.fit(df[cat_cols])
+            df[cat_cols] = self._cat_encoder.transform(df[cat_cols])
+
         df = df.fillna(0).astype("float64")
         return df.values
 
@@ -215,8 +237,9 @@ class TabDPTEmbedder(BaseTabularEmbeddingApproach):
         The model needs a context: rows with known labels that are passed as
         K/V source.  When train_labels is provided the first train_size rows
         are used as context and the remaining rows are the eval queries.
-        Otherwise all rows serve as both context and eval with dummy zero
-        labels — the model still produces meaningful structural representations.
+        Otherwise all rows serve as both context and eval with a near-constant
+        dummy label (all zero except one row) — the model still produces
+        meaningful structural representations.
 
         Returns:
             np.ndarray of shape (n_eval_rows, ninp).
@@ -231,12 +254,16 @@ class TabDPTEmbedder(BaseTabularEmbeddingApproach):
             X_ctx = X[:train_size]
             X_eval = X[train_size:]
         else:
-            # Unsupervised: use all rows as context with alternating 0/1 dummy
-            # labels.  TabDPTClassifier requires num_classes > 1, so we cannot
-            # use all-zero labels even for embedding-only purposes.
+            # Unsupervised: use all rows as context with dummy labels.
+            # TabDPTClassifier requires num_classes > 1, so a fully-constant
+            # label (used by e.g. tabpfn/tabicl/sap_rpt_oss for the same
+            # purpose) isn't possible here; flip only the first context row
+            # to minimize how much of the context carries a label that has
+            # no relation to its actual content.
             ctx_size = min(n, self.context_size)
             X_ctx = X[:ctx_size]
-            y_ctx = (np.arange(ctx_size) % 2).astype(np.float32)
+            y_ctx = np.zeros(ctx_size, dtype=np.float32)
+            y_ctx[0] = 1.0
             X_eval = X
 
         return self._extract_embeddings(X_ctx, y_ctx, X_eval)
@@ -334,7 +361,7 @@ class TabDPTEmbedder(BaseTabularEmbeddingApproach):
         dataset_information: dict,
     ):
         self._load_predictive_model(task_type)
-        X_train = self.preprocessing(train_df)
+        X_train = self.preprocessing(train_df, fit_encoder=True)
         y_train = self._prepare_labels(train_labels)
 
         if task_type == "classification":
@@ -347,7 +374,7 @@ class TabDPTEmbedder(BaseTabularEmbeddingApproach):
             raise ValueError(f"Unknown task_type: {task_type}")
 
     def predict_test_cases(self, test_df: pd.DataFrame, task_type: str) -> np.ndarray:
-        X_test = self.preprocessing(test_df)
+        X_test = self.preprocessing(test_df, fit_encoder=False)
         if task_type == "classification":
             return self._classifier.predict_proba(X_test)
         elif task_type == "regression":

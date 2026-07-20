@@ -9,13 +9,16 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
 
     Row embeddings are the final-layer pre-head hidden states for each eval
     row — one ninp-dim vector per row.  For unsupervised tasks (no labels)
-    dummy zero labels are used as the context signal.
+    a near-constant dummy label is used as the context signal.
     """
 
     def __init__(self, approach_instance):
         self.approach_instance = approach_instance
 
     def setup_model_for_task(self, input_table: pd.DataFrame, dataset_information: dict):
+        # dataset_information is None for tasks that don't track a primary key (e.g. clustering)
+        if dataset_information:
+            self.approach_instance._pk_column = dataset_information.get("primary_key_column")
         self.approach_instance.load_trained_model()
 
     def create_row_embeddings_for_table(
