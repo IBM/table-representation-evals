@@ -5,11 +5,18 @@ Paper:  TUTA: Tree-based Transformers for Generally Structured Table
         Pre-training (KDD 2021)
 Code:   https://github.com/microsoft/TUTA_table_understanding
 
-Three tasks are supported:
-  * Cell embeddings  — mean-pool body tokens per cell; shape (n_rows+1, n_cols, 768)
-                       Row 0 = header embeddings; rows 1+ = data-row cell embeddings.
-  * Row embeddings   — mean of the cell embeddings for each data row; (n_rows, 768).
-  * Table embedding  — the [CLS] hidden state from the backbone; (768,).
+Four representation levels are supported:
+  * Cell embeddings   — mean-pool body tokens per cell; shape (n_rows+1, n_cols, 768).
+                        Row 0 = header embeddings; rows 1+ = data-row cell embeddings.
+                        Native TUTA output (matches its Cell-Level Cloze objective).
+  * Table embedding   — the [CLS] hidden state from the backbone; (768,).
+                        Native TUTA output (matches its Table Context Retrieval objective).
+  * Row embeddings    — mean of the cell embeddings for each data row; (n_rows, 768).
+                        Not a native TUTA output — a pooling strategy adopted for this
+                        benchmark's row-level tasks (see row_embedding_component.py).
+  * Column embeddings — mean of the cell embeddings for each column (incl. header); (n_cols, 768).
+                        Not a native TUTA output — a pooling strategy adopted for this
+                        benchmark's column-level tasks (see column_embedding_component.py).
 
 Pretrained weights (Google Drive, manual download):
   TUTA:          https://drive.google.com/file/d/1pEdrCqHxNjGM4rjpvCxeAUchdJzCYr1g
@@ -76,7 +83,7 @@ class TUTAConfig:
     row_size: int = 256
     column_size: int = 256
     tree_depth: int = 4
-    node_degree: dataclasses.field(default_factory=lambda: [32, 32, 64, 256]) = None
+    node_degree: List[int] = dataclasses.field(default_factory=lambda: [32, 32, 64, 256])
     num_format_feature: int = 11
     attention_distance: int = 8
     attention_step: int = 0
@@ -87,10 +94,6 @@ class TUTAConfig:
     attn_method: str = "add"
     max_cell_length: int = 64
     target: str = "tuta"
-
-    def __post_init__(self):
-        if self.node_degree is None:
-            self.node_degree = [32, 32, 64, 256]
 
 
 # ---------------------------------------------------------------------------
@@ -110,9 +113,17 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
                           If null/missing, uses random initialisation.
         lm:               HuggingFace tokenizer name (default: bert-base-uncased).
         max_seq_len:      Max token sequence length (default: 512).
-        max_cell_tokens:  Max body tokens per cell (default: 16).
+        max_cell_tokens:  Max body tokens per cell (default: 8).
         max_rows:         Max data rows included per forward pass (default: 50).
         target:           TUTA variant — "tuta" or "tuta_explicit" (default: tuta).
+        column_embedding_row_limit: Max rows fed into column-embedding computation,
+                          after dropping exact duplicate rows (default: 200). Unlike
+                          row/cell embeddings, every row does not need its own
+                          forward pass here — a column embedding only needs enough
+                          rows to characterise the column, and TUTA has no cheap
+                          per-column-only path the way e.g. sentence embedders do
+                          (see column_embedding_component.py), so without a cap a
+                          single large table can take many minutes.
     """
 
     def __init__(self, cfg: DictConfig):
@@ -124,6 +135,7 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
         self.max_cell_tokens: int = int(cfg.approach.get("max_cell_tokens", 8))
         self.max_rows: int = int(cfg.approach.get("max_rows", 50))
         self.target: str = cfg.approach.get("target", "tuta")
+        self.column_embedding_row_limit: int = int(cfg.approach.get("column_embedding_row_limit", 200))
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model: Optional[torch.nn.Module] = None
@@ -203,56 +215,96 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
     # Embedding helpers used by components
     # ------------------------------------------------------------------
 
-    def _encode_chunk(self, table: pd.DataFrame, row_start: int, row_end: int) -> torch.Tensor:
+    def _forward(self, inputs_dev: Dict[str, torch.Tensor]) -> torch.Tensor:
         """
-        Encode one chunk of data rows [row_start, row_end) together with the
-        header row.  Returns cell embeddings of shape
-        (n_chunk_data_rows + 1, n_cols, 768) where row 0 = header.
+        Run the backbone, matching the forward() signature for the configured
+        target. BbForBase (target="base") doesn't take pos_row/pos_col;
+        BbForTuta/BbForTutaExplicit do.
         """
-        chunk = table.iloc[row_start:row_end]
-        n_cols = len(table.columns)
-        n_chunk_rows = len(chunk) + 1  # +1 for header
-
-        inputs, cell_body_positions = table_to_tuta_inputs(
-            chunk,
-            self.tokenizer,
-            max_seq_len=self.max_seq_len,
-            max_cell_tokens=self.max_cell_tokens,
-            max_rows=None,  # chunk is already sized; no additional cap
-        )
-
-        inputs_dev = {k: v.to(self.device) for k, v in inputs.items()}
-        with torch.no_grad():
-            encoded_states = self.model(
+        if self.target == "base":
+            return self.model(
                 inputs_dev["token_id"],
                 inputs_dev["num_mag"],
                 inputs_dev["num_pre"],
                 inputs_dev["num_top"],
                 inputs_dev["num_low"],
                 inputs_dev["token_order"],
-                inputs_dev["pos_row"],
-                inputs_dev["pos_col"],
                 inputs_dev["pos_top"],
                 inputs_dev["pos_left"],
                 inputs_dev["format_vec"],
                 inputs_dev["indicator"],
             )
+        return self.model(
+            inputs_dev["token_id"],
+            inputs_dev["num_mag"],
+            inputs_dev["num_pre"],
+            inputs_dev["num_top"],
+            inputs_dev["num_low"],
+            inputs_dev["token_order"],
+            inputs_dev["pos_row"],
+            inputs_dev["pos_col"],
+            inputs_dev["pos_top"],
+            inputs_dev["pos_left"],
+            inputs_dev["format_vec"],
+            inputs_dev["indicator"],
+        )
+
+    def _encode_chunk(self, table: pd.DataFrame, row_start: int, row_end: int) -> Tuple[torch.Tensor, int, bool]:
+        """
+        Encode one chunk of data rows [row_start, row_end) together with the
+        header row. Returns (cell_embs, n_rows_included, undersized) where
+        cell_embs has shape (n_rows_included + 1, n_cols, 768) (row 0 =
+        header) and n_rows_included is however many of the requested rows
+        actually fit within max_seq_len tokens. If not even one row fit
+        (undersized=True), n_rows_included is forced to 1 here - before
+        extract_cell_embeddings sizes its output tensor - so the partial
+        content table_to_tuta_inputs still captured for that first row isn't
+        silently dropped by an under-sized output tensor.
+        """
+        chunk = table.iloc[row_start:row_end]
+        n_cols = len(table.columns)
+
+        inputs, cell_body_positions, n_rows_included = table_to_tuta_inputs(
+            chunk,
+            self.tokenizer,
+            max_seq_len=self.max_seq_len,
+            max_cell_tokens=self.max_cell_tokens,
+            max_rows=None,  # chunk is already sized; no additional cap
+            row_offset=row_start,  # keep pos_row consistent with the full table, not chunk-local
+        )
+
+        undersized = n_rows_included == 0 and row_end > row_start
+        if undersized:
+            n_rows_included = 1  # take the partial row rather than nothing
+
+        inputs_dev = {k: v.to(self.device) for k, v in inputs.items()}
+        with torch.no_grad():
+            encoded_states = self._forward(inputs_dev)
         encoded_states = encoded_states.cpu()
 
-        return extract_cell_embeddings(
+        cell_embs = extract_cell_embeddings(
             encoded_states,
             cell_body_positions,
-            num_rows=n_chunk_rows,
+            num_rows=n_rows_included + 1,
             num_cols=n_cols,
             hidden_size=HIDDEN_SIZE,
-        )  # [n_chunk_rows, n_cols, 768]
+        )  # [n_rows_included + 1, n_cols, 768]
+        return cell_embs, n_rows_included, undersized
 
     def get_cell_embeddings(self, table: pd.DataFrame) -> np.ndarray:
         """
         Returns cell embeddings of shape (n_data_rows + 1, n_cols, 768).
         Row 0  = header (column name) embeddings.
-        Rows 1+= per-data-row cell embeddings for ALL rows in the table,
-                 processed in chunks of `max_rows` each.
+        Rows 1+= per-data-row cell embeddings for ALL rows in the table.
+
+        Rows are packed into forward passes up to `max_rows` at a time, but a
+        chunk boundary backs off to however many rows actually fit within
+        max_seq_len tokens (never a fixed count) so no row is ever silently
+        left with a zero embedding because it happened to fall in the tail of
+        an over-full chunk. The only case that can't be avoided is a single
+        row (or the header) alone exceeding max_seq_len - e.g. a table with
+        far more columns than fit in one sequence - which gets included
+        anyway (partially) with a warning, rather than zeroed silently.
         """
         self.load_model()
         n_cols = len(table.columns)
@@ -260,18 +312,29 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
 
         header_embs: Optional[torch.Tensor] = None
         data_embs_list: List[torch.Tensor] = []
+        n_undersized_rows = 0  # rows that didn't fit even alone (partially embedded)
 
-        for chunk_start in range(0, max(n_data_rows, 1), self.max_rows):
-            chunk_end = min(chunk_start + self.max_rows, n_data_rows)
-            chunk_embs = self._encode_chunk(table, chunk_start, chunk_end)
-            # chunk_embs: [n_chunk_rows, n_cols, 768]
-            # row 0 = header; rows 1+ = data rows for this chunk
+        row_start = 0
+        while row_start < n_data_rows:
+            row_end = min(row_start + self.max_rows, n_data_rows)
+            chunk_embs, n_rows_included, undersized = self._encode_chunk(table, row_start, row_end)
 
             if header_embs is None:
-                header_embs = chunk_embs[0:1]  # [1, n_cols, 768]
+                header_embs = chunk_embs[0:1]
 
-            if chunk_end > chunk_start:
-                data_embs_list.append(chunk_embs[1:])  # [chunk_size, n_cols, 768]
+            if undersized:
+                n_undersized_rows += 1
+
+            data_embs_list.append(chunk_embs[1:1 + n_rows_included])
+            row_start += n_rows_included
+
+        if n_undersized_rows:
+            logger.warning(
+                f"TUTA: {n_undersized_rows}/{n_data_rows} rows (table has {n_cols} columns) "
+                f"didn't fully fit within max_seq_len={self.max_seq_len} tokens even alone - "
+                "their cell embeddings are partially/zero-filled. Consider raising "
+                "max_seq_len or reducing max_cell_tokens."
+            )
 
         if header_embs is None:
             # Empty table — return just a header row of zeros
@@ -284,26 +347,27 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
     def get_table_embedding(self, table: pd.DataFrame) -> np.ndarray:
         """
         Returns the [CLS] hidden state as a 768-dim table embedding.
-        Only the first chunk (header + first max_rows data rows) is used;
-        the CLS token summarises the table content visible in that chunk.
+        Only the first max_rows data rows are considered; the CLS token
+        summarises whatever of that window's content fits in max_seq_len
+        tokens.
         """
         self.load_model()
-        inputs, _ = table_to_tuta_inputs(
+        inputs, _, n_rows_included = table_to_tuta_inputs(
             table,
             self.tokenizer,
             max_seq_len=self.max_seq_len,
             max_cell_tokens=self.max_cell_tokens,
             max_rows=self.max_rows,
         )
+        requested_rows = min(self.max_rows, len(table))
+        if n_rows_included < requested_rows:
+            logger.warning(
+                f"TUTA: table embedding only fit {n_rows_included}/{requested_rows} "
+                f"requested rows within max_seq_len={self.max_seq_len} tokens "
+                f"(table has {len(table.columns)} columns)."
+            )
         inputs_dev = {k: v.to(self.device) for k, v in inputs.items()}
         with torch.no_grad():
-            encoded_states = self.model(
-                inputs_dev["token_id"], inputs_dev["num_mag"],
-                inputs_dev["num_pre"], inputs_dev["num_top"],
-                inputs_dev["num_low"], inputs_dev["token_order"],
-                inputs_dev["pos_row"], inputs_dev["pos_col"],
-                inputs_dev["pos_top"], inputs_dev["pos_left"],
-                inputs_dev["format_vec"], inputs_dev["indicator"],
-            )
+            encoded_states = self._forward(inputs_dev)
         # CLS is always at position 0
         return encoded_states[0, 0, :].cpu().numpy()

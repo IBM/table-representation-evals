@@ -39,5 +39,5 @@ class CellEmbeddingComponent(CellEmbeddingInterface):
             np.ndarray of shape (n_data_rows + 1, n_cols, 768).
         """
         cell_embs = self.approach_instance.get_cell_embeddings(input_table)
-        logger.info(f"TUTA cell embeddings: {cell_embs.shape}")
+        #logger.debug(f"TUTA cell embeddings: {cell_embs.shape}")
         return cell_embs

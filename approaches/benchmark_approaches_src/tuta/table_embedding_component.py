@@ -43,7 +43,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
             np.ndarray of shape (768,).
         """
         table_emb = self.approach_instance.get_table_embedding(input_table)
-        logger.info(f"TUTA table embedding: {table_emb.shape}")
+        #logger.debug(f"TUTA table embedding: {table_emb.shape}")
         return table_emb
 
     def create_query_embedding(self, query: str) -> np.ndarray:
@@ -66,7 +66,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         # Wrap query as a one-cell table
         query_table = pd.DataFrame({"query": [query]})
 
-        inputs, _ = table_to_tuta_inputs(
+        inputs, _, _ = table_to_tuta_inputs(
             query_table,
             ai.tokenizer,
             max_seq_len=ai.max_seq_len,
@@ -76,20 +76,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         inputs_dev = {k: v.to(ai.device) for k, v in inputs.items()}
 
         with torch.no_grad():
-            encoded_states = ai.model(
-                inputs_dev["token_id"],
-                inputs_dev["num_mag"],
-                inputs_dev["num_pre"],
-                inputs_dev["num_top"],
-                inputs_dev["num_low"],
-                inputs_dev["token_order"],
-                inputs_dev["pos_row"],
-                inputs_dev["pos_col"],
-                inputs_dev["pos_top"],
-                inputs_dev["pos_left"],
-                inputs_dev["format_vec"],
-                inputs_dev["indicator"],
-            )  # [1, seq_len, 768]
+            encoded_states = ai._forward(inputs_dev)  # [1, seq_len, 768]
 
         query_emb = encoded_states[0, 0, :].cpu().numpy()
         return query_emb

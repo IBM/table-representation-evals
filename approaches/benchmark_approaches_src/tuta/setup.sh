@@ -4,15 +4,14 @@
 #
 # What this script does:
 #   1. Clones the TUTA repository into tuta_src/ (model source code only).
-#   2. Prints download instructions for the pretrained weights.
+#   2. Downloads the pretrained "tuta" checkpoint from Google Drive via gdown.
+#   3. Writes the resolved checkpoint path into configs/approaches/tuta.yaml.
 #
-# Pretrained weight variants (Google Drive, manual download required):
-#   TUTA:          https://drive.google.com/file/d/1pEdrCqHxNjGM4rjpvCxeAUchdJzCYr1g
+# Other checkpoint variants (Google Drive):
 #   TUTA-explicit: https://drive.google.com/file/d/1FPwn2lQKEf-cGlgFHr4_IkDk_6WThifW
 #   TUTA-base:     https://drive.google.com/file/d/1j5qzw3c2UwbVO7TTHKRQmTvRki8vDO0l
-#
-# After downloading, place the .bin file at the path you set in
-#   approaches/configs/approach/tuta.yaml -> checkpoint_path
+# To use one of these instead, download it manually to tuta_src/tuta.bin and set
+# target accordingly in tuta.yaml.
 set -e
 
 echo "=== Setting up TUTA approach ==="
@@ -40,30 +39,34 @@ if [ ! -f "$TUTA_SRC/tuta/model/backbones.py" ]; then
 fi
 echo "TUTA model source verified."
 
+# ------------------------------------------------------------------
+# 2. Download pretrained weights (TUTA variant) via gdown
+# ------------------------------------------------------------------
+CKPT_FILE="$TUTA_SRC/tuta.bin"
+GDRIVE_ID="1pEdrCqHxNjGM4rjpvCxeAUchdJzCYr1g"
+
+if [ -f "$CKPT_FILE" ]; then
+    echo "Pretrained weights already present at $CKPT_FILE"
+else
+    echo "Downloading TUTA checkpoint..."
+    pip install -q gdown
+    gdown "https://drive.google.com/uc?id=${GDRIVE_ID}" -O "$CKPT_FILE"
+fi
+
 popd > /dev/null
 
 # ------------------------------------------------------------------
-# 2. Print weight download instructions
+# 3. Write the resolved checkpoint_path into the approach YAML
 # ------------------------------------------------------------------
-echo ""
-echo "=== Manual step required: download pretrained weights ==="
-echo ""
-echo "Choose one of the following TUTA variants and download the .bin file:"
-echo ""
-echo "  TUTA (recommended):"
-echo "    https://drive.google.com/file/d/1pEdrCqHxNjGM4rjpvCxeAUchdJzCYr1g"
-echo ""
-echo "  TUTA-explicit:"
-echo "    https://drive.google.com/file/d/1FPwn2lQKEf-cGlgFHr4_IkDk_6WThifW"
-echo ""
-echo "  TUTA-base:"
-echo "    https://drive.google.com/file/d/1j5qzw3c2UwbVO7TTHKRQmTvRki8vDO0l"
-echo ""
-echo "Place the downloaded file at:"
-echo "  approaches/benchmark_approaches_src/tuta/tuta_src/tuta_model.bin"
-echo ""
-echo "Then update approaches/configs/approach/tuta.yaml:"
-echo "  checkpoint_path: \"approaches/benchmark_approaches_src/tuta/tuta_src/tuta_model.bin\""
-echo "  target: \"tuta\"   # or tuta_explicit / base to match the variant"
-echo ""
-echo "=== TUTA setup complete (weights still needed) ==="
+YAML_PATH="configs/approaches/tuta.yaml"
+REL_CKPT_PATH="approaches/benchmark_approaches_src/tuta/tuta_src/tuta.bin"
+ABS_CKPT_FILE="$(pwd)/$REL_CKPT_PATH"
+
+if [ ! -f "$ABS_CKPT_FILE" ]; then
+    echo "WARNING: Expected checkpoint at $ABS_CKPT_FILE but file not found. Check the download step above."
+else
+    sed -i "s|^checkpoint_path:.*|checkpoint_path: \"${REL_CKPT_PATH}\"|" "$YAML_PATH"
+    echo "Updated checkpoint_path in $YAML_PATH -> $REL_CKPT_PATH"
+fi
+
+echo "=== TUTA setup complete ==="

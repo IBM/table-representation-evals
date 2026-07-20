@@ -1,0 +1,33 @@
+benchmark_output_dir: just_testing_02
+log_level: DEBUG
+approaches:
+  - name: tuta
+    tasks:
+      - row_similarity_search
+      - more_similar_than
+      - predictive_ml
+      - cell_task
+      - table_retrieval
+      - column_similarity_search
+      - column_type_annotation
+    task_datasets:
+      row_similarity_search:
+        - Amazon-Google
+      more_similar_than:
+        - wikidata_books
+      predictive_ml:
+        - credit-g
+        - anneal
+        - healthcare_insurance_expenses
+      cell_task:
+        - s2abel@clean
+      column_similarity_search:
+        - valentine
+        - opendata
+      column_type_annotation:
+        - sotab
+    task_params:
+      column_similarity_search:
+        test_case_limit: 5
+      column_type_annotation:
+        test_case_limit: 5

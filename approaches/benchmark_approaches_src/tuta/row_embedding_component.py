@@ -7,8 +7,10 @@ excluded — only data rows are returned.
 
 Output shape: (n_data_rows, 768)
 
-Data rows beyond cfg.approach.max_rows receive zero row embeddings because
-their cell embeddings are zero (they were not included in the forward pass).
+This is not a native TUTA output — TUTA's own pretraining objectives and
+heads only produce per-cell and per-table representations (see approach.py's
+module docstring) — it's a pooling strategy adopted for this benchmark's
+row-level tasks.
 """
 
 import logging
@@ -46,5 +48,5 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
         data_cell_embs = cell_embs[1:]          # (n_data_rows, n_cols, 768)
         row_embs = data_cell_embs.mean(axis=1)  # (n_data_rows, 768)
 
-        logger.info(f"TUTA row embeddings: {row_embs.shape}")
+        #logger.debug(f"TUTA row embeddings: {row_embs.shape}")
         return row_embs
