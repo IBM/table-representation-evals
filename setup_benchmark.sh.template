@@ -17,6 +17,7 @@ SETUP_TABERT=false
 SETUP_TABBIE=false
 SETUP_TUTA=false
 SETUP_TABDPT=false
+SETUP_TARTE=false
 
 # ============================
 # Shared setup
@@ -388,6 +389,18 @@ if [ "$SETUP_TABDPT" = true ]; then
 
     chmod +x ./approaches/benchmark_approaches_src/tabdpt/setup.sh
     ./approaches/benchmark_approaches_src/tabdpt/setup.sh
+
+    conda deactivate
+fi
+
+##################################
+# Setup for TARTE
+##################################
+if [ "$SETUP_TARTE" = true ]; then
+    conda activate benchmark_env
+
+    chmod +x ./approaches/benchmark_approaches_src/tarte/setup.sh
+    ./approaches/benchmark_approaches_src/tarte/setup.sh
 
     conda deactivate
 fi

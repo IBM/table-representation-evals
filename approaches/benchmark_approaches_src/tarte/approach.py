@@ -91,6 +91,7 @@ class TARTEEmbedder(BaseTabularEmbeddingApproach):
             self.layer_index = layer_cfg
 
         self._encoder = None  # TARTE_TableEncoder — weights loaded once
+        self._preprocessor = None  # TARTE_TablePreprocessor — FastText model loaded once
 
         logger.info(
             f"TARTEEmbedder initialised "
@@ -135,6 +136,28 @@ class TARTEEmbedder(BaseTabularEmbeddingApproach):
 
         logger.info("TARTE encoder ready.")
 
+    def _get_preprocessor(self):
+        """
+        Return a shared TARTE_TablePreprocessor (created once, idempotent).
+
+        TARTE_TablePreprocessor.fit() only loads its FastText language model
+        (~7 GB) if the instance doesn't already have one cached
+        (`if not hasattr(self, "lm_model_")`). Reusing the same instance across
+        tables means that load happens once per run instead of once per table;
+        every other part of fit() (PowerTransformer, column-name bookkeeping)
+        is still recomputed fresh per table, since it's schema-dependent.
+        """
+        if self._preprocessor is None:
+            try:
+                from tarte_ai import TARTE_TablePreprocessor
+            except ImportError as exc:
+                raise ImportError(
+                    "tarte-ai not found. Run "
+                    "approaches/benchmark_approaches_src/tarte/setup.sh first."
+                ) from exc
+            self._preprocessor = TARTE_TablePreprocessor()
+        return self._preprocessor
+
     # ------------------------------------------------------------------
     # Embedding extraction
     # ------------------------------------------------------------------
@@ -148,10 +171,6 @@ class TARTEEmbedder(BaseTabularEmbeddingApproach):
         """
         Extract 768-dim row embeddings for every row in input_table.
 
-        A fresh TARTE_TablePreprocessor is created for each table because it
-        must fit a PowerTransformer on that table's numerical columns and build
-        a FastText-lookup dict for that table's column/value names.
-
         The encoder's internal SimpleImputer (used for any NaN in the 768-dim
         embedding vectors) is reset before each table so it re-fits on the
         current table's embedding statistics rather than a stale prior table.
@@ -161,17 +180,7 @@ class TARTEEmbedder(BaseTabularEmbeddingApproach):
         """
         self.load_trained_model()
 
-        try:
-            from tarte_ai import TARTE_TablePreprocessor
-        except ImportError as exc:
-            raise ImportError(
-                "tarte-ai not found. Run "
-                "approaches/benchmark_approaches_src/tarte/setup.sh first."
-            ) from exc
-
-        # Fresh preprocessor: fits PowerTransformer and FastText lookups for
-        # this specific table's schema.
-        preprocessor = TARTE_TablePreprocessor()
+        preprocessor = self._get_preprocessor()
         data = preprocessor.fit_transform(input_table, y=None)
 
         # Process rows in batches to avoid OOM from the O(N²) attention matrix
@@ -185,7 +194,7 @@ class TARTEEmbedder(BaseTabularEmbeddingApproach):
             all_embeddings.append(batch_embs)
         embeddings = np.vstack(all_embeddings)
 
-        logger.debug(f"TARTE row embeddings shape: {embeddings.shape}")
+        # logger.debug(f"TARTE row embeddings shape: {embeddings.shape}")
         return embeddings
 
     def get_table_embedding(self, input_table: pd.DataFrame) -> np.ndarray:
@@ -306,19 +315,11 @@ class TARTEEmbedder(BaseTabularEmbeddingApproach):
         """
         self.load_trained_model()
 
-        try:
-            from tarte_ai import TARTE_TablePreprocessor
-        except ImportError as exc:
-            raise ImportError(
-                "tarte-ai not found. Run "
-                "approaches/benchmark_approaches_src/tarte/setup.sh first."
-            ) from exc
-
         n_rows, n_cols = input_table.shape
         col_names = list(input_table.columns)
         DIM = 768
 
-        preprocessor = TARTE_TablePreprocessor()
+        preprocessor = self._get_preprocessor()
         data = preprocessor.fit_transform(input_table, y=None)
 
         model = self._build_tarte_model()
@@ -367,14 +368,6 @@ class TARTEEmbedder(BaseTabularEmbeddingApproach):
         """
         self.load_trained_model()
 
-        try:
-            from tarte_ai import TARTE_TablePreprocessor
-        except ImportError as exc:
-            raise ImportError(
-                "tarte-ai not found. Run "
-                "approaches/benchmark_approaches_src/tarte/setup.sh first."
-            ) from exc
-
         n_rows, n_cols = input_table.shape
         col_names = list(input_table.columns)
         DIM = 768
@@ -387,7 +380,7 @@ class TARTEEmbedder(BaseTabularEmbeddingApproach):
             sample_table = input_table.reset_index(drop=True)
         n_sample = len(sample_table)
 
-        preprocessor = TARTE_TablePreprocessor()
+        preprocessor = self._get_preprocessor()
         data = preprocessor.fit_transform(sample_table, y=None)
 
         model = self._build_tarte_model()

@@ -1,25 +1,33 @@
 #!/usr/bin/env bash
 # Setup script for the TARTE embedding approach.
-# Run from the project root inside the embedding-benchmark conda environment:
-#   conda activate embedding-benchmark
+# Run from the project root inside the benchmark_env conda environment:
+#   conda activate benchmark_env
 #   bash approaches/benchmark_approaches_src/tarte/setup.sh
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SUBMODULE_DIR="${SCRIPT_DIR}/tarte-ai"
+TARTE_AI_DIR="${SCRIPT_DIR}/tarte-ai"
 
-echo "=== Installing tarte-ai (patched fork via submodule) ==="
-if [ ! -f "${SUBMODULE_DIR}/pyproject.toml" ]; then
-    echo "ERROR: submodule not initialised. Run:"
-    echo "  git submodule update --init approaches/benchmark_approaches_src/tarte/tarte-ai"
+# tarte-ai's own pyproject.toml depends on "fasttext", which builds Meta's
+# fastText bindings from source and commonly fails without a C++ toolchain.
+# We install tarte-ai with --no-deps and install its other dependencies
+# explicitly, pulling fasttext from conda-forge (prebuilt binary) instead.
+echo "=== Installing tarte-ai (vendored copy at ${TARTE_AI_DIR}) ==="
+if [ ! -f "${TARTE_AI_DIR}/pyproject.toml" ]; then
+    echo "ERROR: tarte-ai not found at ${TARTE_AI_DIR}."
     exit 1
 fi
-pip install -e "${SUBMODULE_DIR}"
+pip install --no-deps -e "${TARTE_AI_DIR}"
 
 echo ""
-echo "=== Installing fasttext-wheel (pre-built bindings for Meta fastText) ==="
-pip install fasttext-wheel
+echo "=== Installing tarte-ai dependencies ==="
+pip install numpy pandas scipy scikit-learn torch torcheval huggingface_hub \
+    catboost tabpfn xgboost skrub pyarrow fastparquet
+
+echo ""
+echo "=== Installing fasttext (prebuilt binary via conda-forge) ==="
+conda install -y -c conda-forge fasttext=0.9.2
 
 echo ""
 echo "=== TARTE setup complete ==="

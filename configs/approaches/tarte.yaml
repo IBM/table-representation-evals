@@ -1,5 +1,5 @@
 approach_name: tarte
-conda_env: embedding-benchmark
+conda_env: benchmark_env
 module_path: "approaches/benchmark_approaches_src/tarte"
 class_name: TARTEEmbedder
 
@@ -13,8 +13,13 @@ layer_index: "all"
 # Number of rows to sample when computing column embeddings.
 n_sample_rows_for_column_embeddings: 50
 
-# table_retrieval and nl2* tasks are excluded because create_query_embedding()
-# requires NL understanding, which TARTE does not support.
+# nl2column_mapping and nl2cell2column_mapping are excluded because, while they don't
+# call create_query_embedding() directly (they embed the NL query text via
+# column/cell embedding components), TARTE's schema-aware FastText+transformer
+# pipeline isn't designed to embed open-ended natural-language query strings.
+# table_retrieval is supported despite create_query_embedding() being
+# unimplemented: the only enabled dataset (gitTables) is routed to a
+# table-to-table retrieval path that only uses create_table_embedding().
 
 supported_tasks:
   row_similarity_search:
@@ -27,6 +32,8 @@ supported_tasks:
   table_shuffling: {}
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
+  column_type_annotation: {}
+  table_retrieval: {}
   cell_task: {}
   predictive_ml:
     run_task_based_on: row_embeddings

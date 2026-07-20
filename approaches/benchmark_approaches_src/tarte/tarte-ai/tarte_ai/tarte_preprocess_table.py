@@ -56,6 +56,11 @@ class TARTE_TablePreprocessor(TransformerMixin, BaseEstimator):
             X = X.set_axis(col_names, axis="columns")
 
         X_ = X.replace("\n", " ", regex=True).copy()
+        # Column labels aren't touched by the replace() above (it only rewrites cell
+        # values), but cat/num/dat_col_names_ below are computed from newline-stripped
+        # column names. Sanitize the labels too so later X_[self.cat_col_names_]-style
+        # lookups (here and in transform()) find the columns they expect.
+        X_.columns = X_.columns.str.replace("\n", " ", regex=True)
         self.is_fitted_ = False
         self.y_ = y
         if not hasattr(self, "lm_model_"):
@@ -175,6 +180,9 @@ class TARTE_TablePreprocessor(TransformerMixin, BaseEstimator):
             X = X.set_axis(col_names, axis="columns")
 
         X_ = X.replace("\n", " ", regex=True).copy()
+        # See matching comment in fit(): sanitize column labels the same way
+        # cat/num/dat_col_names_ were sanitized when fit() computed them.
+        X_.columns = X_.columns.str.replace("\n", " ", regex=True)
         num_data = X_.shape[0]
         y_ = (
             torch.tensor(self.y_, dtype=torch.float32).reshape((num_data, 1))
@@ -194,8 +202,12 @@ class TARTE_TablePreprocessor(TransformerMixin, BaseEstimator):
         X_numerical = X_[self.num_col_names_].copy()
         X_datetime = X_[self.dat_col_names_].copy()
 
+        # pd.melt()'s default var_name/value_name ("variable"/"value") collide and
+        # raise if the table already has a categorical column with that literal
+        # name (real-world scraped data does have this); use names that can't collide.
         cat_names = (
-            pd.melt(X_categorical)["value"].dropna().astype(str).str.lower().unique()
+            pd.melt(X_categorical, var_name="_tarte_melt_variable", value_name="_tarte_melt_value")["_tarte_melt_value"]
+            .dropna().astype(str).str.lower().unique()
         )
         names_total = np.unique(np.hstack([self.col_names_, cat_names]))
         name_dict = {name: idx for idx, name in enumerate(names_total)}
@@ -301,7 +313,13 @@ class TARTE_TablePreprocessor(TransformerMixin, BaseEstimator):
         """
         data_cat = data_cat.dropna()
         if data_cat.shape[0] > 0:
-            data_cat = data_cat.str.lower()
+            # name_dict's keys (built above from cat_names) go through
+            # .astype(str) before .str.lower(); mirror that here too, otherwise
+            # a non-string value surviving dropna() (e.g. a stray number in an
+            # object-dtype column) makes .str.lower() emit NaN for that entry
+            # instead of a string, and the later name_dict[val] lookup raises
+            # KeyError: nan since name_dict never had a NaN key.
+            data_cat = data_cat.astype(str).str.lower()
         data_num = data_num.dropna()
         data_dat = data_dat.dropna()
 
