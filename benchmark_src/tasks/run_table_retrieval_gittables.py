@@ -18,7 +18,13 @@ logger = logging.getLogger(__name__)
 
 def load_datalake_infos(cfg):
     dataset_folder = Path(cfg.cache_dir) / "datasets" / "table_retrieval" / "gitTables"
-    datalake_folders = [x for x in list(dataset_folder.iterdir()) if x.is_dir()]
+    datalake_folders = sorted(x for x in dataset_folder.iterdir() if x.is_dir())
+
+    test_case_limit = getattr(cfg.task, "test_case_limit", None)
+    if test_case_limit:
+        test_case_limit = int(test_case_limit)
+        datalake_folders = datalake_folders[:test_case_limit]
+        logger.info(f"test_case_limit={test_case_limit}: using {len(datalake_folders)} datalake folders")
 
     return datalake_folders
 
@@ -41,7 +47,7 @@ def run_task(datalake_folders, table_embedding_component):
         all_table_embeddings = {} # map table filename to embedding
 
         logger.info(f"Creating embeddings for {len(datalake_tables)} tables.")
-        for table_path in datalake_tables:
+        for table_path in tqdm(datalake_tables, desc=f"Embedding tables for {datalake_folder.name}"):
             # read the pandas table
             input_table = pd.read_csv(table_path)
 

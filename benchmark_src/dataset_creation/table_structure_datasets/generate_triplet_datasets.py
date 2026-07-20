@@ -318,26 +318,13 @@ def load_table_shuffling_config() -> DictConfig:
     Load the table_shuffling dataset config from YAML.
     """
     try:
-        config_path = (
-            Path(get_original_cwd())
-            / "benchmark_src"
-            / "config"
-            / "dataset"
-            / "table_shuffling.yaml"
-        )
+        root = Path(get_original_cwd())
     except ValueError:
-        # Fallback if not running under Hydra
-        config_path = (
-            Path.cwd()
-            / "benchmark_src"
-            / "config"
-            / "dataset"
-            / "table_shuffling.yaml"
-        )
+        root = Path.cwd()
 
+    config_path = root / "configs" / "dataset" / "table_shuffling.yaml"
     if not config_path.exists():
         raise FileNotFoundError(f"table_shuffling config file not found at {config_path}")
-
     return OmegaConf.load(str(config_path))
 
 

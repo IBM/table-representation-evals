@@ -1,0 +1,56 @@
+approach_name: tabdpt
+conda_env: benchmark_env
+module_path: "approaches/benchmark_approaches_src/tabdpt"
+class_name: TabDPTEmbedder
+
+# Device for inference. "auto" selects CUDA if available, otherwise CPU.
+device: "auto"
+
+# Number of context rows passed to the model per forward pass.
+# Larger values give richer context but use more VRAM.
+# TabDPT was trained with context sizes up to ~1024.
+context_size: 1024
+
+# Cell / column embeddings are not available: TabDPT projects all features
+# of a row into a single vector via Linear(F→ninp) at the input — there is
+# no per-column dimension in the network.
+#
+# table_retrieval only works for the gitTables dataset, which is table-to-
+# table retrieval (create_table_embedding() for both corpus and query
+# tables). Any other table_retrieval dataset needs create_query_embedding()
+# for NL queries, which TabDPT does not have (operates on raw floats only) —
+# nl2* tasks are excluded for the same reason.
+#
+# Of the tasks below, only predictive_ml matches TabDPT's documented usage
+# (TabDPTClassifier/Regressor via fit()/predict_proba()/predict(), as
+# evaluated in the paper on OpenML CC18/CTR23). row_similarity_search,
+# more_similar_than, clustering, table_shuffling, and table_retrieval all
+# rely on "row"/"table embeddings" pulled from a pre-head hidden state via a
+# monkey-patched forward() (see approach.py) — TabDPT has no official
+# embedding-extraction API (unlike e.g. TabPFN's documented
+# get_embeddings()), so results on these five tasks reflect a benchmark-side
+# best-effort extraction, not a capability TabDPT's authors designed or
+# evaluated. In particular, table_retrieval's gitTables tables include raw,
+# high-cardinality identifier and free-text columns (e.g. "ID", "Author",
+# "Content") that get fed in as features same as row_similarity_search's —
+# see approach.py's preprocessing() docstring for why that's a problem; no
+# primary-key drop is wired up for the table-embedding path, so expect this
+# task to be weak.
+
+supported_tasks:
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+    exclude_datasets:
+      - DBLP-GoogleScholar   # >100k rows; OOM risk at context_size=1024
+      - iTunes-Amazon
+  more_similar_than: {}
+  clustering: {}
+  predictive_ml:
+    run_task_based_on: custom_predictiveML_model
+    exclude_datasets:
+      - customer_satisfaction_in_airline
+      - APSFailure
+      - GiveMeSomeCredit
+      - SDSS17
+  table_shuffling: {}
+  table_retrieval: {}

@@ -15,6 +15,9 @@ SETUP_GRITLM=false
 SETUP_TABPFN=false # requires huggingface token
 SETUP_TABERT=false
 SETUP_TABBIE=false
+SETUP_TUTA=false
+SETUP_TABDPT=false
+SETUP_TARTE=false
 
 # ============================
 # Shared setup
@@ -374,6 +377,42 @@ if [ "$SETUP_TABBIE" = true ]; then
 
     chmod +x ./approaches/benchmark_approaches_src/tabbie/setup.sh
     ./approaches/benchmark_approaches_src/tabbie/setup.sh
+
+    conda deactivate
+fi
+
+##################################
+# Setup for TUTA
+##################################
+if [ "$SETUP_TUTA" = true ]; then
+    conda activate benchmark_env
+
+    chmod +x ./approaches/benchmark_approaches_src/tuta/setup.sh
+    ./approaches/benchmark_approaches_src/tuta/setup.sh
+
+    conda deactivate
+fi
+
+##################################
+# Setup for TabDPT
+##################################
+if [ "$SETUP_TABDPT" = true ]; then
+    conda activate benchmark_env
+
+    chmod +x ./approaches/benchmark_approaches_src/tabdpt/setup.sh
+    ./approaches/benchmark_approaches_src/tabdpt/setup.sh
+
+    conda deactivate
+fi
+
+##################################
+# Setup for TARTE
+##################################
+if [ "$SETUP_TARTE" = true ]; then
+    conda activate benchmark_env
+
+    chmod +x ./approaches/benchmark_approaches_src/tarte/setup.sh
+    ./approaches/benchmark_approaches_src/tarte/setup.sh
 
     conda deactivate
 fi

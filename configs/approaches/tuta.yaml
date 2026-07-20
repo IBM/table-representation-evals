@@ -1,0 +1,64 @@
+# TUTA approach configuration
+# Paper: TUTA: Tree-based Transformers for Generally Structured Table Pre-training (KDD 2021)
+# Code:  https://github.com/microsoft/TUTA_table_understanding
+#
+# Run setup first (downloads the TUTA source and the pretrained checkpoint,
+# and populates checkpoint_path below):
+#   bash approaches/benchmark_approaches_src/tuta/setup.sh
+approach_name: tuta
+conda_env: benchmark_env
+
+module_path: "approaches/benchmark_approaches_src/tuta"
+class_name: TUTAEmbedder
+
+# Path to a pretrained TUTA .bin state-dict file, populated by tuta/setup.sh.
+# Set to null to use random initialisation (pipeline testing only).
+checkpoint_path: "approaches/benchmark_approaches_src/tuta/tuta_src/tuta.bin"
+
+# TUTA variant — must match the downloaded checkpoint.
+#   "tuta"          -> BbForTuta   (implicit tree positional encoding)
+#   "tuta_explicit" -> BbForTutaExplicit
+#   "base"          -> BbForBase   (no tree positional encoding)
+target: "tuta"
+
+# HuggingFace tokenizer. Must match TUTA pretraining (bert-base-uncased).
+lm: "bert-base-uncased"
+
+# Max total token sequence length (TUTA was pretrained with 512).
+max_seq_len: 512
+
+# Max body tokens per cell (excluding the SEP separator).
+# Matches the paper's own setting (Appendix C.1): "at most 8 tokens from a
+# cell... 99% of cases meet this condition." TUTA's order_weight embedding
+# has size max_cell_length=64 (indices 0-63) so up to 63 would fit, but going
+# beyond 8 only eats into the 512-token sequence budget for no real coverage gain.
+max_cell_tokens: 8
+
+# Max data rows attempted per forward pass. The actual number of rows in a
+# given pass may be lower if they don't fit within max_seq_len tokens - rows
+# are never dropped, just packed across more/fewer forward passes as needed.
+max_rows: 50
+
+# Max rows fed into column-embedding computation (after dropping exact
+# duplicate rows). Unlike row/cell embeddings, every row doesn't need its own
+# forward pass here — a column embedding only needs enough rows to
+# characterise the column, and TUTA has no cheap per-column-only path the way
+# e.g. sentence embedders do, so without a cap a single large table (some
+# real datasets have tens of thousands of rows) can take many minutes.
+# ~4 min/table at this value for a 33-column table with long header text
+# (measured on a 23K-row table) — scales roughly linearly with this value.
+column_embedding_row_limit: 500
+
+supported_tasks:
+  cell_task: {}
+  row_similarity_search:
+    run_similarity_search_based_on: row_embeddings
+  more_similar_than: {}
+  clustering: {}
+  predictive_ml:
+    run_task_based_on: row_embeddings
+  table_retrieval: {}
+  table_shuffling: {}
+  column_similarity_search:
+    run_similarity_search_based_on: column_embeddings
+  column_type_annotation: {}

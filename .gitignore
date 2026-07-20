@@ -1,5 +1,6 @@
 /*results*/*
 /*outputs*
+/prepare_paper_figures/generated_figures/
 /created_datasets
 /cache
 
@@ -16,6 +17,7 @@
 __MACOSX
 
 approaches/benchmark_approaches_src/hytrel/hytrel_src/
+approaches/benchmark_approaches_src/tarte/tarte-ai/data/
 ContextAwareJoin/*
 .idea
 

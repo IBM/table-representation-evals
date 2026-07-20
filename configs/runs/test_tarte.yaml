@@ -1,0 +1,25 @@
+benchmark_output_dir: just_testing
+log_level: DEBUG
+approaches:
+  - name: tarte
+    tasks:
+      - column_similarity_search
+      - cell_task
+      - column_type_annotation
+      - table_retrieval
+    task_datasets:
+      column_similarity_search:
+        - valentine
+      cell_task:
+        - s2abel@clean
+      column_type_annotation:
+        - sotab
+    task_params:
+      column_similarity_search:
+        test_case_limit: 5
+      cell_task:
+        test_case_limit: 5
+      column_type_annotation:
+        test_case_limit: 5
+      table_retrieval:
+        test_case_limit: 1

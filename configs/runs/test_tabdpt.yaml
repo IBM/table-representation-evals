@@ -1,0 +1,18 @@
+benchmark_output_dir: just_testing
+log_level: DEBUG
+approaches:
+  - name: tabdpt
+    tasks:
+      - row_similarity_search
+      - more_similar_than
+      - predictive_ml
+      - table_retrieval
+    task_datasets:
+      row_similarity_search:
+        - Amazon-Google
+      more_similar_than:
+        - wikidata_books
+      predictive_ml:
+        - credit-g
+        - anneal
+        - healthcare_insurance_expenses
