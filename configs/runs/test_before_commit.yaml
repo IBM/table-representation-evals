@@ -1,25 +1,26 @@
 benchmark_output_dir: just_testing
 log_level: DEBUG
 approaches:
-  - name: tarte
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+      table_row_limit: 100
     tasks:
-     # - row_similarity_search
-     # - more_similar_than
-     # - table_shuffling
+      - row_similarity_search
+      - more_similar_than
       - column_similarity_search
-      - cell_task
-     # - predictive_ml
+      - column_type_annotation
+      - predictive_ml
     task_datasets:
       row_similarity_search:
         - Amazon-Google
       more_similar_than:
         - wikidata_books
-      table_shuffling:
-        - fetaqa@@v0
       column_similarity_search:
         - valentine
-      cell_task:
-        - s2abel@clean
+        - opendata
+      column_type_annotation:
+        - sotab
       predictive_ml:
         - credit-g
         - anneal
@@ -28,6 +29,4 @@ approaches:
       column_similarity_search:
         test_case_limit: 5
       column_type_annotation:
-        test_case_limit: 5
-      cell_task:
         test_case_limit: 5

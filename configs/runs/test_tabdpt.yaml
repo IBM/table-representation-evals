@@ -6,6 +6,7 @@ approaches:
       - row_similarity_search
       - more_similar_than
       - predictive_ml
+      - table_retrieval
     task_datasets:
       row_similarity_search:
         - Amazon-Google
