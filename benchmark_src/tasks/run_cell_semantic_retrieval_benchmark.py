@@ -91,6 +91,12 @@ def load_benchmark_data(cfg):
 
     testcases = sorted(testcases)
 
+    test_case_limit = getattr(cfg.task, "test_case_limit", None)
+    if test_case_limit:
+        test_case_limit = int(test_case_limit)
+        testcases = testcases[:test_case_limit]
+        logger.info(f"test_case_limit={test_case_limit}: using {len(testcases)} testcases")
+
     return tables_folder, testcases
 
 @monitor_resources()
