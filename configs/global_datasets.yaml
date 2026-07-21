@@ -15,7 +15,7 @@ row_similarity_search_datasets: # comment out the datasets you do not want to ev
 ################################### 
 ##### Embeddings More Similar Than
 ###################################
-more_similar_than_datasets:
+row_triplet_evaluation_datasets:
   - wikidata_books
   - wikidata_books@no_genre   
   - wikidata_books@only_five_cols

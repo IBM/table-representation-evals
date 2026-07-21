@@ -121,7 +121,7 @@ def run_similarity_task_based_on_row_embeddings(row_embedding_component, input_t
 
 
 def main(cfg: DictConfig):
-    logger.info(f"Started run_more_similar_than_benchmark")
+    logger.info(f"Started run_row_triplet_evaluation_benchmark")
     logger.debug(f"Received cfg:")
     logger.debug(cfg)
     multiprocessing.set_start_method("spawn", force=True) 

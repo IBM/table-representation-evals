@@ -10,7 +10,7 @@ table_serialization_format: markdown   # markdown or csv, used by table-level em
 supported_tasks:
   row_similarity_search:
     run_similarity_search_based_on: row_embeddings
-  more_similar_than: {}
+  row_triplet_evaluation: {}
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
   column_type_annotation: {}

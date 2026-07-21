@@ -15,7 +15,7 @@ supported_tasks:
     exclude_datasets:  # OOM on 80GB VRAM
       - DBLP-GoogleScholar
       - iTunes-Amazon
-  more_similar_than: {}
+  row_triplet_evaluation: {}
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
   cell_similarity_search: {}

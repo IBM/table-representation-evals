@@ -24,7 +24,7 @@ context_size: 1024
 # Of the tasks below, only predictive_ml matches TabDPT's documented usage
 # (TabDPTClassifier/Regressor via fit()/predict_proba()/predict(), as
 # evaluated in the paper on OpenML CC18/CTR23). row_similarity_search,
-# more_similar_than, clustering, table_shuffling, and table_retrieval all
+# row_triplet_evaluation, clustering, table_shuffling, and table_retrieval all
 # rely on "row"/"table embeddings" pulled from a pre-head hidden state via a
 # monkey-patched forward() (see approach.py) — TabDPT has no official
 # embedding-extraction API (unlike e.g. TabPFN's documented
@@ -43,7 +43,7 @@ supported_tasks:
     exclude_datasets:
       - DBLP-GoogleScholar   # >100k rows; OOM risk at context_size=1024
       - iTunes-Amazon
-  more_similar_than: {}
+  row_triplet_evaluation: {}
   clustering: {}
   predictive_ml:
     run_task_based_on: custom_predictiveML_model

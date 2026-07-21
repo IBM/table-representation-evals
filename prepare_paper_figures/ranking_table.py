@@ -6,7 +6,7 @@ import numpy as np
 # for subtasks that share a task column value (predictive_ml).
 task_metrics = {
     "row_similarity_search": "MRR",
-    "more_similar_than": "accuracy",
+    "row_triplet_evaluation": "accuracy",
     "predictive_ml_regression": ("predictive_ml", "LinearRegression_rmse (↓)"),
     "predictive_ml_multiclass": ("predictive_ml", "XGBoost_log_loss (↓)"),
     "predictive_ml_binary":     ("predictive_ml", "XGBoost_roc_auc_score (↑)"),
@@ -17,7 +17,7 @@ task_metrics = {
 
 TASK_NAME_MAP = {
     "row_similarity_search": r"\makecell{Row \\ Similarity Search \\ (MRR)}",
-    "more_similar_than": r"\makecell{Triplet \\ Evaluation \\ (Accuracy) }",
+    "row_triplet_evaluation": r"\makecell{Triplet \\ Evaluation \\ (Accuracy) }",
     "predictive_ml": r"\makecell{Tabular \\ Prediction\\ (ELO)}",
     "predictive_ml_regression": r"\makecell{Tabular \\ Prediction\\ (Regression)}",
     "predictive_ml_binary": r"\makecell{Tabular \\ Prediction\\ (Binary)}",

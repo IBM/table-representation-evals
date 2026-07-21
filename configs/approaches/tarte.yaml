@@ -27,7 +27,7 @@ supported_tasks:
     exclude_datasets:
       - DBLP-GoogleScholar   # >100k rows; slow per-row inference
       - iTunes-Amazon
-  more_similar_than: {}
+  row_triplet_evaluation: {}
   clustering: {}
   table_shuffling: {}
   column_similarity_search:

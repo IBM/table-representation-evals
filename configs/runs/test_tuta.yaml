@@ -4,7 +4,7 @@ approaches:
   - name: tuta
     tasks:
       - row_similarity_search
-      - more_similar_than
+      - row_triplet_evaluation
       - predictive_ml
       - cell_similarity_search
       - table_retrieval
@@ -13,7 +13,7 @@ approaches:
     task_datasets:
       row_similarity_search:
         - Amazon-Google
-      more_similar_than:
+      row_triplet_evaluation:
         - wikidata_books
       predictive_ml:
         - credit-g

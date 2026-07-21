@@ -189,11 +189,11 @@ def main(
     ##############################################################################################
     if TRIPLET_PLOTS:
         # Filter data for the current task
-        df = all_results_df[all_results_df['task'] == "more_similar_than"].copy()
+        df = all_results_df[all_results_df['task'] == "row_triplet_evaluation"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
         df = df.dropna(axis=1, how="all")
         if df.empty:
-            print("No more_similar_than results in this results folder, skipping.")
+            print("No row_triplet_evaluation results in this results folder, skipping.")
         else:
             # results table
             triplet_row_results_table.create_results_table(df, plots_folder)

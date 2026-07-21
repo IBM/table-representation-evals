@@ -60,7 +60,7 @@ supported_tasks:
       - some_large_dataset  # e.g. exceeds available GPU memory
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
-  more_similar_than: {}     # supported with no additional parameters
+  row_triplet_evaluation: {}     # supported with no additional parameters
   clustering: {}
 ```
 

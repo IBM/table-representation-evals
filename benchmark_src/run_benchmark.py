@@ -44,9 +44,9 @@ def run_single(cfg):
         elif cfg.task.task_name == "predictive_ml":
             from benchmark_src.tasks import run_predictive_ml_benchmark
             run_predictive_ml_benchmark.main(cfg)
-        elif cfg.task.task_name == "more_similar_than":
-            from benchmark_src.tasks import run_more_similar_than_benchmark
-            run_more_similar_than_benchmark.main(cfg)
+        elif cfg.task.task_name == "row_triplet_evaluation":
+            from benchmark_src.tasks import run_row_triplet_evaluation_benchmark
+            run_row_triplet_evaluation_benchmark.main(cfg)
         elif cfg.task.task_name == "clustering":
             from benchmark_src.tasks import run_clustering_benchmark
             run_clustering_benchmark.main(cfg)

@@ -12,6 +12,6 @@ n_few_shot_examples: 8  # a shot count TabuLA-8B's paper reports on that fits ma
 supported_tasks:
   row_similarity_search:
     run_similarity_search_based_on: row_embeddings
-  more_similar_than: {}
+  row_triplet_evaluation: {}
   predictive_ml:
     run_task_based_on: row_embeddings  # default; override to custom_predictiveML_model in pred run

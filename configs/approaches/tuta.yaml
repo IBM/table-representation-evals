@@ -53,7 +53,7 @@ supported_tasks:
   cell_similarity_search: {}
   row_similarity_search:
     run_similarity_search_based_on: row_embeddings
-  more_similar_than: {}
+  row_triplet_evaluation: {}
   clustering: {}
   predictive_ml:
     run_task_based_on: row_embeddings

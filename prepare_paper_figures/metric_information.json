@@ -3,7 +3,7 @@
     "task_metric_defaults": {
         "clustering": "silhouette",
         "column_similarity_search": "MRR",
-        "more_similar_than": "accuracy",
+        "row_triplet_evaluation": "accuracy",
         "predictive_ml": [
             "LinearRegression_rmse (↓)",
             "XGBoost_roc_auc_score (↑)",

@@ -15,7 +15,7 @@ checkpoint_version: "tabicl-classifier-v2-20260212.ckpt"
 supported_tasks:
   row_similarity_search:
     run_similarity_search_based_on: row_embeddings
-  more_similar_than: {}
+  row_triplet_evaluation: {}
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
   cell_similarity_search: {}
