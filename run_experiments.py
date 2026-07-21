@@ -86,11 +86,20 @@ def _build_jobs(run_cfg, project_root: Path, results_dir: str, conda_env_filter:
     # Global task whitelist — applies to all approaches unless overridden per-approach.
     global_task_whitelist = list(run_cfg.tasks) if "tasks" in run_cfg else None
 
-    # Global task_params: flat key-value overrides applied to every task in this run.
+    # Global task_params supports two shapes, distinguished by key: a key matching a known
+    # task name (any configs/task/<name>.yaml stem) scopes its dict value to just that task,
+    # across all approaches; every other key is a flat field applied to every task in the run.
     # Lower priority than per-approach task_params; do not affect the task-param slug.
-    global_task_params = (
+    known_task_names = {p.stem for p in (configs_dir / "task").glob("*.yaml")}
+    global_task_params_raw = (
         OmegaConf.to_container(run_cfg.task_params) if "task_params" in run_cfg else {}
     )
+    global_task_params_flat = {
+        k: v for k, v in global_task_params_raw.items() if k not in known_task_names
+    }
+    global_task_params_by_task = {
+        k: v for k, v in global_task_params_raw.items() if k in known_task_names
+    }
 
     jobs = []
     for approach_entry in run_cfg.approaches:
@@ -142,8 +151,10 @@ def _build_jobs(run_cfg, project_root: Path, results_dir: str, conda_env_filter:
                 if k in task_defaults:
                     task_defaults[k] = v
 
-            # Global task_params from run config (applies to all tasks uniformly).
-            task_defaults.update(global_task_params)
+            # Global task_params from run config: flat keys apply to all tasks uniformly;
+            # a key matching this task's name applies only to it.
+            task_defaults.update(global_task_params_flat)
+            task_defaults.update(global_task_params_by_task.get(task_name, {}))
 
             # Per-task run overrides (highest priority, override even the above).
             # Captured separately so they can drive the task-param slug in the output path.

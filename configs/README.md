@@ -110,10 +110,13 @@ tasks:
   - row_similarity_search
   - predictive_ml
 
-# Run-level task_params: applied to every task across all approaches.
-# Lower priority than per-approach task_params.
+# Run-level task_params: a flat key applies to every task across all approaches; a key that
+# matches a task name (any configs/task/<name>.yaml stem) scopes its dict value to just that
+# task, across all approaches that run it. Lower priority than per-approach task_params.
 task_params:
   max_queries: 100        # e.g. limit queries for a quick smoke-test run
+  nl2cell2column_mapping: # scoped to just this task, across all approaches
+    force_embed_corpus: true
 
 approaches:
   - name: sentence_transformer
