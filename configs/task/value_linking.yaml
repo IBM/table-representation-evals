@@ -1,7 +1,7 @@
-# Task configuration for NL2Cell2Column Mapping benchmark
+# Task configuration for the Value Linking benchmark
 # Uses cell embeddings to identify relevant columns for text-to-SQL queries
 
-task_name: nl2cell2column_mapping
+task_name: value_linking
 
 elo_metric: "mean_mrr"
 

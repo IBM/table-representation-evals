@@ -8,8 +8,8 @@ approaches:
       - column_similarity_search
       - column_type_annotation
       - cell_task
-      - nl2column_mapping
-      - nl2cell2column_mapping
+      - schema_linking
+      - value_linking
       - table_retrieval
       - predictive_ml
     task_datasets:
@@ -31,7 +31,7 @@ approaches:
         test_case_limit: 5
       column_type_annotation:
         test_case_limit: 5
-      nl2column_mapping:
+      schema_linking:
         max_queries: 5
-      nl2cell2column_mapping:
+      value_linking:
         max_queries: 5

@@ -5,7 +5,7 @@ Uses the [CLS] hidden state from the TUTA backbone as the table-level
 embedding.  The CLS token is trained via the TCR (Table Context Retrieval)
 objective to attend over cell representations and encode global table context.
 
-For query embeddings (NL2column / table retrieval tasks), the query string
+For query embeddings (schema linking / table retrieval tasks), the query string
 is encoded as a single-cell table and the CLS hidden state is returned.
 
 Output: 768-dim vector.

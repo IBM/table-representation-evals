@@ -1,6 +1,6 @@
 # BIRD Schema Linking Benchmarks
 
-Three benchmark files derived from the BIRD training set (9,428 queries), each targeting a different schema linking capability. All files use the same JSON format and are consumed by the `nl2column_mapping` and `nl2cell2column_mapping` tasks.
+Three benchmark files derived from the BIRD training set (9,428 queries), each targeting a different schema linking capability. All files use the same JSON format and are consumed by the `schema_linking` and `value_linking` tasks.
 
 ## Benchmark files
 

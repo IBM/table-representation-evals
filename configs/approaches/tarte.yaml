@@ -13,7 +13,7 @@ layer_index: "all"
 # Number of rows to sample when computing column embeddings.
 n_sample_rows_for_column_embeddings: 50
 
-# nl2column_mapping and nl2cell2column_mapping are excluded because, while they don't
+# schema_linking and value_linking are excluded because, while they don't
 # call create_query_embedding() directly (they embed the NL query text via
 # column/cell embedding components), TARTE's schema-aware FastText+transformer
 # pipeline isn't designed to embed open-ended natural-language query strings.

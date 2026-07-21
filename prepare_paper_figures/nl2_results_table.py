@@ -4,8 +4,8 @@ from pathlib import Path
 METRIC = "mean_mrr"
 
 TASK_LABEL_TITLE = {
-    "column_mapping": "NL-to-Column Mapping",
-    "cell2column_mapping": "NL-to-Cell-to-Column Mapping",
+    "column_mapping": "Schema Linking",
+    "cell2column_mapping": "Value Linking",
 }
 
 

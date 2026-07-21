@@ -1,5 +1,5 @@
 """
-NL-to-Column Mapping Benchmark for Text2SQL (Concept Mapping)
+Schema Linking Benchmark for Text2SQL (Concept Mapping)
 
 This benchmark evaluates how well column embeddings can identify relevant columns
 for SQL query generation from natural language questions. It uses the BIRD benchmark
@@ -54,7 +54,7 @@ def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
     embedding_model_safe = embedding_model.replace("/", "_").replace(":", "_")
     cache_key = f"{approach_name}_{embedding_model_safe}_{dataset_name}"
     
-    qdrant_path = Path(cfg.cache_dir) / "qdrant_storage" / f"qdrant_nl2column_{cache_key}"
+    qdrant_path = Path(cfg.cache_dir) / "qdrant_storage" / f"qdrant_schema_linking_{cache_key}"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
@@ -65,7 +65,7 @@ def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
 def cleanup_stale_collection_dirs(qdrant_path: Path) -> None:
     """Best-effort removal of '.stale-*' collection dirs left behind by a previous run.
 
-    These are collection directories renamed aside (see run_nl2column_mapping_benchmark) instead
+    These are collection directories renamed aside (see run_schema_linking_benchmark) instead
     of deleted in place, since cache/qdrant_storage lives on NFS where Qdrant's local segment
     files can stay busy well past delete_collection() returning. By the time a later run calls
     this, enough time has passed that the files are no longer busy.
@@ -82,7 +82,7 @@ def cleanup_stale_collection_dirs(qdrant_path: Path) -> None:
 
 
 def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
-    """Load the BIRD benchmark data for NL-to-column mapping."""
+    """Load the BIRD benchmark data for schema linking."""
     bird_path_override = cfg.dataset.get("bird_path", None)
     bird_path = Path(bird_path_override) if bird_path_override else Path(cfg.cache_dir) / "datasets" / "bird"
 
@@ -259,13 +259,13 @@ def create_qdrant_collection_for_database(
 
 
 @monitor_resources()
-def run_nl2column_mapping_benchmark(
+def run_schema_linking_benchmark(
     cfg: DictConfig,
     column_embedding_component: ColumnEmbeddingInterface,
     databases_path: Path,
     queries: List[Dict]
 ) -> List[Dict]:
-    """Run the NL-to-column mapping benchmark using Qdrant for ANN search."""
+    """Run the schema linking benchmark using Qdrant for ANN search."""
     
     # Setup Qdrant client
     client, qdrant_path = get_qdrant_client(cfg)
@@ -436,8 +436,8 @@ def compute_aggregate_metrics(results: List[Dict]) -> Dict[str, float]:
 
 
 def main(cfg: DictConfig):
-    """Main entry point for the NL-to-column mapping benchmark."""
-    logger.info("Started run_NL2column_mapping_benchmark")
+    """Main entry point for the schema linking benchmark."""
+    logger.info("Started run_schema_linking_benchmark")
     logger.debug(f"Received cfg:")
     logger.debug(cfg)
     multiprocessing.set_start_method("spawn", force=True)
@@ -485,7 +485,7 @@ def main(cfg: DictConfig):
     )
     
     # Run benchmark
-    all_results, resource_metrics_task = run_nl2column_mapping_benchmark(
+    all_results, resource_metrics_task = run_schema_linking_benchmark(
         cfg=cfg,
         column_embedding_component=column_embedding_component,
         databases_path=databases_path,

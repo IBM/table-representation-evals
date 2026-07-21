@@ -19,7 +19,7 @@ Multi-env runs:
   configs/approaches/<name>.yaml), the orchestrator automatically dispatches one
   subprocess per env via `conda run -n <env>`. No manual env switching needed:
 
-    python run_experiments.py schema_linking   # handles all envs automatically
+    python run_experiments.py schema_and_value_linking   # handles all envs automatically
 
 Usage (recommended — works from any env):
     bash run.sh <run_config_name>

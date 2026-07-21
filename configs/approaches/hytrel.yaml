@@ -43,8 +43,8 @@ supported_tasks:
   table_retrieval: {}
   table_shuffling: {}
   table_type_detection: {}
-  nl2column_mapping: {}
-  nl2cell2column_mapping: {}
+  schema_linking: {}
+  value_linking: {}
   column_type_annotation: {}
   predictive_ml:
     run_task_based_on: row_embeddings

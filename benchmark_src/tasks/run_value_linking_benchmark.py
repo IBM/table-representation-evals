@@ -1,5 +1,5 @@
 """
-Cell-to-Column Mapping Benchmark for Text2SQL
+Value Linking Benchmark for Text2SQL
 
 Given a natural language query, uses cell embeddings to retrieve the database
 columns most relevant for answering it. Supports both exact matching
@@ -39,28 +39,41 @@ from benchmark_src.utils.resource_monitoring import monitor_resources, save_reso
 logger = logging.getLogger(__name__)
 
 
-def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
-    """Initialize Qdrant client with persistent storage."""
+def get_qdrant_root_path(cfg: DictConfig) -> Path:
+    """Root storage directory shared by datasets that index the same underlying databases
+    (e.g. bird_cell_exact and bird_cell_fuzzy, via qdrant_cache_key). Each database gets its
+    own subdirectory under this root -- see get_qdrant_client_for_database.
+    """
     approach_name = cfg.approach.approach_name
     embedding_model = cfg.approach.get("embedding_model", "default")
-    # Use qdrant_cache_key from dataset config when set, so datasets that index the same
-    # underlying databases (e.g. bird_cell_exact and bird_cell_fuzzy) share one Qdrant store.
     qdrant_dataset = cfg.dataset.get("qdrant_cache_key", cfg.dataset_name)
 
     embedding_model_safe = embedding_model.replace("/", "_").replace(":", "_")
     cache_key = f"{approach_name}_{embedding_model_safe}_{qdrant_dataset}"
 
-    qdrant_path = Path(cfg.cache_dir) / "qdrant_storage" / f"qdrant_cell_to_column_{cache_key}"
-    qdrant_path.mkdir(parents=True, exist_ok=True)
-    client = QdrantClient(path=str(qdrant_path))
-    logger.info(f"Initialized Qdrant client at {qdrant_path}")
-    return client, qdrant_path
+    return Path(cfg.cache_dir) / "qdrant_storage" / f"qdrant_value_linking_{cache_key}"
+
+
+def get_qdrant_client_for_database(qdrant_root: Path, db_id: str) -> Tuple[QdrantClient, Path]:
+    """Open a Qdrant client scoped to a single database's own storage directory.
+
+    Qdrant's local-mode client eagerly opens a backing SQLite file for every collection
+    already present in a storage directory as soon as it's instantiated, and keeps all of
+    them open for the client's lifetime. Giving every database its own directory (instead of
+    one shared directory holding one collection per database) bounds each client to a single
+    collection, so opening/closing a client per database doesn't accumulate open file handles
+    across the whole run.
+    """
+    db_qdrant_path = qdrant_root / db_id
+    db_qdrant_path.mkdir(parents=True, exist_ok=True)
+    client = QdrantClient(path=str(db_qdrant_path))
+    return client, db_qdrant_path
 
 
 def cleanup_stale_collection_dirs(qdrant_path: Path) -> None:
     """Best-effort removal of '.stale-*' collection dirs left behind by a previous run.
 
-    These are collection directories renamed aside (see run_cell_to_column_mapping_benchmark)
+    These are collection directories renamed aside (see run_value_linking_benchmark)
     instead of deleted in place, since cache/qdrant_storage lives on NFS where Qdrant's local
     segment files can stay busy well past delete_collection() returning. By the time a later
     run calls this, enough time has passed that the files are no longer busy.
@@ -77,7 +90,7 @@ def cleanup_stale_collection_dirs(qdrant_path: Path) -> None:
 
 
 def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
-    """Load the BIRD benchmark data for cell-to-column mapping."""
+    """Load the BIRD benchmark data for value linking."""
     bird_path_override = cfg.dataset.get("bird_path", None)
     bird_path = Path(bird_path_override) if bird_path_override else Path(cfg.cache_dir) / "datasets" / "bird"
 
@@ -351,16 +364,19 @@ def create_qdrant_collection_for_database(
                     if len(points) >= 1000:
                         client.upsert(collection_name=collection_name, points=points)
                         points = []
-                
+
                 del values_df, cell_embeddings
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                gc.collect()
-                
+
             except Exception as e:
                 logger.error(f"Error embedding column {table_column}: {e}")
                 continue
-    
+
+        # torch.cuda.empty_cache() forces a CUDA sync; doing it once per table bounds that
+        # cost independent of column count.
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
     # Upload remaining points
     if points:
         client.upsert(collection_name=collection_name, points=points)
@@ -370,20 +386,19 @@ def create_qdrant_collection_for_database(
 
 
 @monitor_resources()
-def run_cell_to_column_mapping_benchmark(
+def run_value_linking_benchmark(
     cfg: DictConfig,
     cell_embedding_component: CellEmbeddingInterface,
     databases_path: Path,
     queries: List[Dict]
 ) -> List[Dict]:
-    """Run the cell-to-column mapping benchmark using Qdrant for ANN search."""
-    
-    # Setup Qdrant client
-    client, qdrant_path = get_qdrant_client(cfg)
-    cleanup_stale_collection_dirs(qdrant_path)
+    """Run the value linking benchmark using Qdrant for ANN search."""
+
+    qdrant_root = get_qdrant_root_path(cfg)
 
     results = []
     db_collections = {}  # Track which collections have been created
+    client: Optional[QdrantClient] = None  # Scoped to the database currently being processed
     
     # Limit number of queries if specified
     max_queries = cfg.task.get("max_queries", len(queries))
@@ -412,7 +427,15 @@ def run_cell_to_column_mapping_benchmark(
             if not db_path.exists():
                 logger.warning(f"Database not found: {db_path}")
                 continue
-            
+
+            # queries are sorted by db_id (see load_benchmark_data), so once we move on to a
+            # new db_id we're done with the previous one -- close its client before opening
+            # the next so at most one database's collection is ever open at a time.
+            if client is not None:
+                client.close()
+            client, qdrant_path = get_qdrant_client_for_database(qdrant_root, db_id)
+            cleanup_stale_collection_dirs(qdrant_path)
+
             collection_name = f"bird_{db_id}"
             collection_dir = qdrant_path / "collection" / collection_name
             completed_file_path = collection_dir / "COMPLETED"
@@ -543,7 +566,10 @@ def run_cell_to_column_mapping_benchmark(
             "num_retrieved_columns": len(ranked_columns),
             **metrics
         })
-    
+
+    if client is not None:
+        client.close()
+
     return results
 
 
@@ -568,8 +594,8 @@ def compute_aggregate_metrics(results: List[Dict]) -> Dict[str, float]:
 
 
 def main(cfg: DictConfig):
-    """Main entry point for the cell-to-column mapping benchmark."""
-    logger.info("Started run_cell_to_column_mapping_benchmark")
+    """Main entry point for the value linking benchmark."""
+    logger.info("Started run_value_linking_benchmark")
     logger.debug(f"Received cfg:")
     logger.debug(cfg)
     multiprocessing.set_start_method("spawn", force=True)
@@ -602,7 +628,7 @@ def main(cfg: DictConfig):
     )
     
     # Run benchmark
-    all_results, resource_metrics_task = run_cell_to_column_mapping_benchmark(
+    all_results, resource_metrics_task = run_value_linking_benchmark(
         cfg=cfg,
         cell_embedding_component=cell_embedding_component,
         databases_path=databases_path,

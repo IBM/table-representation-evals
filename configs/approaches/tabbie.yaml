@@ -42,8 +42,8 @@ supported_tasks:
     run_similarity_search_based_on: column_embeddings
   cell_task: {}
   column_type_annotation: {}
-  nl2column_mapping: {}
-  nl2cell2column_mapping: {}
+  schema_linking: {}
+  value_linking: {}
   table_retrieval: {}
   predictive_ml:
     run_task_based_on: row_embeddings

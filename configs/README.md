@@ -115,7 +115,7 @@ tasks:
 # task, across all approaches that run it. Lower priority than per-approach task_params.
 task_params:
   max_queries: 100        # e.g. limit queries for a quick smoke-test run
-  nl2cell2column_mapping: # scoped to just this task, across all approaches
+  value_linking: # scoped to just this task, across all approaches
     force_embed_corpus: true
 
 approaches:
@@ -180,10 +180,10 @@ Use the run-level `tasks` key to restrict every approach in the file to a task s
 without repeating the whitelist on each entry:
 
 ```yaml
-benchmark_output_dir: schema_linking_experiments
+benchmark_output_dir: schema_and_value_linking_experiments
 tasks:
-  - nl2column_mapping
-  - nl2cell2column_mapping
+  - schema_linking
+  - value_linking
 
 approaches:
   - name: sentence_transformer

@@ -1,8 +1,8 @@
-# Task configuration for NL-to-Column Mapping benchmark (Concept Mapping)
+# Task configuration for the Schema Linking benchmark (Concept Mapping)
 # Uses column embeddings to identify relevant columns for text-to-SQL queries
 # Based on BIRD's pure_concept_mapping_queries.json
 
-task_name: nl2column_mapping
+task_name: schema_linking
 
 elo_metric: "mean_mrr"
 

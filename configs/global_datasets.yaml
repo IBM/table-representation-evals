@@ -42,15 +42,15 @@ cell_task_datasets:
   - s2abel@dirty
 
 ####################################
-###### NL2Column Mapping (Concept Mapping)
+###### Schema Linking (Concept Mapping)
 ####################################
-nl2column_mapping_datasets:
+schema_linking_datasets:
   - bird_column_schema
 
 ####################################
-###### NL2Cell2Column Mapping (Cell Value Matching)
+###### Value Linking (Cell Value Matching)
 ####################################
-nl2cell2column_mapping_datasets:
+value_linking_datasets:
   - bird_cell_exact
   - bird_cell_fuzzy
 

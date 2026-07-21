@@ -72,12 +72,12 @@ def run_single(cfg):
         elif cfg.task.task_name == "cell_task":
             from benchmark_src.tasks import run_cell_semantic_retrieval_benchmark
             run_cell_semantic_retrieval_benchmark.main(cfg)
-        elif cfg.task.task_name == "nl2column_mapping":
-            from benchmark_src.tasks import run_NL2column_mapping_benchmark
-            run_NL2column_mapping_benchmark.main(cfg)
-        elif cfg.task.task_name in ("cell_to_column_mapping", "nl2cell2column_mapping"):
-            from benchmark_src.tasks import run_NL2cell2column_mapping_benchmark
-            run_NL2cell2column_mapping_benchmark.main(cfg)
+        elif cfg.task.task_name == "schema_linking":
+            from benchmark_src.tasks import run_schema_linking_benchmark
+            run_schema_linking_benchmark.main(cfg)
+        elif cfg.task.task_name == "value_linking":
+            from benchmark_src.tasks import run_value_linking_benchmark
+            run_value_linking_benchmark.main(cfg)
         else:
             logger.error(f"Unknown task: {cfg.task.task_name}")
     except Exception as e:

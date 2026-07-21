@@ -361,13 +361,13 @@ def main(
 
     ##############################################################################################
     #
-    #     NL-to-Column / NL-to-Cell-to-Column Mapping (Schema Linking)
+    #     Schema Linking / Value Linking
     #
     ##############################################################################################
     if NL2_PLOTS:
         for task_name, task_label, barplot_fn in [
-            ("nl2column_mapping", "column_mapping", nl2_bar_plot.create_barplot_single_dataset),
-            ("nl2cell2column_mapping", "cell2column_mapping", nl2_bar_plot.create_barplot_grouped),
+            ("schema_linking", "column_mapping", nl2_bar_plot.create_barplot_single_dataset),
+            ("value_linking", "cell2column_mapping", nl2_bar_plot.create_barplot_grouped),
         ]:
             df = all_results_df[all_results_df['task'] == task_name].copy()
             df = df.dropna(axis=1, how="all")
