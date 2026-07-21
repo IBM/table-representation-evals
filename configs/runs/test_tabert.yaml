@@ -7,7 +7,7 @@ approaches:
       - more_similar_than
       - column_similarity_search
       - column_type_annotation
-      - cell_task
+      - cell_similarity_search
       - schema_linking
       - value_linking
       - table_retrieval

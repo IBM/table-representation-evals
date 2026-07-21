@@ -50,7 +50,7 @@ max_rows: 50
 column_embedding_row_limit: 500
 
 supported_tasks:
-  cell_task: {}
+  cell_similarity_search: {}
   row_similarity_search:
     run_similarity_search_based_on: row_embeddings
   more_similar_than: {}

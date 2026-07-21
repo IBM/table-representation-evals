@@ -69,9 +69,9 @@ def run_single(cfg):
         elif cfg.task.task_name == "table_type_detection":
             from benchmark_src.tasks import run_table_type_detection_benchmark
             run_table_type_detection_benchmark.main(cfg)
-        elif cfg.task.task_name == "cell_task":
-            from benchmark_src.tasks import run_cell_semantic_retrieval_benchmark
-            run_cell_semantic_retrieval_benchmark.main(cfg)
+        elif cfg.task.task_name == "cell_similarity_search":
+            from benchmark_src.tasks import run_cell_similarity_search_benchmark
+            run_cell_similarity_search_benchmark.main(cfg)
         elif cfg.task.task_name == "schema_linking":
             from benchmark_src.tasks import run_schema_linking_benchmark
             run_schema_linking_benchmark.main(cfg)

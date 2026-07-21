@@ -4,20 +4,20 @@ approaches:
   - name: tarte
     tasks:
       - column_similarity_search
-      - cell_task
+      - cell_similarity_search
       - column_type_annotation
       - table_retrieval
     task_datasets:
       column_similarity_search:
         - valentine
-      cell_task:
+      cell_similarity_search:
         - s2abel@clean
       column_type_annotation:
         - sotab
     task_params:
       column_similarity_search:
         test_case_limit: 5
-      cell_task:
+      cell_similarity_search:
         test_case_limit: 5
       column_type_annotation:
         test_case_limit: 5

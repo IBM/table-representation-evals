@@ -14,7 +14,7 @@ supported_tasks:
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
   column_type_annotation: {}
-  cell_task: {}
+  cell_similarity_search: {}
   table_retrieval: {}
   predictive_ml:
     run_task_based_on: row_embeddings

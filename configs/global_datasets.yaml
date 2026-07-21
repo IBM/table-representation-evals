@@ -34,10 +34,10 @@ column_similarity_search_datasets: # comment out the datasets you do not want to
   - autojoin
   - nextia
 
-#################################### 
-###### Cell Level Task
-#################################### 
-cell_task_datasets:
+####################################
+###### Cell Similarity Search
+####################################
+cell_similarity_search_datasets:
   - s2abel@clean
   - s2abel@dirty
 

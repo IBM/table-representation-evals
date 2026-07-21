@@ -12,7 +12,7 @@ task_metrics = {
     "predictive_ml_binary":     ("predictive_ml", "XGBoost_roc_auc_score (↑)"),
     "column_similarity_search": "MRR",
     "table_retrieval": "MRR",
-    "cell_task": "accuracy",
+    "cell_similarity_search": "accuracy",
 }
 
 TASK_NAME_MAP = {
@@ -24,7 +24,7 @@ TASK_NAME_MAP = {
     "predictive_ml_multiclass": r"\makecell{Tabular \\ Prediction\\ (Multiclass)}",
     "column_similarity_search": r"\makecell{Column \\ Similarity Search \\ (MRR)}",
     "table_retrieval": r"\makecell{Table \\ Retrieval \\ (MRR)}",
-    "cell_task": r"\makecell{Cell Level\\ Retrieval \\ (Accuracy)}",
+    "cell_similarity_search": r"\makecell{Cell \\ Similarity Search \\ (Accuracy)}",
     "Overall": "Overall",
 }
 

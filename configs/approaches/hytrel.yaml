@@ -39,7 +39,7 @@ supported_tasks:
   more_similar_than: {}
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
-  cell_task: {}
+  cell_similarity_search: {}
   table_retrieval: {}
   table_shuffling: {}
   table_type_detection: {}

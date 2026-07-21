@@ -7,7 +7,7 @@ approaches:
       - more_similar_than
       - column_similarity_search
       - predictive_ml
-      - cell_task
+      - cell_similarity_search
     task_datasets:
       row_similarity_search:
         - Amazon-Google
@@ -20,7 +20,7 @@ approaches:
         - credit-g
         - anneal
         - healthcare_insurance_expenses
-      cell_task:
+      cell_similarity_search:
         - s2abel@clean
     task_params:
       column_similarity_search:

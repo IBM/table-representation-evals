@@ -6,7 +6,7 @@ approaches:
       - row_similarity_search
       - more_similar_than
       - predictive_ml
-      - cell_task
+      - cell_similarity_search
       - table_retrieval
       - column_similarity_search
       - column_type_annotation
@@ -19,7 +19,7 @@ approaches:
         - credit-g
         - anneal
         - healthcare_insurance_expenses
-      cell_task:
+      cell_similarity_search:
         - s2abel@clean
       column_similarity_search:
         - valentine

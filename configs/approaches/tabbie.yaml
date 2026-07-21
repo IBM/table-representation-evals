@@ -40,7 +40,7 @@ supported_tasks:
   more_similar_than: {}
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
-  cell_task: {}
+  cell_similarity_search: {}
   column_type_annotation: {}
   schema_linking: {}
   value_linking: {}

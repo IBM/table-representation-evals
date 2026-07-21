@@ -213,9 +213,9 @@ def main(
     ##############################################################################################
     if CELL_SIM_PLOTS:
         # Filter data for the current task
-        df = all_results_df[all_results_df['task'] == "cell_task"].copy()
+        df = all_results_df[all_results_df['task'] == "cell_similarity_search"].copy()
         if df.empty:
-            print("No cell_task results in this results folder, skipping.")
+            print("No cell_similarity_search results in this results folder, skipping.")
         else:
             # ------------------------------------------------
             # Dataset-level bar plot
