@@ -1,0 +1,12 @@
+approach_name: tfidf
+conda_env: benchmark_env
+module_path: "approaches/benchmark_approaches_src/tfidf"
+class_name: TFIDFTableEmbedder
+
+n_features: 32768
+table_row_limit: -1      # -1 for no limit
+
+supported_tasks:
+  table_retrieval: {}
+  table_shuffling: {}
+  table_type_detection: {}
