@@ -8,6 +8,7 @@ approaches:
       - predictive_ml
       - cell_similarity_search
       - table_retrieval
+      - table_similarity_search
       - column_similarity_search
       - column_type_annotation
     task_datasets:

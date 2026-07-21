@@ -11,7 +11,8 @@ task_metrics = {
     "predictive_ml_multiclass": ("predictive_ml", "XGBoost_log_loss (↓)"),
     "predictive_ml_binary":     ("predictive_ml", "XGBoost_roc_auc_score (↑)"),
     "column_similarity_search": "MRR",
-    "table_retrieval": "MRR",
+    "table_retrieval": "MRR@10",
+    "table_similarity_search": "MRR",
     "cell_similarity_search": "accuracy",
 }
 
@@ -23,7 +24,8 @@ TASK_NAME_MAP = {
     "predictive_ml_binary": r"\makecell{Tabular \\ Prediction\\ (Binary)}",
     "predictive_ml_multiclass": r"\makecell{Tabular \\ Prediction\\ (Multiclass)}",
     "column_similarity_search": r"\makecell{Column \\ Similarity Search \\ (MRR)}",
-    "table_retrieval": r"\makecell{Table \\ Retrieval \\ (MRR)}",
+    "table_retrieval": r"\makecell{Table \\ Retrieval \\ (MRR@10)}",
+    "table_similarity_search": r"\makecell{Table \\ Similarity Search \\ (MRR)}",
     "cell_similarity_search": r"\makecell{Cell \\ Similarity Search \\ (Accuracy)}",
     "Overall": "Overall",
 }

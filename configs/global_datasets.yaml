@@ -58,7 +58,6 @@ value_linking_datasets:
 ###### Table Retrieval
 ####################################
 table_retrieval_datasets:
-  - gitTables
   - fetaqa # 2003 tables, 2003 queries
   - tabfact # 1695 tables, 12779 queries
   - ottqa # 789 tables, 2114 queries
@@ -66,6 +65,12 @@ table_retrieval_datasets:
   - spider-validation # 81 tables, 1034 queries
   - spider-test # 180 tables, 2147 queries
   - bird-validation # 75 tables, 1534 queries
+
+####################################
+###### Table Similarity Search
+####################################
+table_similarity_search_datasets:
+  - gitTables
 
 ####################################
 ###### Table Shuffling

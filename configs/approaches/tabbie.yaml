@@ -45,6 +45,7 @@ supported_tasks:
   schema_linking: {}
   value_linking: {}
   table_retrieval: {}
+  table_similarity_search: {}
   predictive_ml:
     run_task_based_on: row_embeddings
     exclude_datasets:

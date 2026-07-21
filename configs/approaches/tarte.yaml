@@ -17,9 +17,10 @@ n_sample_rows_for_column_embeddings: 50
 # call create_query_embedding() directly (they embed the NL query text via
 # column/cell embedding components), TARTE's schema-aware FastText+transformer
 # pipeline isn't designed to embed open-ended natural-language query strings.
-# table_retrieval is supported despite create_query_embedding() being
-# unimplemented: the only enabled dataset (gitTables) is routed to a
-# table-to-table retrieval path that only uses create_table_embedding().
+# table_retrieval (TARGET-based, NL query → table) is excluded for the same
+# reason: it needs create_query_embedding(), which is unimplemented.
+# table_similarity_search (gitTables) is supported since it only uses
+# create_table_embedding() for its table-to-table retrieval.
 
 supported_tasks:
   row_similarity_search:
@@ -33,7 +34,7 @@ supported_tasks:
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
   column_type_annotation: {}
-  table_retrieval: {}
+  table_similarity_search: {}
   cell_similarity_search: {}
   predictive_ml:
     run_task_based_on: row_embeddings

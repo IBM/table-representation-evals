@@ -1,0 +1,2 @@
+task_name: table_similarity_search
+elo_metric: "MRR"

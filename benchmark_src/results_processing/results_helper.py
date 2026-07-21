@@ -27,12 +27,12 @@ performance_cols = {
     'In top-3 [%]': 'higher_is_better',
     'In top-5 [%]': 'higher_is_better',
     'In top-10 [%]': 'higher_is_better',
-    'MRR': 'higher_is_better',  # mean reciprocal rank
+    'MRR': 'higher_is_better',  # mean reciprocal rank (also used by table_similarity_search)
     'MAP': 'higher_is_better',  # mean average precision
     'Recall@1': 'higher_is_better',
     # nl2 schema linking
     'mean_mrr': 'higher_is_better',
-    # table retrieval (TARGET-based datasets), one entry per configured top_k
+    # table_retrieval (TARGET-based datasets), one entry per configured top_k
     'MRR@1': 'higher_is_better',
     'MRR@3': 'higher_is_better',
     'MRR@5': 'higher_is_better',

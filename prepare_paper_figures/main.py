@@ -15,7 +15,7 @@ import col_sim_results_table, col_sim_bar_plot_per_dataset
 import tabular_prediction_result_tables, tabular_prediction_barchart_binary, tabular_prediction_barchart_multiclass, tabular_prediction_barchart_regression, tablular_prediction_elo_table
 import cell_bar_plot, cell_bar_plot_stacked, cell_results_table, quadrant_chart_cell
 import triplet_row_results_table, triplet_row_bar_plot_original, triplet_row_bar_plot_difficulty
-import table_retrieval_tables
+import table_similarity_search_tables
 import retrieval_main_table, retrieval_md_vs_csv_table, retrieval_per_dataset_bars, retrieval_recall_line, retrieval_rowlimit_bars
 import shuffling_ecb_bars, shuffling_ecb_table, shuffling_magnitude_table, shuffling_main_table
 import shuffling_perturbation_table, shuffling_row_col_scatter, shuffling_size_table, shuffling_variation_heatmap
@@ -39,6 +39,7 @@ COL_SIM_PLOTS = True
 TABULAR_PREDICTION_PLOTS = True
 CELL_SIM_PLOTS = True
 TABLE_RETRIEVAL_PLOTS = True
+TABLE_SIMILARITY_SEARCH_PLOTS = True
 TABLE_SHUFFLING_PLOTS = True
 TABLE_TYPE_DETECTION_PLOTS = True
 SERIALIZATION_DELTA_PLOTS = True
@@ -236,7 +237,7 @@ def main(
     ##############################################################################################
     #
     #     Table Retrieval
-    # 
+    #
     ##############################################################################################
     if TABLE_RETRIEVAL_PLOTS:
         # Filter data for the current task
@@ -246,18 +247,31 @@ def main(
         if df.empty:
             print("No table_retrieval results in this results folder, skipping.")
         else:
-            # results table for main text
-            table_retrieval_tables.create_results_table_small(df, plots_folder)
-
-            # results table for appendix
-            #table_retrieval_tables.create_results_table_appendix(df, plots_folder)
-
             # TARGET-based (multi-topk) retrieval tables/plots
             retrieval_main_table.create_table(df, plots_folder)
             retrieval_md_vs_csv_table.create_table(df, plots_folder)
             retrieval_per_dataset_bars.create_barplot(df, plots_folder)
             retrieval_recall_line.create_lineplot(df, plots_folder)
             retrieval_rowlimit_bars.create_barplot(df, plots_folder)
+
+    ##############################################################################################
+    #
+    #     Table Similarity Search
+    #
+    ##############################################################################################
+    if TABLE_SIMILARITY_SEARCH_PLOTS:
+        # Filter data for the current task
+        df = all_results_df[all_results_df['task'] == "table_similarity_search"].copy()
+        # drop columns with all nans (result metrics from other tasks will be nan)
+        df = df.dropna(axis=1, how="all")
+        if df.empty:
+            print("No table_similarity_search results in this results folder, skipping.")
+        else:
+            # results table for main text
+            table_similarity_search_tables.create_results_table_small(df, plots_folder)
+
+            # results table for appendix
+            #table_similarity_search_tables.create_results_table_appendix(df, plots_folder)
 
     ##############################################################################################
     #

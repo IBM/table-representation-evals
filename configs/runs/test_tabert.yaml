@@ -11,6 +11,7 @@ approaches:
       - schema_linking
       - value_linking
       - table_retrieval
+      - table_similarity_search
       - predictive_ml
     task_datasets:
       row_similarity_search:

@@ -16,6 +16,7 @@ supported_tasks:
   column_type_annotation: {}
   cell_similarity_search: {}
   table_retrieval: {}
+  table_similarity_search: {}
   predictive_ml:
     run_task_based_on: row_embeddings
   clustering: {}

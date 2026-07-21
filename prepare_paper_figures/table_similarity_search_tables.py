@@ -33,7 +33,7 @@ def create_results_table_small(df: pd.DataFrame, plots_folder: Path):
     df_100 = df_100.sort_index()
 
     # Write LaTeX
-    with open(plots_folder / "table_retrieval_large.tex", "w") as f:
+    with open(plots_folder / "table_similarity_search.tex", "w") as f:
         f.write("\\begin{table}[t]\n")
         f.write("\\centering\n")
         f.write("\\resizebox{\\textwidth}{!}{%\n")
@@ -79,6 +79,6 @@ def create_results_table_small(df: pd.DataFrame, plots_folder: Path):
         f.write("\\end{tabular}%\n")
         f.write("}\n")
 
-        f.write("\\caption{Table Retrieval Results comparing schema-only vs schema+rows.}\n")
-        f.write("\\label{tab:table_retrieval_gitTables}\n")
+        f.write("\\caption{Table Similarity Search Results comparing schema-only vs schema+rows.}\n")
+        f.write("\\label{tab:table_similarity_search}\n")
         f.write("\\end{table}\n")

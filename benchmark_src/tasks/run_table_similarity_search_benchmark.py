@@ -192,7 +192,7 @@ def run_task(datalake_folders, table_embedding_component):
     return results, results_per_datalake
 
 def main(cfg: DictConfig):
-    logger.info(f"Started run_table_retrieval_gittables")
+    logger.info(f"Started run_table_similarity_search_benchmark")
 
     # instantiate the embedding approach class
     embedding_approach_class = framework.get_approach_class(cfg)
@@ -219,4 +219,4 @@ def main(cfg: DictConfig):
     with open(Path(cfg.output_dir) / "results_per_datalake.json", "w") as file:
             json.dump(results_per_datalake, file, indent=2)
 
-    print(f"Finished run_table_retrieval_gittables with results: {result_metrics}")
+    print(f"Finished run_table_similarity_search_benchmark with results: {result_metrics}")

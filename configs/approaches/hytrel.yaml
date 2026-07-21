@@ -41,6 +41,7 @@ supported_tasks:
     run_similarity_search_based_on: column_embeddings
   cell_similarity_search: {}
   table_retrieval: {}
+  table_similarity_search: {}
   table_shuffling: {}
   table_type_detection: {}
   schema_linking: {}

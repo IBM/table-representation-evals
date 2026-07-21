@@ -8,4 +8,4 @@ approaches:
     params:
       embedding_model: GritLM/GritLM-7B
       table_row_limit: 0  # "Just Schema" variant for the paper's table_retrieval comparison
-    tasks: [table_retrieval]
+    tasks: [table_retrieval, table_similarity_search]

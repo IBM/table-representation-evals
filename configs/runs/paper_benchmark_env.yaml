@@ -11,7 +11,7 @@ approaches:
     params:
       embedding_model: all-MiniLM-L6-v2
       table_row_limit: 0  # "Just Schema" variant for the paper's table_retrieval comparison
-    tasks: [table_retrieval]
+    tasks: [table_retrieval, table_similarity_search]
 
   - name: sentence_transformer
     params:
@@ -22,7 +22,7 @@ approaches:
     params:
       embedding_model: ibm-granite/granite-embedding-english-r2
       table_row_limit: 0  # "Just Schema" variant for the paper's table_retrieval comparison
-    tasks: [table_retrieval]
+    tasks: [table_retrieval, table_similarity_search]
 
   # ── XGBoost baseline ──────────────────────────────────────────────────────
   - name: baseline
