@@ -1,0 +1,223 @@
+{
+    "comment": "Be aware that the defaults might change over time and that additional tasks and metrics will be added",
+    "task_metric_defaults": {
+        "clustering": "silhouette",
+        "column_similarity_search": "MRR",
+        "more_similar_than": "accuracy",
+        "predictive_ml": [
+            "LinearRegression_rmse (↓)",
+            "XGBoost_roc_auc_score (↑)",
+            "XGBoost_log_loss (↓)"
+        ],
+        "row_similarity_search": "In top-1 [%]",
+        "table_retrieval": "MRR@10",
+        "table_shuffling": "TripletAccuracy",
+        "table_type_detection": "XGBoost_accuracy (↑)"
+    },
+    "metric_ranges": {
+        "silhouette": [
+            -1,
+            1
+        ],
+        "MRR_mean": [
+            0,
+            1
+        ],
+        "MAP": [
+            0,
+            1
+        ],
+        "Precision": [
+            0,
+            1
+        ],
+        "Recall": [
+            0,
+            1
+        ],
+        "MRR_std": [
+            0,
+            1
+        ],
+        "MAP_std": [
+            0,
+            1
+        ],
+        "Precision_std": [
+            0,
+            1
+        ],
+        "Recall_std": [
+            0,
+            1
+        ],
+        "total_queries": [
+            0,
+            "∞"
+        ],
+        "MRR@1": [
+            0,
+            1
+        ],
+        "MAP@1": [
+            0,
+            1
+        ],
+        "Recall@1": [
+            0,
+            1
+        ],
+        "Precision@1": [
+            0,
+            1
+        ],
+        "total_overlap@1": [
+            0,
+            "∞"
+        ],
+        "MRR@3": [
+            0,
+            1
+        ],
+        "MAP@3": [
+            0,
+            1
+        ],
+        "Recall@3": [
+            0,
+            1
+        ],
+        "Precision@3": [
+            0,
+            1
+        ],
+        "total_overlap@3": [
+            0,
+            "∞"
+        ],
+        "MRR@5": [
+            0,
+            1
+        ],
+        "MAP@5": [
+            0,
+            1
+        ],
+        "Recall@5": [
+            0,
+            1
+        ],
+        "Precision@5": [
+            0,
+            1
+        ],
+        "total_overlap@5": [
+            0,
+            "∞"
+        ],
+        "MRR@10": [
+            0,
+            1
+        ],
+        "MAP@10": [
+            0,
+            1
+        ],
+        "Recall@10": [
+            0,
+            1
+        ],
+        "Precision@10": [
+            0,
+            1
+        ],
+        "total_overlap@10": [
+            0,
+            "∞"
+        ],
+        "accuracy": [
+            0,
+            1
+        ],
+        "accuracy_easy": [
+            0,
+            1
+        ],
+        "accuracy_medium": [
+            0,
+            1
+        ],
+        "In top-1 [%]": [
+            0,
+            100
+        ],
+        "In top-3 [%]": [
+            0,
+            100
+        ],
+        "In top-5 [%]": [
+            0,
+            100
+        ],
+        "In top-10 [%]": [
+            0,
+            100
+        ],
+        "LinearRegression_rmse": [
+            0,
+            "∞"
+        ],
+        "XGBoost_roc_auc_score": [
+            0,
+            1
+        ],
+        "XGBoost_log_loss": [
+            0,
+            "∞"
+        ],
+        "peak_cpu (%)": [
+            0,
+            "∞"
+        ],
+        "peak_memory (MB)": [
+            0,
+            "∞"
+        ],
+        "execution_time (s)": [
+            0,
+            "\u221e"
+        ],
+        "TripletAccuracy": [
+            0,
+            1
+        ],
+        "Bounded Contrastive Score": [
+            0,
+            1
+        ],
+        "XGBoost_accuracy": [
+            0,
+            1
+        ],
+        "XGBoost_f1_macro": [
+            0,
+            1
+        ],
+        "MLP_accuracy": [
+            0,
+            1
+        ],
+        "MLP_f1_macro": [
+            0,
+            1
+        ],
+        "KNeighbors_accuracy": [
+            0,
+            1
+        ],
+        "KNeighbors_f1_macro": [
+            0,
+            1
+        ]
+    }
+}

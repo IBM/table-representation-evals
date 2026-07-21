@@ -16,6 +16,11 @@ import tabular_prediction_result_tables, tabular_prediction_barchart_binary, tab
 import cell_bar_plot, cell_bar_plot_stacked, cell_results_table, quadrant_chart_cell
 import triplet_row_results_table, triplet_row_bar_plot_original, triplet_row_bar_plot_difficulty
 import table_retrieval_tables
+import retrieval_main_table, retrieval_md_vs_csv_table, retrieval_per_dataset_bars, retrieval_recall_line, retrieval_rowlimit_bars
+import shuffling_ecb_bars, shuffling_ecb_table, shuffling_magnitude_table, shuffling_main_table
+import shuffling_perturbation_table, shuffling_row_col_scatter, shuffling_size_table, shuffling_variation_heatmap
+import ttd_classifier_table
+import serialization_deltas
 import column_type_annotation_bar_plot, column_type_annotation_results_table
 import nl2_bar_plot, nl2_results_table
 
@@ -34,6 +39,9 @@ COL_SIM_PLOTS = True
 TABULAR_PREDICTION_PLOTS = True
 CELL_SIM_PLOTS = True
 TABLE_RETRIEVAL_PLOTS = True
+TABLE_SHUFFLING_PLOTS = True
+TABLE_TYPE_DETECTION_PLOTS = True
+SERIALIZATION_DELTA_PLOTS = True
 CTA_PLOTS = True
 NL2_PLOTS = True
 
@@ -243,6 +251,59 @@ def main(
 
             # results table for appendix
             #table_retrieval_tables.create_results_table_appendix(df, plots_folder)
+
+            # TARGET-based (multi-topk) retrieval tables/plots
+            retrieval_main_table.create_table(df, plots_folder)
+            retrieval_md_vs_csv_table.create_table(df, plots_folder)
+            retrieval_per_dataset_bars.create_barplot(df, plots_folder)
+            retrieval_recall_line.create_lineplot(df, plots_folder)
+            retrieval_rowlimit_bars.create_barplot(df, plots_folder)
+
+    ##############################################################################################
+    #
+    #     Table Shuffling
+    #
+    ##############################################################################################
+    if TABLE_SHUFFLING_PLOTS:
+        # Filter data for the current task
+        df = all_results_df[all_results_df['task'] == "table_shuffling"].copy()
+        # drop columns with all nans (result metrics from other tasks will be nan)
+        df = df.dropna(axis=1, how="all")
+        if df.empty:
+            print("No table_shuffling results in this results folder, skipping.")
+        else:
+            shuffling_ecb_bars.create_barplot(df, plots_folder)
+            shuffling_ecb_table.create_table(df, plots_folder)
+            shuffling_magnitude_table.create_table(df, plots_folder)
+            shuffling_main_table.create_accuracy_table(df, plots_folder)
+            shuffling_main_table.create_bcs_table(df, plots_folder)
+            shuffling_perturbation_table.create_table(df, plots_folder)
+            shuffling_row_col_scatter.create_scatter(df, plots_folder)
+            shuffling_size_table.create_table(df, plots_folder)
+            shuffling_variation_heatmap.create_heatmap(df, plots_folder)
+
+    ##############################################################################################
+    #
+    #     Table Type Detection
+    #
+    ##############################################################################################
+    if TABLE_TYPE_DETECTION_PLOTS:
+        # Filter data for the current task
+        df = all_results_df[all_results_df['task'] == "table_type_detection"].copy()
+        # drop columns with all nans (result metrics from other tasks will be nan)
+        df = df.dropna(axis=1, how="all")
+        if df.empty:
+            print("No table_type_detection results in this results folder, skipping.")
+        else:
+            ttd_classifier_table.create_table(df, plots_folder)
+
+    ##############################################################################################
+    #
+    #     Serialization Deltas (across table_retrieval / table_shuffling / table_type_detection)
+    #
+    ##############################################################################################
+    if SERIALIZATION_DELTA_PLOTS:
+        serialization_deltas.create_plot(all_results_df, plots_folder)
 
 
     ##############################################################################################
