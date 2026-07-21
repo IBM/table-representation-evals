@@ -10,6 +10,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
     def __init__(self, approach_instance):
         self.approach_instance = approach_instance
         self.table_row_limit = approach_instance.table_row_limit
+        self.table_serialization_format = approach_instance.table_serialization_format
         super().__init__()
 
     def setup_model_for_task(self):
@@ -17,12 +18,15 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
 
     def create_table_embedding(self, input_table: pd.DataFrame):
         """
-        Serialize the full DataFrame to Markdown (header + rows) and embed it
-        using the SentenceTransformer model provided by the approach.
+        Serialize the full DataFrame to the configured format (Markdown or CSV)
+        and embed it using the SentenceTransformer model provided by the approach.
         """
-        markdown_str = approach_utils.convert_df_to_markdown(input_table, max_rows=self.table_row_limit)
+        if self.table_serialization_format == "csv":
+            serialized = approach_utils.convert_df_to_csv(input_table, max_rows=self.table_row_limit)
+        else:
+            serialized = approach_utils.convert_df_to_markdown(input_table, max_rows=self.table_row_limit)
         embedding = self.approach_instance.model.encode(
-            markdown_str,
+            serialized,
             show_progress_bar=False,
             normalize_embeddings=True,
         )

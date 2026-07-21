@@ -41,6 +41,8 @@ supported_tasks:
     run_similarity_search_based_on: column_embeddings
   cell_task: {}
   table_retrieval: {}
+  table_shuffling: {}
+  table_type_detection: {}
   nl2column_mapping: {}
   nl2cell2column_mapping: {}
   column_type_annotation: {}

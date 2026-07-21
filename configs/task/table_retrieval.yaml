@@ -1,4 +1,13 @@
 task_name: table_retrieval
 top_ks: [1, 3, 5, 10]
 
-elo_metric: "MRR"
+# "MRR" is the flat metric key used by the gitTables dataset (run_table_retrieval_gittables.py);
+# "MRR@10" is the flattened per-k key used by the TARGET-based datasets
+# (run_table_retrieval_benchmark.py). Only one is ever present per dataset's results.json.
+elo_metric: ["MRR", "MRR@10"]
+
+# Force re-embedding of the table corpus even if a complete cached Qdrant
+# collection already exists (e.g. after a component/model change). Only used
+# by the TARGET-based datasets (run_table_retrieval_benchmark.py); the
+# gitTables dataset does not cache embeddings in Qdrant.
+force_embed_corpus: false

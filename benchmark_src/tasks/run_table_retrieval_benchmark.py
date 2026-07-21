@@ -8,7 +8,6 @@ import datasets
 import numpy as np
 import pandas as pd
 from datasets import Dataset
-from hydra.utils import get_original_cwd
 from omegaconf import DictConfig
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as rest
@@ -37,7 +36,7 @@ def get_embedder(cfg: DictConfig) -> Tuple[TableEmbeddingInterface, Dict[str, An
 
 
 def get_qdrant_client(cfg: DictConfig) -> QdrantClient:
-    qdrant_path = Path(get_original_cwd()) / cfg.cache_dir / "qdrant_storage"
+    qdrant_path = Path(cfg.cache_dir) / "qdrant_storage"
     qdrant_path.mkdir(parents=True, exist_ok=True)
     client = QdrantClient(path=str(qdrant_path))
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
@@ -63,7 +62,7 @@ def infer_embedder_output_dim(
         raise ValueError("Corpus is empty; cannot infer embedding dimension.")
 
     sample_table = _table_to_df(corpus[1]["table"])
-    if sample_table.empty:
+    if len(sample_table.columns) == 0:
         raise ValueError("Sample table is empty after conversion; cannot infer embedding dimension.")
     sample_embedding = table_component.create_table_embedding(sample_table)
     return int(np.array(sample_embedding).shape[-1])
@@ -71,33 +70,15 @@ def infer_embedder_output_dim(
 
 def embed_corpus(
     table_component: TableEmbeddingInterface,
-    corpus: Dataset
+    tables_info: list[tuple[pd.DataFrame, str, str]],
 ) -> tuple[list[np.ndarray], list[dict]]:
     vectors = []
     payloads = []
-    required_keys = ["table", "database_id", "table_id"]
 
-    # TODO: For testing purposes, limiting to a subset of corpus
-    # corpus = corpus.select(range(min(200, len(corpus))))
-    # logger.warning(f"Embedding only {len(corpus)} tables from the corpus.")
-
-    for row in tqdm(corpus, desc="Embedding tables"):
-        missing = [k for k in required_keys if k not in row or row.get(k) is None]
-        if missing:
-            logger.error(f"Row missing required fields: {missing}. Skipping.")
-            continue
-
-        table = _table_to_df(row["table"])
-        if table.empty:
-            logger.warning("Row has empty table, skipping. "
-                f"database_id: {row.get('database_id')}, table_id: {row.get('table_id')}")
-            continue  # discard datapoint
-
+    for table, db_id, tbl_id in tqdm(tables_info, desc="Embedding tables", miniters=100):
         vec = table_component.create_table_embedding(table)
-        payload = {"database_id": row.get("database_id"), "table_id": row.get("table_id")}
-
         vectors.append(np.array(vec))
-        payloads.append(payload)
+        payloads.append({"database_id": db_id, "table_id": tbl_id})
 
     logger.info(f"Embedded {len(vectors)} tables from corpus")
     return vectors, payloads
@@ -131,7 +112,7 @@ def _search_query(
     collection_name: str,
     top_k: int
 ) -> List[rest.ScoredPoint]:
-    query_vector = table_component.create_query_embedding(query_text)
+    query_vector = np.asarray(table_component.create_query_embedding(query_text)).tolist()
     return client.search(
         collection_name=collection_name,
         query_vector=query_vector,
@@ -290,7 +271,7 @@ def _evaluate_retrieval(
 
     per_query_results = []
 
-    for query_row in tqdm(queries_dataset, desc="Evaluating queries"):
+    for query_row in tqdm(queries_dataset, desc="Evaluating queries", miniters=100):
         query_text = query_row["query"]
         query_id = query_row["query_id"]
         gt_database_id = query_row["database_id"]
@@ -345,11 +326,31 @@ def embeddings_exist(client: QdrantClient, collection_name: str) -> bool:
     return count > 0
 
 
+def _build_tables_info(corpus_dataset: Dataset) -> list[tuple[pd.DataFrame, str, str]]:
+    required_keys = ["table", "database_id", "table_id"]
+    tables_info = []
+    for row in corpus_dataset:
+        missing = [k for k in required_keys if k not in row or row.get(k) is None]
+        if missing:
+            logger.error(f"Row missing required fields: {missing}. Skipping.")
+            continue
+
+        table = _table_to_df(row["table"])
+        if len(table.columns) == 0:
+            logger.warning("Row has empty table, skipping. "
+                f"database_id: {row.get('database_id')}, table_id: {row.get('table_id')}")
+            continue
+
+        tables_info.append((table, row["database_id"], row["table_id"]))
+    return tables_info
+
+
 def _populate_vectordb(
     client: QdrantClient,
     collection_name: str,
     table_embedding_component: TableEmbeddingInterface,
-    corpus_dataset: Dataset
+    corpus_dataset: Dataset,
+    tables_info: list,
 ) -> None:
     try:
         client.delete_collection(collection_name=collection_name)
@@ -368,7 +369,7 @@ def _populate_vectordb(
     except Exception as e:
         logger.warning(f"Failed to create collection '{collection_name}': {e}")
 
-    vectors, payloads = embed_corpus(table_embedding_component, corpus_dataset)
+    vectors, payloads = embed_corpus(table_embedding_component, tables_info)
     upload_corpus(client, collection_name, vectors, payloads)
     logger.info("Completed corpus embedding and upload to qdrant.")
 
@@ -380,26 +381,23 @@ def run_table_retrieval(
     client: QdrantClient,
     table_embedding_component: TableEmbeddingInterface,
 ) -> Dict[str, Any]:
-    try:
-        force_embed = bool(cfg.benchmark_tasks.table_retrieval.task_parameters.force_embed_corpus)
-    except Exception:
-        force_embed = False
+    force_embed = bool(cfg.task.get("force_embed_corpus", False))
 
-    # Include approach name in collection name to avoid cross-approach embedding reuse
-    approach_name = cfg.get("approach", {}).get("approach_name", "unknown")
-    collection_name = f"{cfg.run_identifier},approach={approach_name}"
+    tables_info = _build_tables_info(dataset_bundle.corpus)
+    table_embedding_component.fit_corpus([t[0] for t in tables_info])
 
-    # Embed corpus before evaluation if forced or not already embedded
-    if force_embed or not embeddings_exist(client, collection_name):
+    # Populate vectorDB if forced or collection doesn't exist
+    if force_embed or not embeddings_exist(client, cfg.run_identifier):
         _populate_vectordb(
             client=client,
-            collection_name=collection_name,
+            collection_name=cfg.run_identifier,
             table_embedding_component=table_embedding_component,
             corpus_dataset=dataset_bundle.corpus,
+            tables_info=tables_info,
         )
     else:
         logger.info(
-            f"Skipping corpus embedding as vectorDB collection '{collection_name}' is already populated."
+            f"Skipping corpus embedding as vectorDB collection '{cfg.run_identifier}' is already populated."
             f" Set force_embed_corpus to True to re-embed."
         )
 
@@ -407,7 +405,7 @@ def run_table_retrieval(
 
     evaluation_results = _evaluate_retrieval(
         client=client,
-        collection_name=collection_name,
+        collection_name=cfg.run_identifier,
         table_component=table_embedding_component,
         queries_dataset=dataset_bundle.queries,
         top_ks=list(cfg.task.top_ks)
@@ -441,13 +439,15 @@ def _flatten_summary_metrics(summary_metrics: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _save_full_results_to_disk(
+        cfg: DictConfig,
         results: Dict[str, Any],
         filename: str = "full_results.json"
 ) -> None:
+    output_path = Path(cfg.output_dir) / filename
     try:
-        with open(filename, "w", encoding="utf-8") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)
-        logger.info(f"Saved full detailed results to '{filename}'")
+        logger.info(f"Saved full detailed results to '{output_path}'")
     except Exception as e:
         logger.error(f"Failed to save full results to disk: {e}")
 
@@ -462,6 +462,16 @@ def main(cfg: DictConfig):
     except Exception as e:
         logger.error(f"Failed to load dataset '{cfg.dataset_name}': {e}")
         raise e
+
+    test_case_limit = getattr(cfg.task, "test_case_limit", None)
+    if test_case_limit:
+        n = int(test_case_limit)
+        dataset_bundle.corpus = dataset_bundle.corpus.select(range(min(n, len(dataset_bundle.corpus))))
+        dataset_bundle.queries = dataset_bundle.queries.select(range(min(n, len(dataset_bundle.queries))))
+        logger.info(
+            f"test_case_limit={test_case_limit}: using {len(dataset_bundle.corpus)} corpus rows, "
+            f"{len(dataset_bundle.queries)} query rows"
+        )
 
     logger.info(
         f"Dataset '{cfg.dataset_name}': Corpus has {len(dataset_bundle.corpus)} rows, "
@@ -486,7 +496,7 @@ def main(cfg: DictConfig):
         )
 
     # Dump the full, raw results (including per_query_results) to disk
-    _save_full_results_to_disk(evaluation_results, filename="full_results.json")
+    _save_full_results_to_disk(cfg, evaluation_results, filename="full_results.json")
 
     flattened_summary_metrics = _flatten_summary_metrics(evaluation_results["summary_metrics"])
 

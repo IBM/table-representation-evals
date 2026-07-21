@@ -1,0 +1,13 @@
+task_name: table_type_detection
+
+elo_metric: "XGBoost_f1_macro (↑)"
+
+# Balanced-per-class subsample sizes for the WDC Schema.org train/test splits.
+# null means use the full split.
+train_limit: null
+test_limit: null
+
+# Force re-embedding (and re-caching) of the train/test tables even if a
+# cached embeddings file already exists for this run (e.g. after a
+# component/model change).
+force_embed_corpus: false

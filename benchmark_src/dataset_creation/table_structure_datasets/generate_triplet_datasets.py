@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import random
@@ -5,18 +6,21 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
 import Levenshtein
-from hydra.utils import get_original_cwd
 from omegaconf import OmegaConf, DictConfig
-from tqdm import tqdm
 
 from benchmark_src.dataset_creation.utils import table_2d_to_df
 from benchmark_src.dataset_creation.target.collect_all_target_datasets import get_target_dataset_by_name
+from benchmark_src.dataset_creation.lakebench.load_ckan import load_ckan
+from benchmark_src.dataset_creation.lakebench.load_ecb import load_ecb
 
 logger = logging.getLogger(__name__)
 
 MIN_TABLE_ROWS = 2
 MIN_TABLE_COLS = 3
 eps = 1e-8
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_TABLE_SHUFFLING_CONFIG_PATH = _PROJECT_ROOT / "configs" / "dataset" / "table_shuffling.yaml"
 
 
 def convert_array_to_markdown(table_array: List[List[Any]], max_rows: int = -1) -> str:
@@ -202,6 +206,13 @@ def generate_negative(table: List[List[Optional[str]]], neg_columns_frac: float,
 # -----------------------------
 # Triplet generation
 # -----------------------------
+def _is_rectangular(table: list) -> bool:
+    if not table or not table[0]:
+        return False
+    n_cols = len(table[0])
+    return all(len(row) == n_cols for row in table)
+
+
 def generate_triplets_from_dataset(
     dataset: List[Dict[str, Any]],
     triplets_per_anchor: int,
@@ -213,8 +224,14 @@ def generate_triplets_from_dataset(
     deltas_pos = []
     deltas_neg = []
 
-    for anchor_rec in tqdm(dataset, desc=f"Generating triplets for variation '{variation_name}'"):
+    logger.info(f"Generating triplets for variation '{variation_name}' ({len(dataset)} tables)")
+
+    for anchor_rec in dataset:
         anchor_table = anchor_rec["table"]
+        if not _is_rectangular(anchor_table):
+            logger.warning(f"Skipping non-rectangular table: "
+                           f"database_id={anchor_rec.get('database_id')}, table_id={anchor_rec.get('table_id')}")
+            continue
         serialized_anchor = convert_array_to_markdown(anchor_table)
 
         for _ in range(triplets_per_anchor):
@@ -245,6 +262,8 @@ def generate_triplets_from_dataset(
 
     avg_delta_pos = sum(deltas_pos) / len(deltas_pos) if deltas_pos else 0.0
     avg_delta_neg = sum(deltas_neg) / len(deltas_neg) if deltas_neg else 0.0
+
+    logger.info(f"Finished generating triplets for variation '{variation_name}': {len(triplets)} triplets")
 
     return triplets, avg_delta_pos, avg_delta_neg
 
@@ -317,15 +336,10 @@ def load_table_shuffling_config() -> DictConfig:
     """
     Load the table_shuffling dataset config from YAML.
     """
-    try:
-        root = Path(get_original_cwd())
-    except ValueError:
-        root = Path.cwd()
+    if not _TABLE_SHUFFLING_CONFIG_PATH.exists():
+        raise FileNotFoundError(f"table_shuffling config file not found at {_TABLE_SHUFFLING_CONFIG_PATH}")
 
-    config_path = root / "configs" / "dataset" / "table_shuffling.yaml"
-    if not config_path.exists():
-        raise FileNotFoundError(f"table_shuffling config file not found at {config_path}")
-    return OmegaConf.load(str(config_path))
+    return OmegaConf.load(str(_TABLE_SHUFFLING_CONFIG_PATH))
 
 
 def _get_int_or_unbound(dataset_cfg: DictConfig, key: str) -> int:
@@ -352,25 +366,70 @@ def _resolve_dataset_limits(dataset_cfg: DictConfig) -> Tuple[int, Optional[int]
     return min_rows, max_rows, min_cols, max_cols, max_tables
 
 
-def _select_corpus_subset(
-    corpus,
-    dataset_cfg: DictConfig,
+def _load_ckan_subset_corpus(
+    merged_cfg: DictConfig,
+    project_root: Path,
 ) -> List[Dict[str, Any]]:
-    """
-    Apply filtering based on the dataset block:
-      - keep tables whose #rows and #cols fall into the configured ranges
-      - randomly sample up to max_tables from the qualifying tables or all if max_tables is unset.
-    """
-    min_rows, max_rows, min_cols, max_cols, max_tables = _resolve_dataset_limits(dataset_cfg)
+    data_dir = str(merged_cfg.data_dir)
+    if not Path(data_dir).is_absolute():
+        data_dir = str(project_root / data_dir)
+
+    min_rows, max_rows, min_cols, max_cols, max_tables = _resolve_dataset_limits(merged_cfg)
+
+    return load_ckan(
+        data_dir,
+        min_rows=min_rows,
+        max_rows=max_rows,
+        min_cols=min_cols,
+        max_cols=max_cols,
+        max_tables=max_tables,
+    )
+
+
+def _load_ecb_corpus(
+    merged_cfg: DictConfig,
+    project_root: Path,
+) -> List[Dict[str, Any]]:
+    data_dir = str(merged_cfg.data_dir)
+    if not Path(data_dir).is_absolute():
+        data_dir = str(project_root / data_dir)
+
+    max_rows_per_table = int(OmegaConf.select(merged_cfg, "max_rows_per_table", default=500))
+
+    min_rows, max_rows, min_cols, max_cols, max_tables = _resolve_dataset_limits(merged_cfg)
+
+    corpus_list = load_ecb(
+        data_dir,
+        max_rows_per_table=max_rows_per_table,
+        min_rows=min_rows,
+        min_cols=min_cols,
+        max_cols=max_cols,
+    )
+
+    if max_rows is not None:
+        corpus_list = [t for t in corpus_list if len(t["table"]) - 1 <= max_rows]
+
+    if max_tables is not None and len(corpus_list) > max_tables:
+        corpus_list = random.sample(corpus_list, max_tables)
+
+    return corpus_list
+
+
+def _load_target_corpus(
+    dataset_id: str,
+    merged_cfg: DictConfig,
+) -> List[Dict[str, Any]]:
+    corpus = get_target_dataset_by_name(dataset_id).corpus
+
+    min_rows, max_rows, min_cols, max_cols, max_tables = _resolve_dataset_limits(merged_cfg)
 
     selected_indices: List[int] = []
-
     for idx, rec in enumerate(corpus):
         table = rec.get("table")
         if not table or not table[0]:
             continue
 
-        num_rows = len(table) - 1  # exclude header
+        num_rows = len(table) - 1
         num_cols = len(table[0])
 
         if num_rows < min_rows or (max_rows is not None and num_rows > max_rows):
@@ -389,6 +448,13 @@ def _select_corpus_subset(
     return corpus.select(selected_indices).to_list()
 
 
+def _make_deterministic_seed(root_seed: int, dataset_id: str, variation_id: str) -> int:
+    key = f"{dataset_id}@@{variation_id}"
+    key_hash = hashlib.sha256(key.encode()).digest()
+    per_pair_offset = int.from_bytes(key_hash[:4], "big") % (2**16)
+    return int(root_seed) + per_pair_offset
+
+
 def run_variation(
     dataset_id: str,
     dataset_cfg: DictConfig,
@@ -401,22 +467,29 @@ def run_variation(
     Run triplet generation for a single (dataset, variation) pair and write outputs to disk.
 
     - dataset_id: logical dataset key (e.g. "fetaqa"), used for get_target_dataset_by_name.
-    - dataset_cfg: per-dataset config (currently only max_tables).
+    - dataset_cfg: per-dataset config (source, plus overrides like max_tables/data_dir).
     - variation_id: global variation id (e.g. "v0"), defining filters and perturbation params.
     - variation_cfg: variation config from table_shuffling.yaml.
     """
-    # Derive a deterministic seed per dataset×variation from the root seed and ids
-    seed = int(root_random_seed) + abs(hash(f"{dataset_id}@@{variation_id}")) % (2**16)
+    seed = _make_deterministic_seed(root_random_seed, dataset_id, variation_id)
     random.seed(seed)
 
-    corpus = get_target_dataset_by_name(dataset_id).corpus
+    # Merge variation-level filters with per-dataset overrides upfront so
+    # loaders can filter in-stream and avoid OOM.
+    merged_cfg = OmegaConf.merge(variation_cfg["dataset"], dataset_cfg)
 
-    # Global row/column filters live on the variation under "dataset".
-    filters_cfg = variation_cfg["dataset"]
-
-    # Combine global filters with per-dataset settings (e.g. max_tables).
-    # dataset_cfg is expected to only add/override keys like max_tables.
-    corpus_list = _select_corpus_subset(corpus, OmegaConf.merge(filters_cfg, dataset_cfg))
+    source = dataset_cfg.source
+    if source == "ckan_subset":
+        corpus_list = _load_ckan_subset_corpus(merged_cfg, _PROJECT_ROOT)
+    elif source == "ecb":
+        corpus_list = _load_ecb_corpus(merged_cfg, _PROJECT_ROOT)
+    elif source == "target":
+        corpus_list = _load_target_corpus(dataset_id, merged_cfg)
+    else:
+        raise ValueError(
+            f"Unknown source '{source}' for dataset '{dataset_id}'. "
+            "Expected one of: ckan_subset, ecb, target."
+        )
 
     pos_params = dict(variation_cfg.pos_params)
     neg_params = dict(variation_cfg.neg_params)
@@ -460,12 +533,7 @@ def load_table_shuffling_context():
     cfg = load_table_shuffling_config()
     root_seed = int(cfg["random_seed"])
 
-    try:
-        project_root = Path(get_original_cwd())
-    except ValueError:
-        project_root = Path.cwd()
-
-    base_output_dir = project_root / "cache" / "table_shuffling"
+    base_output_dir = _PROJECT_ROOT / "cache" / "table_shuffling"
     base_output_dir.mkdir(parents=True, exist_ok=True)
 
     datasets_cfg = cfg["datasets"]

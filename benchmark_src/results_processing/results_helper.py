@@ -32,11 +32,37 @@ performance_cols = {
     'Recall@1': 'higher_is_better',
     # nl2 schema linking
     'mean_mrr': 'higher_is_better',
+    # table retrieval (TARGET-based datasets), one entry per configured top_k
+    'MRR@1': 'higher_is_better',
+    'MRR@3': 'higher_is_better',
+    'MRR@5': 'higher_is_better',
+    'MRR@10': 'higher_is_better',
+    'MAP@1': 'higher_is_better',
+    'MAP@3': 'higher_is_better',
+    'MAP@5': 'higher_is_better',
+    'MAP@10': 'higher_is_better',
+    'Recall@3': 'higher_is_better',
+    'Recall@5': 'higher_is_better',
+    'Recall@10': 'higher_is_better',
+    'Precision@1': 'higher_is_better',
+    'Precision@3': 'higher_is_better',
+    'Precision@5': 'higher_is_better',
+    'Precision@10': 'higher_is_better',
     # table shuffling / triplet metrics
     'TripletAccuracy': 'higher_is_better',
     'Triplet Silhouette Score': 'higher_is_better',
     'Bounded Contrastive Score': 'lower_is_better',
     'TextualBias_pearson': 'lower_is_better',
+    # table type detection (TTD) classification metrics
+    'XGBoost_accuracy (↑)': 'higher_is_better',
+    'KNeighbors_accuracy (↑)': 'higher_is_better',
+    "MLP_accuracy (↑)": 'higher_is_better',
+    'XGBoost_f1_macro (↑)': 'higher_is_better',
+    'KNeighbors_f1_macro (↑)': 'higher_is_better',
+    "MLP_f1_macro (↑)": 'higher_is_better',
+    'XGBoost_f1_micro (↑)': 'higher_is_better',
+    'KNeighbors_f1_micro (↑)': 'higher_is_better',
+    "MLP_f1_micro (↑)": 'higher_is_better',
 }
 
 

@@ -290,8 +290,12 @@ def convert_df_to_markdown(df: pd.DataFrame, max_rows: int) -> str:
         max_rows: The maximum number of rows to include.
                   If -1, there is no limit.
     """
-    if df is None or df.empty:
-        print("ERROR: Empty DataFrame provided.")  # TODO: replace with logging
+    if df is None:
+        print("ERROR: DataFrame is None.")
+        return ""
+
+    if len(df.columns) == 0:
+        print("ERROR: Empty DataFrame provided (no columns).")
         return ""
 
     # Apply row limit if needed
@@ -307,5 +311,70 @@ def convert_df_to_markdown(df: pd.DataFrame, max_rows: int) -> str:
 
     for _, row in df.iterrows():
         lines.append("| " + " | ".join(str(item) for item in row.tolist()) + " |")
+
+    return "\n".join(lines) + "\n"
+
+
+def _csv_escape(value: str) -> str:
+    if "," in value or '"' in value or "\n" in value:
+        return '"' + value.replace('"', '""') + '"'
+    return value
+
+
+def convert_array_to_csv(table_array: List[List[Any]], max_rows: int) -> str:
+    """
+    Converts a list of lists (where the first list is headers)
+    into a CSV string.
+
+    Args:
+        table_array: A list of lists.
+                     Example: [["col1", "col2"], ["data1", "data2"]]
+        max_rows: The maximum number of data rows to include. If -1, there is no limit.
+    """
+    if not table_array or not table_array[0]:
+        print("ERROR: Empty table array provided.")
+        return ""
+
+    headers = [str(h) for h in table_array[0]]
+    header_line = ",".join(_csv_escape(h) for h in headers)
+    lines: List[str] = [header_line]
+
+    data_rows = table_array[1:]
+
+    if max_rows != -1 and len(data_rows) > max_rows:
+        data_rows = data_rows[:max_rows]
+
+    for row in data_rows:
+        lines.append(",".join(_csv_escape(str(item)) for item in row))
+
+    return "\n".join(lines) + "\n"
+
+
+def convert_df_to_csv(df: pd.DataFrame, max_rows: int) -> str:
+    """
+    Converts a pandas DataFrame into a CSV string.
+
+    Args:
+        df: A pandas DataFrame.
+        max_rows: The maximum number of rows to include.
+                  If -1, there is no limit.
+    """
+    if df is None:
+        print("ERROR: DataFrame is None.")
+        return ""
+
+    if len(df.columns) == 0:
+        print("ERROR: Empty DataFrame provided (no columns).")
+        return ""
+
+    if max_rows != -1 and len(df) > max_rows:
+        df = df.head(max_rows)
+
+    headers = [str(col) for col in df.columns]
+    header_line = ",".join(_csv_escape(h) for h in headers)
+    lines: List[str] = [header_line]
+
+    for _, row in df.iterrows():
+        lines.append(",".join(_csv_escape(str(item)) for item in row.tolist()))
 
     return "\n".join(lines) + "\n"

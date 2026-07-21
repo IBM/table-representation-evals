@@ -7,7 +7,6 @@ from typing import Dict, Any
 from datasets import Dataset
 from datasets import load_dataset
 from huggingface_hub import snapshot_download
-from hydra.utils import get_original_cwd
 from omegaconf import OmegaConf, DictConfig
 
 logging.basicConfig(
@@ -15,6 +14,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_TARGET_CONFIG_PATH = _PROJECT_ROOT / "configs" / "dataset" / "target.yaml"
 
 
 @dataclass
@@ -86,13 +88,9 @@ def collect_all_target_datasets(config: DictConfig) -> Dict[str, DatasetBundle]:
     return datasets
 
 def load_config() -> DictConfig:
-    try:
-        config_path = Path(get_original_cwd()) / "benchmark_src" / "config" / "dataset" / "target.yaml"
-    except ValueError:
-        config_path = Path().cwd() / "benchmark_src" / "config" / "dataset" / "target.yaml"
-    if not config_path.exists():
-        raise FileNotFoundError(f"Target config file not found at {config_path}")
-    return OmegaConf.load(config_path)
+    if not _TARGET_CONFIG_PATH.exists():
+        raise FileNotFoundError(f"Target config file not found at {_TARGET_CONFIG_PATH}")
+    return OmegaConf.load(_TARGET_CONFIG_PATH)
 
 def get_target_dataset_by_name(dataset_name: str) -> DatasetBundle:
     """
