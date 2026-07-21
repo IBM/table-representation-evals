@@ -33,15 +33,22 @@ OUTPUT_FILE = Path("benchmark_src/dataset_creation/bird/semantic_fuzzy_matching.
 # ---------------------------------------------------------------------------
 
 def load_schema(tables_data):
-    """db_id -> {col_name_lower -> [{table, column}]}"""
+    """db_id -> {col_name_lower -> [{table, column}]}
+
+    Uses table_names_original/column_names_original -- the actual SQL
+    identifiers -- rather than table_names/column_names, which are
+    human-readable relabelings (e.g. 'publisher id' for the real column
+    'pub_id') that a query's SQL text never contains.
+    """
     lookup = {}
     for db in tables_data:
         db_id = db["db_id"]
         lookup[db_id] = defaultdict(list)
-        for table_idx, col_name in db["column_names"]:
+        table_names = db["table_names_original"]
+        for table_idx, col_name in db["column_names_original"]:
             if table_idx < 0:
                 continue
-            table_name = db["table_names"][table_idx]
+            table_name = table_names[table_idx]
             lookup[db_id][col_name.lower()].append(
                 {"table": table_name, "column": col_name}
             )

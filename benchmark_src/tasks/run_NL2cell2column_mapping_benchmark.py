@@ -25,6 +25,7 @@ import statistics
 from collections import defaultdict
 import gc
 import shutil
+import time
 import torch
 
 from qdrant_client import QdrantClient
@@ -56,6 +57,25 @@ def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
     return client, qdrant_path
 
 
+def cleanup_stale_collection_dirs(qdrant_path: Path) -> None:
+    """Best-effort removal of '.stale-*' collection dirs left behind by a previous run.
+
+    These are collection directories renamed aside (see run_cell_to_column_mapping_benchmark)
+    instead of deleted in place, since cache/qdrant_storage lives on NFS where Qdrant's local
+    segment files can stay busy well past delete_collection() returning. By the time a later
+    run calls this, enough time has passed that the files are no longer busy.
+    """
+    collections_path = qdrant_path / "collection"
+    if not collections_path.exists():
+        return
+    for stale_dir in collections_path.glob("*.stale-*"):
+        try:
+            shutil.rmtree(stale_dir)
+            logger.info(f"Cleaned up stale collection directory {stale_dir.name}")
+        except OSError as e:
+            logger.warning(f"Could not clean up stale collection directory {stale_dir.name}: {e}")
+
+
 def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
     """Load the BIRD benchmark data for cell-to-column mapping."""
     bird_path_override = cfg.dataset.get("bird_path", None)
@@ -68,6 +88,14 @@ def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
     with open(queries_file, "r") as f:
         queries = json.load(f)
     queries.sort(key=lambda q: q["db_id"])
+
+    # matched_values and gold_columns must be the same length: collect_matched_values_for_database
+    # relies on this to index each matched value under its correct gold column.
+    misaligned = [q for q in queries if len(q.get("matched_values", [])) != len(q.get("gold_columns", []))]
+    assert not misaligned, (
+        f"{len(misaligned)} queries in {queries_file} have mismatched matched_values/gold_columns "
+        f"lengths (e.g. db_id={misaligned[0]['db_id']!r}); regenerate the benchmark file."
+    )
 
     databases_path = bird_path / "train" / "train_databases"
     assert databases_path.exists(), f"Could not find databases at {databases_path}. Please unzip train_databases.zip"
@@ -352,7 +380,8 @@ def run_cell_to_column_mapping_benchmark(
     
     # Setup Qdrant client
     client, qdrant_path = get_qdrant_client(cfg)
-    
+    cleanup_stale_collection_dirs(qdrant_path)
+
     results = []
     db_collections = {}  # Track which collections have been created
     
@@ -397,10 +426,16 @@ def run_cell_to_column_mapping_benchmark(
                     logger.info(
                         f"Deleted {'existing' if force_embed_corpus else 'incomplete'} collection {collection_name}"
                     )
-                # Wipe any leftover collection directory (e.g. a stale COMPLETED marker)
-                # rather than relying on delete_collection to have fully cleaned it up
+                # Move aside any leftover collection directory (e.g. a stale COMPLETED marker)
+                # rather than relying on delete_collection to have fully cleaned it up. Renaming
+                # is metadata-only and doesn't wait on open file handles, unlike shutil.rmtree,
+                # which can hit EBUSY for a long time on NFS if Qdrant's background segment
+                # cleanup hasn't released a file handle yet. The stale directory is reaped later
+                # by cleanup_stale_collection_dirs(), once enough time has passed that it's safe.
                 if collection_dir.exists():
-                    shutil.rmtree(collection_dir)
+                    stale_dir = collection_dir.with_name(f"{collection_dir.name}.stale-{time.time_ns()}")
+                    collection_dir.rename(stale_dir)
+                    logger.info(f"Moved leftover collection directory aside to {stale_dir.name}")
 
                 # Create new collection
                 logger.info(f"Creating cell embeddings for database {db_id}")

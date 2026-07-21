@@ -1,16 +1,16 @@
 {
   "total_queries": 9428,
-  "pure_concept_mapping_count": 2974,
-  "cell_value_matching_count": 4136,
+  "pure_concept_mapping_count": 2249,
+  "cell_value_matching_count": 6823,
   "breakdown": {
-    "concept_only": 2974,
-    "value_only": 1246,
-    "mixed": 2890,
-    "unknown": 2318
+    "concept_only": 2249,
+    "value_only": 254,
+    "mixed": 6569,
+    "unknown": 356
   },
   "percentages": {
-    "pure_concept_mapping": 31.54,
-    "cell_value_matching": 43.87
+    "pure_concept_mapping": 23.85,
+    "cell_value_matching": 72.37
   },
   "pure_concept_samples": [
     {
@@ -20,7 +20,6 @@
       "SQL": "SELECT movie_title, movie_release_year, director_name FROM movies ORDER BY movie_popularity DESC LIMIT 1 ",
       "category": "concept_only",
       "used_tables": [
-        "movie_popularity",
         "movies"
       ],
       "gold_columns": [
@@ -75,7 +74,6 @@
       "SQL": "SELECT movie_title FROM movies GROUP BY movie_title ORDER BY COUNT(movie_title) DESC LIMIT 1",
       "category": "concept_only",
       "used_tables": [
-        "movie_title",
         "movies"
       ],
       "gold_columns": [
@@ -102,16 +100,15 @@
           "column": "movie_title"
         },
         {
+          "table": "ratings",
+          "column": "movie_id"
+        },
+        {
           "table": "movies",
           "column": "movie_id"
         }
       ],
-      "matched_values": [
-        "4",
-        "2020",
-        "2",
-        "4"
-      ]
+      "matched_values": []
     },
     {
       "db_id": "movie_platform",
@@ -129,7 +126,7 @@
           "column": "movie_title"
         },
         {
-          "table": "lists",
+          "table": "ratings",
           "column": "user_id"
         },
         {
@@ -139,6 +136,10 @@
         {
           "table": "ratings",
           "column": "critic"
+        },
+        {
+          "table": "ratings",
+          "column": "movie_id"
         },
         {
           "table": "movies",
@@ -161,6 +162,10 @@
         {
           "table": "movies",
           "column": "movie_id"
+        },
+        {
+          "table": "ratings",
+          "column": "movie_id"
         }
       ],
       "matched_values": []
@@ -172,7 +177,7 @@
       "SQL": "SELECT list_title FROM lists ORDER BY list_followers DESC LIMIT 1",
       "category": "concept_only",
       "used_tables": [
-        "list_followers"
+        "lists"
       ],
       "gold_columns": [
         {
@@ -193,7 +198,7 @@
       "SQL": "SELECT list_url FROM lists WHERE list_update_timestamp_utc LIKE '2012%' AND list_followers BETWEEN 1 AND 2 ORDER BY list_update_timestamp_utc DESC LIMIT 1",
       "category": "concept_only",
       "used_tables": [
-        "list_update_timestamp_utc"
+        "lists"
       ],
       "gold_columns": [
         {
@@ -209,10 +214,7 @@
           "column": "list_followers"
         }
       ],
-      "matched_values": [
-        "1",
-        "2"
-      ]
+      "matched_values": []
     },
     {
       "db_id": "movie_platform",
@@ -221,7 +223,6 @@
       "SQL": "SELECT movie_release_year, director_name FROM movies WHERE movie_release_year IS NOT NULL ORDER BY movie_release_year ASC LIMIT 1",
       "category": "concept_only",
       "used_tables": [
-        "movie_release_year",
         "movies"
       ],
       "gold_columns": [
@@ -243,9 +244,8 @@
       "SQL": "SELECT T1.list_movie_number, T2.user_has_payment_method FROM lists AS T1 INNER JOIN lists_users AS T2 ON T1.list_id = T2.list_id ORDER BY T1.list_movie_number DESC LIMIT 1",
       "category": "concept_only",
       "used_tables": [
-        "list_movie_number",
-        "lists_users",
-        "t1"
+        "lists",
+        "lists_users"
       ],
       "gold_columns": [
         {
@@ -253,11 +253,15 @@
           "column": "list_movie_number"
         },
         {
-          "table": "ratings_users",
+          "table": "lists_users",
           "column": "user_has_payment_method"
         },
         {
           "table": "lists",
+          "column": "list_id"
+        },
+        {
+          "table": "lists_users",
           "column": "list_id"
         }
       ],
@@ -276,11 +280,11 @@
       ],
       "gold_columns": [
         {
-          "table": "lists",
+          "table": "lists_users",
           "column": "user_id"
         },
         {
-          "table": "ratings_users",
+          "table": "lists_users",
           "column": "user_subscriber"
         }
       ],
@@ -309,171 +313,177 @@
       ]
     },
     {
-      "db_id": "book_publishing_company",
-      "question": "Who are the employees working for publisher not located in USA? State the employee's name and publisher name.",
-      "evidence": "not located at USA refers to country! = 'USA'",
-      "SQL": "SELECT T1.fname, T1.lname, T2.pub_name FROM employee AS T1 INNER JOIN publishers AS T2 ON T1.pub_id = T2.pub_id WHERE T2.country != 'USA'",
+      "db_id": "retail_complains",
+      "question": "How many clients have an email account other than gmail.com?",
+      "evidence": "email account other than gmail.com refers to email not like '%@gmail.com';",
+      "SQL": "SELECT COUNT(email) FROM client WHERE email NOT LIKE '%@gmail.com'",
       "category": "value_only",
       "used_tables": [
-        "employee",
-        "publishers"
+        "client"
       ],
       "gold_columns": [
         {
-          "table": "publishers",
-          "column": "country"
+          "table": "client",
+          "column": "email"
         }
       ],
       "matched_values": [
-        "USA"
+        "%@gmail.com"
       ]
     },
     {
-      "db_id": "book_publishing_company",
-      "question": "How many publishers are in the USA?",
-      "evidence": "",
-      "SQL": "SELECT COUNT(pub_id) FROM publishers WHERE country = 'USA'",
+      "db_id": "retail_complains",
+      "question": "How many complaints are not in process with an agent?",
+      "evidence": "not in process with an agent refers to outcome ! = 'AGENT';",
+      "SQL": "SELECT COUNT(outcome) FROM callcenterlogs WHERE outcome != 'AGENT'",
       "category": "value_only",
       "used_tables": [
-        "publishers"
+        "callcenterlogs"
       ],
       "gold_columns": [
         {
-          "table": "publishers",
-          "column": "country"
+          "table": "callcenterlogs",
+          "column": "outcome"
         }
       ],
       "matched_values": [
-        "USA"
+        "AGENT"
       ]
     },
     {
-      "db_id": "book_publishing_company",
-      "question": "Among the publishers in the USA, how many of them have published books that are over $15?",
-      "evidence": "are over $15 refers to price>15",
-      "SQL": "SELECT COUNT(DISTINCT T1.pub_id) FROM titles AS T1 INNER JOIN publishers AS T2 ON T1.pub_id = T2.pub_id WHERE T2.country = 'USA' AND T1.price > 15",
+      "db_id": "retail_complains",
+      "question": "How many Credit Card complaints did Sharon handle?",
+      "evidence": "Credit Card refers to Product = 'Credit Card'; Sharon refers to server = 'SHARON';",
+      "SQL": "SELECT COUNT(T1.`Complaint ID`) FROM callcenterlogs AS T1 INNER JOIN events AS T2 ON T1.`Complaint ID` = T2.`Complaint ID` WHERE T2.Product = 'Credit card' AND T1.server = 'SHARON'",
       "category": "value_only",
       "used_tables": [
-        "publishers",
-        "titles"
+        "callcenterlogs",
+        "events"
       ],
       "gold_columns": [
         {
-          "table": "publishers",
-          "column": "country"
+          "table": "events",
+          "column": "Product"
         },
         {
-          "table": "titles",
-          "column": "price"
+          "table": "callcenterlogs",
+          "column": "server"
         }
       ],
       "matched_values": [
-        "USA",
-        "15"
+        "Credit card",
+        "SHARON"
       ]
     },
     {
-      "db_id": "book_publishing_company",
-      "question": "Show me the employ id of the highest employee who doesn't have a middle name.",
-      "evidence": "highest employee refers to employee with the highest job level; MAX(job_lvl)",
-      "SQL": "SELECT emp_id FROM employee WHERE minit = '' ORDER BY job_lvl DESC LIMIT 1",
+      "db_id": "retail_complains",
+      "question": "How many complaints were served in 5 minutes or less by DORIT and responded to the customer with an explanation, were made by phone?",
+      "evidence": "served in 5 minutes or less refers to ser_time < '00:05:00'; DORIT refers to server = 'DORIT'; responded with an explanation refers to \"Company response to consumer\" = 'Closed with explanation'; made by refers to \"Submitted via\";",
+      "SQL": "SELECT COUNT(T1.`Complaint ID`) FROM callcenterlogs AS T1 INNER JOIN events AS T2 ON T1.`Complaint ID` = T2.`Complaint ID` WHERE T1.ser_time < '00:05:00' AND T1.server = 'DORIT' AND T2.`Submitted via` = 'Phone' AND T2.`Company response to consumer` = 'Closed with explanation'",
       "category": "value_only",
       "used_tables": [
-        "employee",
-        "job_lvl"
+        "callcenterlogs",
+        "events"
       ],
       "gold_columns": [
         {
-          "table": "employee",
-          "column": "minit"
+          "table": "callcenterlogs",
+          "column": "ser_time"
+        },
+        {
+          "table": "callcenterlogs",
+          "column": "server"
         }
       ],
       "matched_values": [
-        ""
+        "00:05:00",
+        "DORIT"
       ]
     },
     {
-      "db_id": "book_publishing_company",
-      "question": "What's Pedro S Afonso's job title?",
-      "evidence": "job title means job description which refers to job_desc",
-      "SQL": "SELECT T2.job_desc FROM employee AS T1 INNER JOIN jobs AS T2 ON T1.job_id = T2.job_id WHERE T1.fname = 'Pedro' AND T1.minit = 'S' AND T1.lname = 'Afonso'",
+      "db_id": "retail_complains",
+      "question": "How many female clients are there older than 30?",
+      "evidence": "female refers to sex = 'Female'; older than 30 refers to age > 30",
+      "SQL": "SELECT COUNT(sex) FROM client WHERE sex = 'Female' AND age > 30",
       "category": "value_only",
       "used_tables": [
-        "employee",
-        "jobs"
+        "client"
       ],
       "gold_columns": [
         {
-          "table": "employee",
-          "column": "minit"
+          "table": "client",
+          "column": "sex"
+        },
+        {
+          "table": "client",
+          "column": "age"
         }
       ],
       "matched_values": [
-        "Pedro",
-        "S",
-        "Afonso"
+        "Female",
+        "30"
       ]
     },
     {
-      "db_id": "book_publishing_company",
-      "question": "How many levels are there left for Diego W Roel to reach if he/she could go to the max level for his/her position?",
-      "evidence": "max level for his position refers to max_lvl; job level refers to job_lvl; level left to reach the max = SUBTRACT(max_lvl, job_lvl)",
-      "SQL": "SELECT T2.max_lvl - T1.job_lvl FROM employee AS T1 INNER JOIN jobs AS T2 ON T1.job_id = T2.job_id WHERE T1.fname = 'Diego' AND T1.minit = 'W' AND T1.lname = 'Roel'",
+      "db_id": "retail_complains",
+      "question": "Please list all first and last names of clients who live in New York city.",
+      "evidence": "New York City refers to city = 'New York City'",
+      "SQL": "SELECT first, last FROM client WHERE city = 'New York City'",
       "category": "value_only",
       "used_tables": [
-        "employee",
-        "jobs"
+        "client"
       ],
       "gold_columns": [
         {
-          "table": "employee",
-          "column": "minit"
+          "table": "client",
+          "column": "city"
         }
       ],
       "matched_values": [
-        "Diego",
-        "W",
-        "Roel"
+        "New York City"
       ]
     },
     {
-      "db_id": "book_publishing_company",
-      "question": "Tell me about the information of the French publisher.",
-      "evidence": "French publisher means publisher in France where country = 'France'",
-      "SQL": "SELECT T1.pr_info FROM pub_info AS T1 INNER JOIN publishers AS T2 ON T1.pub_id = T2.pub_id WHERE T2.country = 'France'",
+      "db_id": "movies_4",
+      "question": "How many animators does Movie No. 129 have?",
+      "evidence": "animators refers to job = 'Animation'; Movie No. 129 refers to movie_id = 129",
+      "SQL": "SELECT COUNT(movie_id) FROM movie_crew WHERE movie_id = 129 AND job = 'Animation'",
       "category": "value_only",
       "used_tables": [
-        "pub_info",
-        "publishers"
+        "movie_crew"
       ],
       "gold_columns": [
         {
-          "table": "publishers",
-          "column": "country"
+          "table": "movie_crew",
+          "column": "movie_id"
+        },
+        {
+          "table": "movie_crew",
+          "column": "job"
         }
       ],
       "matched_values": [
-        "France"
+        "129",
+        "Animation"
       ]
     },
     {
-      "db_id": "book_publishing_company",
-      "question": "What's the publisher of the book \"Silicon Valley Gastronomic Treats\"? Give the publisher's name.",
-      "evidence": "publisher name refers to pub_name; Silicon Valley Gastronomic Treats is the title of a book",
-      "SQL": "SELECT T2.pub_name FROM titles AS T1 INNER JOIN publishers AS T2 ON T1.pub_id = T2.pub_id WHERE T1.title = 'Silicon Valley Gastronomic Treats'",
+      "db_id": "movies_4",
+      "question": "List all the keywords with \"christmas\" in them.",
+      "evidence": "keywords with \"christmas\" in them refers to keyword_name LIKE '%christmas%'",
+      "SQL": "SELECT keyword_name FROM keyword WHERE keyword_name LIKE '%christmas%'",
       "category": "value_only",
       "used_tables": [
-        "publishers",
-        "titles"
+        "keyword"
       ],
       "gold_columns": [
         {
-          "table": "titles",
-          "column": "title"
+          "table": "keyword",
+          "column": "keyword_name"
         }
       ],
       "matched_values": [
-        "Silicon Valley Gastronomic Treats"
+        "%christmas%"
       ]
     }
   ]

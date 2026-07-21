@@ -25,6 +25,7 @@ import statistics
 
 import gc
 import shutil
+import time
 import torch
 
 from qdrant_client import QdrantClient
@@ -59,6 +60,25 @@ def get_qdrant_client(cfg: DictConfig) -> Tuple[QdrantClient, Path]:
     logger.info(f"Initialized Qdrant client with persistent storage at {qdrant_path}")
     logger.info(f"Cache key: {cache_key} (enables reuse across experiments)")
     return client, qdrant_path
+
+
+def cleanup_stale_collection_dirs(qdrant_path: Path) -> None:
+    """Best-effort removal of '.stale-*' collection dirs left behind by a previous run.
+
+    These are collection directories renamed aside (see run_nl2column_mapping_benchmark) instead
+    of deleted in place, since cache/qdrant_storage lives on NFS where Qdrant's local segment
+    files can stay busy well past delete_collection() returning. By the time a later run calls
+    this, enough time has passed that the files are no longer busy.
+    """
+    collections_path = qdrant_path / "collection"
+    if not collections_path.exists():
+        return
+    for stale_dir in collections_path.glob("*.stale-*"):
+        try:
+            shutil.rmtree(stale_dir)
+            logger.info(f"Cleaned up stale collection directory {stale_dir.name}")
+        except OSError as e:
+            logger.warning(f"Could not clean up stale collection directory {stale_dir.name}: {e}")
 
 
 def load_benchmark_data(cfg: DictConfig) -> Tuple[Path, List[Dict]]:
@@ -249,10 +269,11 @@ def run_nl2column_mapping_benchmark(
     
     # Setup Qdrant client
     client, qdrant_path = get_qdrant_client(cfg)
-    
+    cleanup_stale_collection_dirs(qdrant_path)
+
     results = []
     db_collections = {}  # Track which collections have been created
-    
+
     # Limit number of queries if specified
     max_queries = cfg.task.get("max_queries", len(queries))
     queries = queries[:max_queries]
@@ -288,10 +309,16 @@ def run_nl2column_mapping_benchmark(
                     logger.info(
                         f"Deleted {'existing' if force_embed_corpus else 'incomplete'} collection {collection_name}"
                     )
-                # Wipe any leftover collection directory (e.g. a stale COMPLETED marker)
-                # rather than relying on delete_collection to have fully cleaned it up
+                # Move aside any leftover collection directory (e.g. a stale COMPLETED marker)
+                # rather than relying on delete_collection to have fully cleaned it up. Renaming
+                # is metadata-only and doesn't wait on open file handles, unlike shutil.rmtree,
+                # which can hit EBUSY for a long time on NFS if Qdrant's background segment
+                # cleanup hasn't released a file handle yet. The stale directory is reaped later
+                # by cleanup_stale_collection_dirs(), once enough time has passed that it's safe.
                 if collection_dir.exists():
-                    shutil.rmtree(collection_dir)
+                    stale_dir = collection_dir.with_name(f"{collection_dir.name}.stale-{time.time_ns()}")
+                    collection_dir.rename(stale_dir)
+                    logger.info(f"Moved leftover collection directory aside to {stale_dir.name}")
 
                 # Create new collection
                 logger.info(f"Creating column embeddings for database {db_id}")
