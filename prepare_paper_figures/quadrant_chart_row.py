@@ -279,6 +279,7 @@ def build_quadrant_chart_vram(df: pd.DataFrame, plots_folder: Path):
             **{second_metric: (second_metric, "mean")},
             color=("color", "first"),
             chart_name=("chart_name", "first"),
+            marker=("marker", "first"),
         )
         .reset_index()
     )
@@ -314,7 +315,9 @@ def build_quadrant_chart_vram(df: pd.DataFrame, plots_folder: Path):
     ax.axhline(y=y_mid, color="grey", linewidth=1.8, linestyle="--", zorder=2)
 
     # ----------------------------------------------------------------
-    # Scatter points — 'x' marker, color by approach, legend by chart_name
+    # Scatter points — color and marker shape by approach (curated marker
+    # shapes disambiguate approaches whose colors are visually similar),
+    # legend by chart_name
     # ----------------------------------------------------------------
     seen_labels = set()
 
@@ -323,6 +326,7 @@ def build_quadrant_chart_vram(df: pd.DataFrame, plots_folder: Path):
         y = row[metric]
         color = row["color"]
         chart_name = row["chart_name"]
+        marker = row["marker"]
 
         scatter_label = chart_name if chart_name not in seen_labels else None
         seen_labels.add(chart_name)
@@ -330,23 +334,22 @@ def build_quadrant_chart_vram(df: pd.DataFrame, plots_folder: Path):
         ax.scatter(
             x, y,
             color=color,
-            marker=".",
-            s=120,
-            #linewidths=2,
+            marker=marker,
+            s=60,
             alpha=0.85,
             zorder=4,
             label=scatter_label,
         )
 
     # ----------------------------------------------------------------
-    # Legend below the plot, 4 columns
+    # Legend below the plot, 6 columns
     # ----------------------------------------------------------------
     ax.legend(
         fontsize=14,
         framealpha=0.7,
         loc="upper center",
         bbox_to_anchor=(0.5, -0.18),
-        ncol=4,
+        ncol=6,
     )
 
     # ----------------------------------------------------------------

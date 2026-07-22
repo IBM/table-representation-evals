@@ -31,27 +31,46 @@ import nl2_bar_plot, nl2_results_table
 _approach_plotting = cfg_utils.load_approach_plotting()
 color_mapping = {key: entry["color"] for key, entry in _approach_plotting.items() if "color" in entry}
 name_mapping = {key: entry["name"] for key, entry in _approach_plotting.items() if "name" in entry}
+marker_mapping = {key: entry["marker"] for key, entry in _approach_plotting.items() if "marker" in entry}
 
 
-ROW_SIM_PLOTS = True
-TRIPLET_PLOTS = True
-COL_SIM_PLOTS = True
-TABULAR_PREDICTION_PLOTS = True
-CELL_SIM_PLOTS = True
-TABLE_RETRIEVAL_PLOTS = True
-TABLE_SIMILARITY_SEARCH_PLOTS = True
-TABLE_SHUFFLING_PLOTS = True
-TABLE_TYPE_DETECTION_PLOTS = True
-SERIALIZATION_DELTA_PLOTS = True
-CTA_PLOTS = True
-NL2_PLOTS = True
+# CLI keys for --tasks, one per gated section below (ranking_table is a cross-task summary
+# and always runs regardless of this selection).
+VALID_TASKS = [
+    "row_similarity_search",
+    "column_similarity_search",
+    "row_triplet_evaluation",
+    "cell_similarity_search",
+    "table_retrieval",
+    "table_similarity_search",
+    "table_shuffling",
+    "table_type_detection",
+    "serialization_deltas",
+    "predictive_ml",
+    "column_type_annotation",
+    "schema_linking",
+    "value_linking",
+]
+
+
+def _parse_tasks(tasks: str) -> set[str]:
+    if tasks.strip().lower() == "all":
+        return set(VALID_TASKS)
+    selected = {t.strip() for t in tasks.split(",") if t.strip()}
+    unknown = selected - set(VALID_TASKS)
+    if unknown:
+        raise typer.BadParameter(f"Unknown task(s): {', '.join(sorted(unknown))}. Valid tasks: {', '.join(VALID_TASKS)}")
+    return selected
 
 
 def main(
     results_folder: Annotated[str, typer.Argument(help="Path to the results folder containing all_results.csv")] = "results",
+    tasks: Annotated[str, typer.Option(help=f"Comma-separated tasks to generate plots for, or 'all'. Choices: {', '.join(VALID_TASKS)}")] = "all",
 ):
     results_folder = Path(results_folder)
     assert results_folder.exists(), f"Could not find results folder at {results_folder}"
+
+    selected_tasks = _parse_tasks(tasks)
 
     # keep each results folder's plots separate so different result sets don't clobber each other's output;
     # nested under generated_figures/ so the whole tree can be gitignored in one line regardless of folder name
@@ -79,6 +98,11 @@ def main(
     ## Set chart names for the approaches
     all_results_df["chart_name"] = all_results_df.apply(
         lambda row: name_mapping.get((row["Approach"], row["Configuration"]), "TODO"),  # fallback color if missing
+        axis=1
+    )
+    ## Set scatter markers for the approaches (default circle if not curated)
+    all_results_df["marker"] = all_results_df.apply(
+        lambda row: marker_mapping.get((row["Approach"], row["Configuration"]), "o"),
         axis=1
     )
 
@@ -120,7 +144,7 @@ def main(
     #     Row Similarity Search
     # 
     ##############################################################################################
-    if ROW_SIM_PLOTS:
+    if "row_similarity_search" in selected_tasks:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "row_similarity_search"].copy()
         if df.empty:
@@ -160,7 +184,7 @@ def main(
     #     Column Similarity Search
     # 
     ##############################################################################################
-    if COL_SIM_PLOTS:
+    if "column_similarity_search" in selected_tasks:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "column_similarity_search"].copy()
         if df.empty:
@@ -188,7 +212,7 @@ def main(
     #     Triplet Tests
     # 
     ##############################################################################################
-    if TRIPLET_PLOTS:
+    if "row_triplet_evaluation" in selected_tasks:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "row_triplet_evaluation"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
@@ -212,7 +236,7 @@ def main(
     #     Cell Similarity Search
     # 
     ##############################################################################################
-    if CELL_SIM_PLOTS:
+    if "cell_similarity_search" in selected_tasks:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "cell_similarity_search"].copy()
         if df.empty:
@@ -239,7 +263,7 @@ def main(
     #     Table Retrieval
     #
     ##############################################################################################
-    if TABLE_RETRIEVAL_PLOTS:
+    if "table_retrieval" in selected_tasks:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "table_retrieval"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
@@ -259,7 +283,7 @@ def main(
     #     Table Similarity Search
     #
     ##############################################################################################
-    if TABLE_SIMILARITY_SEARCH_PLOTS:
+    if "table_similarity_search" in selected_tasks:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "table_similarity_search"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
@@ -278,7 +302,7 @@ def main(
     #     Table Shuffling
     #
     ##############################################################################################
-    if TABLE_SHUFFLING_PLOTS:
+    if "table_shuffling" in selected_tasks:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "table_shuffling"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
@@ -301,7 +325,7 @@ def main(
     #     Table Type Detection
     #
     ##############################################################################################
-    if TABLE_TYPE_DETECTION_PLOTS:
+    if "table_type_detection" in selected_tasks:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "table_type_detection"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
@@ -316,7 +340,7 @@ def main(
     #     Serialization Deltas (across table_retrieval / table_shuffling / table_type_detection)
     #
     ##############################################################################################
-    if SERIALIZATION_DELTA_PLOTS:
+    if "serialization_deltas" in selected_tasks:
         serialization_deltas.create_plot(all_results_df, plots_folder)
 
 
@@ -325,12 +349,12 @@ def main(
     #     Tabular Prediction
     # 
     ##############################################################################################
-    # Falls back to an empty table (all approaches penalized) if TABULAR_PREDICTION_PLOTS
-    # is off or predictive_ml has no data in this results folder, so ranking_table below
-    # always has a valid frame to consume.
+    # Falls back to an empty table (all approaches penalized) if predictive_ml wasn't
+    # selected or has no data in this results folder, so ranking_table below always has
+    # a valid frame to consume.
     elo_table = pd.DataFrame(columns=["chart_name", "elo_score_task"])
 
-    if TABULAR_PREDICTION_PLOTS:
+    if "predictive_ml" in selected_tasks:
         # Filter data for the current task
         df = all_results_df[all_results_df['task'] == "predictive_ml"].copy()
         # drop columns with all nans (result metrics from other tasks will be nan)
@@ -364,7 +388,7 @@ def main(
     #     Column Type Annotation
     #
     ##############################################################################################
-    if CTA_PLOTS:
+    if "column_type_annotation" in selected_tasks:
         df = all_results_df[all_results_df['task'] == "column_type_annotation"].copy()
         df = df.dropna(axis=1, how="all")
         if df.empty:
@@ -378,18 +402,19 @@ def main(
     #     Schema Linking / Value Linking
     #
     ##############################################################################################
-    if NL2_PLOTS:
-        for task_name, task_label, barplot_fn in [
-            ("schema_linking", "column_mapping", nl2_bar_plot.create_barplot_single_dataset),
-            ("value_linking", "cell2column_mapping", nl2_bar_plot.create_barplot_grouped),
-        ]:
-            df = all_results_df[all_results_df['task'] == task_name].copy()
-            df = df.dropna(axis=1, how="all")
-            if df.empty:
-                print(f"No {task_name} results in this results folder, skipping.")
-            else:
-                barplot_fn(df, plots_folder, task_label)
-                nl2_results_table.create_results_table(df, plots_folder, task_label)
+    for task_name, task_label, barplot_fn in [
+        ("schema_linking", "column_mapping", nl2_bar_plot.create_barplot_single_dataset),
+        ("value_linking", "cell2column_mapping", nl2_bar_plot.create_barplot_grouped),
+    ]:
+        if task_name not in selected_tasks:
+            continue
+        df = all_results_df[all_results_df['task'] == task_name].copy()
+        df = df.dropna(axis=1, how="all")
+        if df.empty:
+            print(f"No {task_name} results in this results folder, skipping.")
+        else:
+            barplot_fn(df, plots_folder, task_label)
+            nl2_results_table.create_results_table(df, plots_folder, task_label)
 
     ##############################################################################################
     #
