@@ -38,7 +38,7 @@ def run_similarity_search_based_on_row_embeddings(row_embedding_component, input
     component_utils.assert_row_embedding_format(row_embeddings=row_embeddings, input_table=input_table)
 
     all_testcase_metrics = []
-    for testcase_path in tqdm(testcase_paths):
+    for testcase_path in tqdm(testcase_paths, mininterval=2):
         testcase_id, testcase_input_df, testcase_gt_output_df = load_benchmark.load_testcase(testcase_path)
 
         # get embedding of input row by finding the input row in the original table
@@ -76,7 +76,7 @@ def run_similarity_search_based_on_row_embeddings(row_embedding_component, input
 def run_similarity_search_custom_approach(similarity_search_component, testcase_paths: list, input_table: pd.DataFrame, pk_column, k: int):
     logger.debug(f"Called run_similarity_search_component")
     all_testcase_metrics = []
-    for testcase_path in tqdm(testcase_paths):
+    for testcase_path in tqdm(testcase_paths, mininterval=2):
         testcase_id, testcase_input_df, testcase_gt_output_df = load_benchmark.load_testcase(testcase_path)
 
         # get ranked list of top-k most similar rows

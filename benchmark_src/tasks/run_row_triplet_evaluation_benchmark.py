@@ -90,7 +90,7 @@ def run_similarity_task_based_on_row_embeddings(row_embedding_component, input_t
 
     all_results = []
 
-    for testcase_path in tqdm(testcase_paths):
+    for testcase_path in tqdm(testcase_paths, mininterval=2):
         testcase_dict = load_benchmark.load_testcase_more_similar_than(testcase_path)
 
         similar_pair = testcase_dict["similar_pair"]

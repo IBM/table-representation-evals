@@ -223,7 +223,7 @@ def create_preprocessed_data(input_table: pd.DataFrame, component:BaseTabularEmb
         # convert all rows to strings
 
         all_rows = []
-        for _, row in tqdm(input_table.iterrows()):
+        for _, row in tqdm(input_table.iterrows(), total=len(input_table), mininterval=2, leave=False):
             table_row_string = convert_row_to_string(row)
             all_rows.append(table_row_string)
         preprocessed_data = all_rows  # return the preprocessed_data in which ever format you like
