@@ -20,6 +20,7 @@ supported_tasks:
   value_linking: {}
   table_retrieval: {}
   table_similarity_search: {}
+  table_type_detection: {}
   predictive_ml:
     run_task_based_on: row_embeddings
     exclude_datasets:

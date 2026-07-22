@@ -60,6 +60,9 @@ supported_tasks:
   table_retrieval: {}
   table_similarity_search: {}
   table_shuffling: {}
+  table_type_detection: {}
   column_similarity_search:
     run_similarity_search_based_on: column_embeddings
   column_type_annotation: {}
+  schema_linking: {}
+  value_linking: {}

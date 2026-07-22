@@ -8,5 +8,6 @@ table_row_limit: -1      # -1 for no limit
 
 supported_tasks:
   table_retrieval: {}
+  table_similarity_search: {}
   table_shuffling: {}
   table_type_detection: {}

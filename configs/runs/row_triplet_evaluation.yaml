@@ -1,8 +1,8 @@
 benchmark_output_dir: revision_experiments
 
-# Run only the row_similarity_search task for all approaches below.
+# Run only the row_triplet_evaluation task for all approaches below.
 tasks:
-  - row_similarity_search
+  - row_triplet_evaluation
 
 approaches:
   - name: sentence_transformer

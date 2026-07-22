@@ -24,11 +24,11 @@ context_size: 1024
 # Of the tasks below, only predictive_ml matches TabDPT's documented usage
 # (TabDPTClassifier/Regressor via fit()/predict_proba()/predict(), as
 # evaluated in the paper on OpenML CC18/CTR23). row_similarity_search,
-# row_triplet_evaluation, clustering, table_shuffling, and
-# table_similarity_search all rely on "row"/"table embeddings" pulled from a
+# row_triplet_evaluation, clustering, table_shuffling, table_similarity_search,
+# and table_type_detection all rely on "row"/"table embeddings" pulled from a
 # pre-head hidden state via a monkey-patched forward() (see approach.py) —
 # TabDPT has no official embedding-extraction API (unlike e.g. TabPFN's
-# documented get_embeddings()), so results on these five tasks reflect a
+# documented get_embeddings()), so results on these six tasks reflect a
 # benchmark-side best-effort extraction, not a capability TabDPT's authors
 # designed or evaluated. In particular, table_similarity_search's gitTables
 # tables include raw, high-cardinality identifier and free-text columns
@@ -54,3 +54,4 @@ supported_tasks:
       - SDSS17
   table_shuffling: {}
   table_similarity_search: {}
+  table_type_detection: {}

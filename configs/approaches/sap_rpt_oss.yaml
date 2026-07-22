@@ -3,10 +3,10 @@ conda_env: benchmark_env
 module_path: "approaches/benchmark_approaches_src/sap_rpt_oss"
 class_name: SAP_RPT_OSS_Embedder
 
-# For best performance, use max_context_size=8192 and bagging=8 (requires 80GB GPU) —
-# the paper run config overrides both. These lighter defaults (2048/1) fit smaller GPUs.
-bagging: 1
-max_context_size: 2048
+# Paper-quality settings (requires 80GB GPU). For quick/lightweight testing on smaller
+# GPUs, override to bagging=1, max_context_size=2048 in the run config instead.
+bagging: 8
+max_context_size: 8192
 device: "auto"
 
 supported_tasks:
