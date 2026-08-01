@@ -8,12 +8,20 @@ Architecture: alternating row/col BERT-based transformers (12 layers each).
 Max per-forward-pass: 30 rows × 20 columns (predictor clips; model pos.
 embeddings support up to 35 × 25).
 
-Larger tables are handled by:
-  - Row dim > MAX_ROWS: non-overlapping row windows, per-window CLS tokens
-    concatenated.
-  - Col dim > MAX_COLS: non-overlapping col windows, each column's embedding
-    extracted from the window that contains it.
-  - Both: double loop.
+Larger tables are handled differently per representation level:
+  - Row dim > MAX_ROWS (all methods): non-overlapping row windows, one
+    forward pass each. This is a hard architectural limit (row position
+    embeddings only go up to index 30) - every row still needs an
+    embedding, so windowing is unavoidable.
+  - Col dim > MAX_COLS, row embeddings (get_row_embeddings): truncated to
+    the first MAX_COLS columns, matching the original TABBIE paper's own
+    evaluation protocol.
+  - Col dim > MAX_COLS, column/cell embeddings (get_column_embeddings,
+    get_cell_embeddings): windowed over columns rather than truncated -
+    each column/cell embedding already comes from exactly one window, so
+    truncating would silently drop real per-column signal instead of just
+    being less generous, actively hurting column-level tasks like
+    column_similarity_search.
 
 Reference: https://github.com/SFIG611/tabbie
 Paper:     https://arxiv.org/abs/2105.02584
@@ -25,7 +33,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -179,8 +187,9 @@ class TABBIEEmbedder(BaseTabularEmbeddingApproach):
         of MAX_ROWS; WINDOW_BATCH_SIZE windows are processed together in a
         single get_tabemb call (batched over the bs dimension).
 
-        For tables with > MAX_COLS cols: non-overlapping column windows are
-        processed separately and their row-CLS embeddings averaged.
+        For tables with > MAX_COLS columns: only the first MAX_COLS columns
+        are used, matching the original TABBIE paper's own evaluation
+        protocol.
 
         Returns:
             np.ndarray of shape (num_rows, 768)
@@ -188,50 +197,40 @@ class TABBIEEmbedder(BaseTabularEmbeddingApproach):
         self.load_trained_model()
         df = self.preprocessing(input_table)
         n_rows, n_cols = len(df), len(df.columns)
-        n_row_windows = (n_rows + MAX_ROWS - 1) // MAX_ROWS
+        n_cols_used = min(n_cols, MAX_COLS)
+        if n_cols_used < n_cols:
+            logger.info(
+                "TABBIE: table has %d columns, using only the first %d "
+                "(per-forward-pass column cap, matches the original paper's truncation).",
+                n_cols, n_cols_used,
+            )
+        headers = list(df.columns[:n_cols_used])
 
-        # Accumulate row-CLS embeddings per row window across column windows.
-        # row_embs_accum[i] has shape (window_rows_i, 768); starts as None.
-        row_embs_accum: List[Optional[np.ndarray]] = [None] * n_row_windows
-        n_col_windows = 0
+        # Build all row windows for the (possibly truncated) column slice
+        windows: List[List[List[str]]] = []
+        for r_start in range(0, n_rows, MAX_ROWS):
+            r_end = min(r_start + MAX_ROWS, n_rows)
+            sub = df.iloc[r_start:r_end, :n_cols_used]
+            rows = [
+                [str(sub.iloc[r, c]) for c in range(sub.shape[1])]
+                for r in range(sub.shape[0])
+            ]
+            windows.append(rows)
 
-        for c_start in range(0, n_cols, MAX_COLS):
-            c_end = min(c_start + MAX_COLS, n_cols)
-            headers = list(df.columns[c_start:c_end])
+        # Process WINDOW_BATCH_SIZE windows per get_tabemb call
+        embeddings_parts: List[np.ndarray] = []
+        for b_start in range(0, len(windows), WINDOW_BATCH_SIZE):
+            batch = windows[b_start : b_start + WINDOW_BATCH_SIZE]
+            embs_list = self.model.embed_table_batch(
+                headers, batch, max_cell_len=self.max_cell_len
+            )
+            for rows, row_embs in zip(batch, embs_list):
+                window_rows = len(rows)
+                # row_embs: (max_batch_rows + 2, n_cols_used + 1, 768)
+                # Row-CLS for data rows: [2 : 2 + window_rows, 0, :]
+                embeddings_parts.append(row_embs[2 : 2 + window_rows, 0, :])
 
-            # Build all row windows for this column slice
-            windows: List[List[List[str]]] = []
-            for r_start in range(0, n_rows, MAX_ROWS):
-                r_end = min(r_start + MAX_ROWS, n_rows)
-                sub = df.iloc[r_start:r_end, c_start:c_end]
-                rows = [
-                    [str(sub.iloc[r, c]) for c in range(sub.shape[1])]
-                    for r in range(sub.shape[0])
-                ]
-                windows.append(rows)
-
-            # Process WINDOW_BATCH_SIZE windows per get_tabemb call
-            for b_start in range(0, len(windows), WINDOW_BATCH_SIZE):
-                batch = windows[b_start : b_start + WINDOW_BATCH_SIZE]
-                embs_list = self.model.embed_table_batch(
-                    headers, batch, max_cell_len=self.max_cell_len
-                )
-                for local_idx, (rows, row_embs) in enumerate(zip(batch, embs_list)):
-                    win_idx = b_start + local_idx
-                    window_rows = len(rows)
-                    # row_embs: (max_batch_rows + 2, n_cols + 1, 768)
-                    # Row-CLS for data rows: [2 : 2 + window_rows, 0, :]
-                    cls_embs = row_embs[2 : 2 + window_rows, 0, :]  # (window_rows, 768)
-                    if row_embs_accum[win_idx] is None:
-                        row_embs_accum[win_idx] = cls_embs.copy()
-                    else:
-                        row_embs_accum[win_idx] += cls_embs
-
-            n_col_windows += 1
-
-        embeddings = np.concatenate(
-            [acc / n_col_windows for acc in row_embs_accum], axis=0
-        )
+        embeddings = np.concatenate(embeddings_parts, axis=0)
         logger.info("TABBIE row embeddings shape: %s", embeddings.shape)
         return embeddings
 
@@ -360,13 +359,36 @@ class TABBIEEmbedder(BaseTabularEmbeddingApproach):
         """
         Single vector for the whole table: mean of row-CLS embeddings.
 
+        With zero data rows (schema-only ablation), there are no row-CLS
+        tokens to average, so the model's own table-CLS token from a
+        headers-only forward pass is used instead.
+
         Returns:
             np.ndarray of shape (768,)
         """
-        row_embs = self.get_row_embeddings(input_table)
-        table_emb = row_embs.mean(axis=0)
+        if len(input_table) == 0:
+            table_emb = self._get_schema_only_table_embedding(input_table)
+        else:
+            row_embs = self.get_row_embeddings(input_table)
+            table_emb = row_embs.mean(axis=0)
         norm = np.linalg.norm(table_emb)
         if norm > 0:
             table_emb = table_emb / norm
         logger.info("TABBIE table embedding shape: %s", table_emb.shape)
         return table_emb
+
+    def _get_schema_only_table_embedding(self, input_table: pd.DataFrame) -> np.ndarray:
+        """Table-CLS embedding from a headers-only forward pass (no data rows)."""
+        self.load_trained_model()
+        df = self.preprocessing(input_table)
+        n_cols = len(df.columns)
+        n_cols_used = min(n_cols, MAX_COLS)
+        if n_cols_used < n_cols:
+            logger.info(
+                "TABBIE: table has %d columns, using only the first %d "
+                "(per-forward-pass column cap, matches the original paper's truncation).",
+                n_cols, n_cols_used,
+            )
+        headers = list(df.columns[:n_cols_used])
+        row_embs, _ = self.model.embed_table(headers, [], max_cell_len=self.max_cell_len)
+        return row_embs[0, 0, :]
