@@ -57,7 +57,7 @@ class CellEmbeddingComponent(CellEmbeddingInterface):
                 cell_texts.append(text)
 
         # Embed all at once
-        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        with torch.inference_mode(), torch.autocast("cuda", dtype=self.approach_instance.autocast_dtype):
             embeddings_flat = self.approach_instance.model.encode(
                 cell_texts, batch_size=64, normalize_embeddings=True, show_progress_bar=False
             )

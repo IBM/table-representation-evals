@@ -36,7 +36,7 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
         """
         all_columns = self.approach_instance.preprocessing(input_table=input_table, component=self)
         # encode the columns
-        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        with torch.inference_mode(), torch.autocast("cuda", dtype=self.approach_instance.autocast_dtype):
             column_embeddings = self.approach_instance.model.encode(list(all_columns.values()),
                                                                instruction=self.gritlm_instruction(""),
                                                                  show_progress_bar=True)

@@ -116,6 +116,12 @@ if [ "$SETUP_GENERAL" = true ]; then
 
     pip install -e . -e approaches/
 
+    # reqs_benchmark.txt doesn't pin torch, so pip defaults to the newest build (currently
+    # cu130), which needs a newer NVIDIA driver than older GPU hosts may have. Re-pin last to a
+    # build against an older, widely-supported CUDA toolkit version.
+    pip uninstall torch -y
+    pip install torch==2.7.1+cu118 --index-url https://download.pytorch.org/whl/cu118
+
     conda deactivate
 
 fi
@@ -206,6 +212,12 @@ if [ "$SETUP_TABICL" = true ]; then
     ./approaches/benchmark_approaches_src/tabicl/setup.sh
 
     pip install -e . -e approaches/
+
+    # reqs_benchmark.txt / tabicl's own setup.sh don't pin torch, so pip defaults to the newest
+    # build (currently cu130), which needs a newer NVIDIA driver than older GPU hosts may have.
+    # Re-pin last to a build against an older, widely-supported CUDA toolkit version.
+    pip uninstall torch -y
+    pip install torch==2.7.1+cu118 --index-url https://download.pytorch.org/whl/cu118
 
     conda deactivate
 fi
@@ -327,6 +339,12 @@ if [ "$SETUP_GRITLM" = true ]; then
     # (torch.from_numpy/.numpy()) entirely. Re-pin to the last NumPy 1.x release.
     pip uninstall numpy -y
     pip install numpy==1.26.4
+
+    # The scipy pulled in above by reqs_benchmark.txt/gritlm requires NumPy>=2.0 and references
+    # attributes NumPy removed by 1.24 (e.g. np.long), so it breaks against the numpy==1.26.4
+    # pin above. scipy==1.13.1 is the last release still compatible with NumPy 1.x.
+    pip uninstall scipy -y
+    pip install scipy==1.13.1
 
     conda deactivate
 fi

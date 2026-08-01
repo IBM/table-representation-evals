@@ -40,7 +40,7 @@ class RowEmbeddingComponent(RowEmbeddingInterface):
         all_rows = self.approach_instance.preprocessing(input_table=input_table, component=self)
         logger.debug(f"GritLM: Preprocessed the rows, next encode them. Have {len(all_rows)} rows")
         # encode the rows
-        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        with torch.inference_mode(), torch.autocast("cuda", dtype=self.approach_instance.autocast_dtype):
             row_embeddings = self.approach_instance.model.encode(all_rows, instruction=self.gritlm_instruction(""), show_progress_bar=True)
         logger.debug(f"Done creating the row embeddings")
         return row_embeddings

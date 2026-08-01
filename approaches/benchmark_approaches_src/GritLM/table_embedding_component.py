@@ -38,7 +38,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
             serialized = approach_utils.convert_df_to_markdown(
                 input_table, max_rows=self.table_row_limit
             )
-        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        with torch.inference_mode(), torch.autocast("cuda", dtype=self.approach_instance.autocast_dtype):
             embeddings = self.approach_instance.model.encode(
                 [serialized],
                 instruction=self.gritlm_instruction(""),
@@ -51,7 +51,7 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         """
         Embed a natural language query with GritLM.
         """
-        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        with torch.inference_mode(), torch.autocast("cuda", dtype=self.approach_instance.autocast_dtype):
             embeddings = self.approach_instance.model.encode(
                 [query],
                 instruction=self.gritlm_instruction(""),

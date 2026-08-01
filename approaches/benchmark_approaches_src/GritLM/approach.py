@@ -64,6 +64,9 @@ class GritLMEmbedder(BaseTabularEmbeddingApproach):
         logger.info(f"GritLM: Loading model {self.embedding_model_name}")
         model = GritLM(self.embedding_model_name, mode="embedding", torch_dtype=torch.float16, device_map='auto')
         logger.info(f"GritLM: Loaded model!")
+        bf16_supported = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+        self.autocast_dtype = torch.bfloat16 if bf16_supported else torch.float16
+        logger.info(f"GritLM: Using autocast dtype {self.autocast_dtype} (bf16 supported: {bf16_supported})")
         dtypes = {param.dtype for param in model.parameters()}
         logger.info(f"GritLM model parameters are of type: {dtypes}")
         uses_flash_attention = False
