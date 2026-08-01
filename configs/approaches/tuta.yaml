@@ -49,6 +49,11 @@ max_rows: 50
 # (measured on a 23K-row table) — scales roughly linearly with this value.
 column_embedding_row_limit: 500
 
+# Max rows passed to create_table_embedding; -1 for no limit (max_rows above still
+# applies as TUTA's own per-forward-pass cap). Row/column/cell embeddings are
+# unaffected. Set to 0 for a schema-only table embedding (header row, no data rows).
+table_row_limit: -1
+
 supported_tasks:
   cell_similarity_search: {}
   row_similarity_search:

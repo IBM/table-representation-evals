@@ -40,18 +40,10 @@ context_size: 1024
 supported_tasks:
   row_similarity_search:
     run_similarity_search_based_on: row_embeddings
-    exclude_datasets:
-      - DBLP-GoogleScholar   # >100k rows; OOM risk at context_size=1024
-      - iTunes-Amazon
   row_triplet_evaluation: {}
   clustering: {}
   predictive_ml:
     run_task_based_on: custom_predictiveML_model
-    exclude_datasets:
-      - customer_satisfaction_in_airline
-      - APSFailure
-      - GiveMeSomeCredit
-      - SDSS17
   table_shuffling: {}
   table_similarity_search: {}
   table_type_detection: {}
