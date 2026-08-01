@@ -2,35 +2,59 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 
+from benchmark_src.results_processing.ranking import INITIAL_RATING
+
 # Maps task_key -> metric, or task_key -> (task_col_value, metric)
 # for subtasks that share a task column value (predictive_ml).
 task_metrics = {
-    "row_similarity_search": "MRR",
+    "row_similarity_search": "MAP",
     "row_triplet_evaluation": "accuracy",
-    "predictive_ml_regression": ("predictive_ml", "LinearRegression_rmse (↓)"),
+    "predictive_ml_regression": ("predictive_ml", "XGBoost_rmse (↓)"),
     "predictive_ml_multiclass": ("predictive_ml", "XGBoost_log_loss (↓)"),
     "predictive_ml_binary":     ("predictive_ml", "XGBoost_roc_auc_score (↑)"),
-    "column_similarity_search": "MRR",
-    "table_retrieval": "MRR@10",
-    "table_similarity_search": "MRR",
-    "cell_similarity_search": "accuracy",
+    "column_similarity_search": "MAP",
+    "column_type_annotation": "macro_f1 (↑)",
+    "schema_linking": "mean_map",
+    "table_retrieval": "MAP@10",
+    "table_similarity_search": "MAP",
+    "table_shuffling": "TripletAccuracy",
+    "cell_similarity_search": "MAP",
+    "value_linking": "mean_map",
 }
 
 TASK_NAME_MAP = {
-    "row_similarity_search": r"\makecell{Row \\ Similarity Search \\ (MRR)}",
+    "row_similarity_search": r"\makecell{Row \\ Sim. Search \\ (MAP)}",
     "row_triplet_evaluation": r"\makecell{Triplet \\ Evaluation \\ (Accuracy) }",
     "predictive_ml": r"\makecell{Tabular \\ Prediction\\ (ELO)}",
     "predictive_ml_regression": r"\makecell{Tabular \\ Prediction\\ (Regression)}",
     "predictive_ml_binary": r"\makecell{Tabular \\ Prediction\\ (Binary)}",
     "predictive_ml_multiclass": r"\makecell{Tabular \\ Prediction\\ (Multiclass)}",
-    "column_similarity_search": r"\makecell{Column \\ Similarity Search \\ (MRR)}",
-    "table_retrieval": r"\makecell{Table \\ Retrieval \\ (MRR@10)}",
-    "table_similarity_search": r"\makecell{Table \\ Similarity Search \\ (MRR)}",
-    "cell_similarity_search": r"\makecell{Cell \\ Similarity Search \\ (Accuracy)}",
+    "column_similarity_search": r"\makecell{Column \\ Sim. Search \\ (MAP)}",
+    "column_type_annotation": r"\makecell{Column Type \\ Annotation \\ (Macro F1)}",
+    "schema_linking": r"\makecell{Schema \\ Linking \\ (MAP)}",
+    "table_retrieval": r"\makecell{Table \\ Retrieval \\ (MAP@10)}",
+    "table_similarity_search": r"\makecell{Table \\ Sim. Search \\ (MAP)}",
+    "table_shuffling": r"\makecell{Table \\ Shuffling \\ (Accuracy)}",
+    "cell_similarity_search": r"\makecell{Cell \\ Sim. Search \\ (MAP)}",
+    "value_linking": r"\makecell{Value \\ Linking \\ (MAP)}",
     "Overall": "Overall",
 }
 
 MISSING_MULTIPLIER = 2  # multiplier applied to worst observed value for lower-is-better metrics
+
+# row_triplet_evaluation's dataset list (configs/global_datasets.yaml) also includes several
+# column-count/ablation variants used for robustness analyses elsewhere; the ranking table
+# only reflects the two original datasets, matching the main-text figure.
+ROW_TRIPLET_CORE_DATASETS = frozenset({"wikidata_books", "astronomical_objects"})
+
+# Task-column values create_table() reads from all_results_df, derived from task_metrics
+# (predictive_ml subtasks are skipped there and pulled in separately via the elo ranking
+# argument instead, so they're excluded here).
+RANKING_TASKS = frozenset(
+    (spec[0] if isinstance(spec, tuple) else task_key)
+    for task_key, spec in task_metrics.items()
+    if task_key not in ("predictive_ml_regression", "predictive_ml_binary", "predictive_ml_multiclass")
+)
 
 def is_higher_better(metric_name: str) -> bool:
     return (
@@ -38,8 +62,40 @@ def is_higher_better(metric_name: str) -> bool:
         or "auc" in metric_name.lower()
         or "accuracy" in metric_name.lower()
         or "mrr" in metric_name.lower()
+        or "map" in metric_name.lower()
         or "silhouette" in metric_name.lower()
     )
+
+
+def compute_zscore(agg: pd.Series, higher_better: bool) -> pd.Series:
+    """
+    Convert a per-approach task-average metric into a z-score across the approaches
+    that support the task (mean-centered, scaled by the cross-approach std), sign-flipped
+    so a higher z-score always means better performance.
+
+    Approaches with no data at all for the task (NaN in `agg`) are assigned a z-score
+    exactly 1 standard deviation below the worst supporting approach -- the z-score
+    analog of PENALTY_RANK's "one rank worse than the worst observed rank", expressed
+    in the z-score's own natural unit, so narrow task coverage is penalized the same
+    way it already is for the rank-based Overall column.
+    """
+    valid = agg.dropna()
+    if valid.empty:
+        return pd.Series(0.0, index=agg.index)
+
+    std = valid.std()
+    if not std or pd.isna(std):
+        z = pd.Series(0.0, index=valid.index)
+    else:
+        z = (valid - valid.mean()) / std
+        if not higher_better:
+            z = -z
+
+    z = z.reindex(agg.index)
+    missing = z.isna()
+    if missing.any() and (~missing).any():
+        z[missing] = z[~missing].min() - 1.0
+    return z
 
 
 def aggregate_per_task(
@@ -125,6 +181,7 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
     PENALTY_RANK = n_approaches + 1
 
     rankings = {}
+    zscores = {}
     mean_values = {}
     cannot_do = {}
     partial_do = {}
@@ -148,10 +205,13 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
 
         # Filter to rows for this task
         task_df = df[df["task"] == task_filter].copy()
+        if task_key == "row_triplet_evaluation":
+            task_df = task_df[task_df["dataset"].isin(ROW_TRIPLET_CORE_DATASETS)]
 
         if task_df.empty or metric_col not in task_df.columns:
             cannot_do[task_key] = set(all_approaches)
             rankings[task_key] = pd.Series(PENALTY_RANK, index=all_approaches)
+            zscores[task_key] = pd.Series(0.0, index=all_approaches)
             continue
 
         higher_better = is_higher_better(metric)
@@ -169,6 +229,7 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
         partial_do[task_key] = partial_approaches
 
         mean_values[task_key] = agg.copy()
+        zscores[task_key] = compute_zscore(agg, higher_better)
 
         # Rank among approaches with data
         ranks = agg.rank(ascending=not higher_better, method="average", na_option="keep")
@@ -179,23 +240,26 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
     # ------------------------------------------------------------------
     # Add combined predictive ML ELO ranking
     # ------------------------------------------------------------------
-    # predictive_ml_elo_ranking_df: expects columns ['chart_name', 'elo_score_task']
+    # predictive_ml_elo_ranking_df: expects columns ['chart_name', 'elo_score_task'].
+    # Unlike other task columns, ELO scores from the default and '*' (row-embeddings)
+    # configs of the same approach are two distinct tournament participants and aren't
+    # meaningfully averaged -- use the default config's score, falling back to the '*'
+    # config only for approaches with no default entry at all (currently just TabuLa-8B).
     elo_df = predictive_ml_elo_ranking_df.copy()
-    elo_df["base_name"] = elo_df["chart_name"]
-
-    # update TabuLa-8B* chart name to just TabuLa-8B (exactly those, don't affect others), update it permatently
-    elo_df.loc[elo_df["base_name"] == "TabuLa-8B*", "base_name"] = "TabuLa-8B"
-    print("HEREEEE")
-    print(elo_df)
+    is_starred = elo_df["chart_name"].str.endswith("*")
+    elo_df["base_name"] = elo_df["chart_name"].str.replace(r"\*$", "", regex=True)
 
     # ELO: higher better
-    elo_series = elo_df.groupby("base_name")["elo_score_task"].mean()
+    default_series = elo_df.loc[~is_starred].set_index("base_name")["elo_score_task"]
+    starred_series = elo_df.loc[is_starred].set_index("base_name")["elo_score_task"]
+    elo_series = default_series.combine_first(starred_series)
     elo_series = elo_series.reindex(all_approaches)
 
     missing = set(elo_series[elo_series.isna()].index)
     cannot_do["predictive_ml"] = missing
     partial_do["predictive_ml"] = set()  # assume no partial info
     mean_values["predictive_ml"] = elo_series.copy()
+    zscores["predictive_ml"] = compute_zscore(elo_series, higher_better=True)
 
     # Rank ELO descending (higher is better)
     ranks = elo_series.rank(ascending=False, method="average", na_option="keep")
@@ -210,16 +274,23 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
     ranking_df.index.name = "Approach"
 
     ranking_df["Overall"] = ranking_df.mean(axis=1)
+
+    zscore_df = pd.DataFrame(zscores, index=all_approaches)
+    ranking_df["Overall Z-Score"] = zscore_df.mean(axis=1)
+
     # Replace task keys with display names (TASK_NAME_MAP)
     task_keys_for_display = {
-        k: TASK_NAME_MAP.get(k, k) for k in ranking_df.columns if k != "Overall"
+        k: TASK_NAME_MAP.get(k, k)
+        for k in ranking_df.columns
+        if k not in ("Overall", "Overall Z-Score")
     }
     ranking_df = ranking_df.rename(columns=task_keys_for_display)
     ranking_df = ranking_df.sort_values("Overall").round(2)
     ranking_df = ranking_df.reset_index()
 
     # ------------------------------------------------------------------
-    # Save mean values DataFrame for debugging
+    # Export the raw per-task metric values behind the rank/z-score table above,
+    # so they can be spot-checked independently of the table's formatting.
     # ------------------------------------------------------------------
     mean_df = pd.DataFrame(mean_values, index=all_approaches)
     mean_df.index.name = "Approach"
@@ -246,24 +317,51 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
         for col in value_cols
     }
 
+    # Every column except "Overall Z-Score" holds a rank (lower is better); the
+    # z-score column holds a magnitude where higher is better.
     col_best, col_second = {}, {}
     for col in value_cols:
         missing_names = cannot_do_display.get(col, set())
         eligible = df_out.loc[~df_out["Approach"].isin(missing_names), col]
-        best = eligible.min() if not eligible.empty else None
+        col_lower_better = col != "Overall Z-Score"
+        if eligible.empty:
+            best = None
+        else:
+            best = eligible.min() if col_lower_better else eligible.max()
         col_best[col] = best
         remaining = eligible[eligible != best] if best is not None else eligible
-        col_second[col] = remaining.min() if not remaining.empty else None
+        if remaining.empty:
+            second = None
+        else:
+            second = remaining.min() if col_lower_better else remaining.max()
+        col_second[col] = second
+
+    # Precompute the widest ELO delta (digits only, sign excluded) so narrower
+    # deltas can be padded with an invisible zero and stay right-aligned with
+    # wider ones in the same column, mirroring the rank zero-padding below.
+    elo_raw_series = mean_values.get("predictive_ml")
+    elo_delta_max_digits = 0
+    if elo_raw_series is not None:
+        valid_deltas = (elo_raw_series - INITIAL_RATING).dropna()
+        if not valid_deltas.empty:
+            elo_delta_max_digits = valid_deltas.abs().round().astype(int).astype(str).str.len().max()
 
     with open(plots_folder / "overall_ranking_table.tex", "w") as f:
         f.write(
             "\\begin{table*}[t]\n"
             "\\centering\n"
-            f"\\begin{{tabular*}}{{\\textwidth}}{{l{'c'*len(value_cols)}}}\n"
-            "\\hline\n"
+            f"\\begin{{tabular*}}{{\\textwidth}}{{@{{\\extracolsep{{\\fill}}}} l {'c '*len(value_cols)}@{{}}}}\n"
+            "\\toprule\n"
         )
-        f.write("Approach & " + " & ".join(value_cols) + " \\\\\n")
-        f.write("\\hline\n")
+        # "Overall"/"Overall Z-Score" stay as plain column names throughout (used as
+        # lookup keys above); only the header cell text gets the two-line makecell form.
+        header_display = {
+            "Overall": r"\makecell{Overall \\ Rank}",
+            "Overall Z-Score": r"\makecell{Overall \\ Z-Score}",
+        }
+        header_cells = [header_display.get(col, col) for col in value_cols]
+        f.write("Approach & " + " & ".join(header_cells) + " \\\\\n")
+        f.write("\\midrule\n")
 
         for _, row in df_out.iterrows():
             approach = row["Approach"]
@@ -279,26 +377,80 @@ def create_table(all_results_df: pd.DataFrame, plots_folder: Path, predictive_ml
                     formatted.append("-")
                     continue
 
-                val_str = f"{v:.2f}"
+                # Individual task ranks are whole numbers unless tied (average-rank
+                # method), so drop the trailing ".00" to keep cells narrow; the
+                # Overall/Overall Z-Score summary columns are means and always shown
+                # to 2 decimals.
+                is_rank_col = col != "Overall Z-Score"
+                if col in ("Overall", "Overall Z-Score"):
+                    val_str = f"{v:.2f}"
+                else:
+                    val_str = f"{v:.2f}".rstrip("0").rstrip(".")
+
+                # Pad single-digit ranks with an invisible leading zero so ranks stay
+                # right-aligned with double-digit ranks in the same column. Kept outside
+                # the bold/underline wrap below so \underline doesn't draw its stroke
+                # under the invisible padding too.
+                needs_zero_pad = is_rank_col and "." not in val_str and len(val_str) == 1
+
                 if col_best[col] is not None and v == col_best[col]:
                     val_str = f"\\textbf{{{val_str}}}"
                 elif col_second[col] is not None and v == col_second[col]:
                     val_str = f"\\underline{{{val_str}}}"
 
-                # Mark approaches that had some datasets imputed
-                if approach in partial_do_display.get(col, set()):
-                    val_str = val_str + "$^\\dagger$"
+                if needs_zero_pad:
+                    val_str = r"\phantom{0}" + val_str
+
+                # Mark approaches that had some datasets imputed with a dagger; pad
+                # with an invisible dagger otherwise so cell width in a column doesn't
+                # depend on whether the dagger is actually shown.
+                if is_rank_col:
+                    if approach in partial_do_display.get(col, set()):
+                        val_str = val_str + "$^\\dagger$"
+                    else:
+                        val_str = val_str + r"\phantom{$^\dagger$}"
+
+                # For individual task columns (not the Overall/Overall Z-Score
+                # summary columns), append the raw metric value next to the rank
+                # so within-task magnitude isn't lost.
+                task_key = display_name_to_task.get(col, "")
+                if task_key not in ("", "Overall"):
+                    raw_series = mean_values.get(task_key)
+                    if raw_series is not None and approach in raw_series.index:
+                        raw_val = raw_series[approach]
+                        if not pd.isna(raw_val):
+                            # ELO's absolute value is anchored to the arbitrary
+                            # INITIAL_RATING starting point, so report the delta from
+                            # it (signed) instead -- matches the standalone ELO table.
+                            pad_str = ""
+                            if task_key == "predictive_ml":
+                                delta = raw_val - INITIAL_RATING
+                                raw_str = f"{delta:+.0f}"
+                                digit_count = len(str(int(round(abs(delta)))))
+                                pad = elo_delta_max_digits - digit_count
+                                if pad > 0:
+                                    pad_str = r"\phantom{0}" * pad
+                            else:
+                                raw_str = f"{raw_val:.2f}"
+                            val_str = f"{val_str} {pad_str}({raw_str})"
 
                 formatted.append(val_str)
 
             f.write(f"{approach} & {' & '.join(formatted)} \\\\\n")
 
-        f.write("\\hline\n\\end{tabular*}\n")
+        f.write("\\bottomrule\n\\end{tabular*}\n")
         f.write(
-            "\\caption{Overall Ranking of approaches across tasks. "
+            "\\caption{Overall Ranking of approaches across tasks. Each task cell shows the "
+            "approach's rank followed by its raw metric value in parentheses; for Tabular "
+            "Prediction this is the ELO delta from the initial rating of 1500. "
             "\\text{---} indicates the approach does not support the task. "
             "$^\\dagger$ indicates the approach could not complete all datasets for the task; "
-            "missing datasets were imputed with a worst-case value.}\n"
+            "missing datasets were imputed with a worst-case value. "
+            "Overall Z-Score reports the mean, per-task z-score of the raw metric across "
+            "approaches (sign-flipped so higher is always better), preserving the magnitude of "
+            "cross-approach differences that the rank-based Overall column collapses; approaches "
+            "that do not support a task are assigned a z-score 1 standard deviation below the "
+            "worst supporting approach on that task.}\n"
         )
         f.write("\\label{tab:overall_ranking}\n")
         f.write("\\end{table*}\n")

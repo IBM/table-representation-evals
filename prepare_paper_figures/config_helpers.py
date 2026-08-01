@@ -5,6 +5,117 @@ import numpy as np
 from pathlib import Path
 
 
+# Row counts for predictive_ml datasets, transcribed from the per-dataset
+# comments in configs/global_datasets.yaml (predictive_ml_datasets is fetched
+# live via OpenML at run time, so no structured size metadata exists elsewhere).
+PREDICTIVE_ML_DATASET_ROWS = {
+    "credit-g": 1000,
+    "Fitness_Club": 1500,
+    "Is-this-a-good-customer": 1723,
+    "Marketing_Campaign": 2240,
+    "seismic-bumps": 2584,
+    "coil2000_insurance_policies": 9822,
+    "Bank_Customer_Churn": 10000,
+    "E-CommereShippingData": 10999,
+    "online_shoppers_intention": 12330,
+    "in_vehicle_coupon_recommendation": 12684,
+    "HR_Analytics_Job_Change_of_Data_Scientists": 19158,
+    "bank-marketing": 45211,
+    "kddcup09_appetency": 50000,
+    "Diabetes130US": 71518,
+    "customer_satisfaction_in_airline": 129880,
+    "blood-transfusion-service-center": 748,
+    "diabetes": 768,
+    "qsar-biodeg": 1054,
+    "hazelnut-spread-contaminant-detection": 2400,
+    "Bioresponse": 3751,
+    "churn": 5000,
+    "polish_companies_bankruptcy": 5910,
+    "taiwanese_bankruptcy_prediction": 6819,
+    "NATICUSdroid": 7491,
+    "heloc": 10459,
+    "jm1": 10885,
+    "credit_card_clients_default": 30000,
+    "Amazon_employee_access": 32769,
+    "APSFailure": 76000,
+    "GiveMeSomeCredit": 150000,
+    "anneal": 898,
+    "website_phishing": 1353,
+    "splice": 3190,
+    "students_dropout_and_academic_success": 4424,
+    "maternal_health_risk": 1014,
+    "MIC": 1699,
+    "hiva_agnostic": 3845,
+    "SDSS17": 78053,
+    "healthcare_insurance_expenses": 1338,
+    "Another-Dataset-on-used-Fiat-500": 1538,
+    "wine_quality": 6497,
+    "Food_Delivery_Time": 45451,
+    "diamonds": 53940,
+    "QSAR_fish_toxicity": 907,
+    "concrete_compressive_strength": 1030,
+    "airfoil_self_noise": 1503,
+    "QSAR-TID-11": 5742,
+    "miami_housing": 13776,
+    "houses": 20640,
+    "superconductivity": 21263,
+    "physiochemical_protein": 45730,
+}
+
+
+# Curated display names for dataset identifiers that would otherwise show up
+# raw (often with underscores, which break unescaped in LaTeX tables) in both
+# figures and results tables for their task. Shared here so a table and its
+# companion figure never drift apart on how a dataset is labeled.
+COLUMN_SIMILARITY_SEARCH_DATASET_NAMES = {
+    "nextia": "NextiaJD",
+    "opendata": "OpenData",
+    "valentine": "Valentine",
+    "wikijoin_small": "WikiJoin-Small",
+    "autojoin": "AutoJoin",
+}
+
+VALUE_LINKING_DATASET_NAMES = {
+    "bird_cell_exact": "BIRD Exact Match",
+    "bird_cell_fuzzy": "BIRD Fuzzy Match",
+}
+
+COLUMN_TYPE_ANNOTATION_DATASET_NAMES = {
+    "sotab": "SOTAB",
+    "gittables_cta": "GitTables",
+}
+
+SCHEMA_LINKING_DATASET_NAMES = {
+    "bird_column_schema": "BIRD Column Schema",
+}
+
+TABLE_SHUFFLING_DATASET_NAMES = {
+    "ckan_subset": "CKAN Subset",
+    "ecb": "ECB",
+    "fetaqa": "FeTaQA",
+    "ottqa": "OTT-QA",
+    "spider-train": "Spider",
+    "tabfact": "TabFact",
+}
+
+
+def chart_name_sort_key(name: str) -> str:
+    """Case-insensitive alphabetical sort key for a chart_name; strips a trailing
+    '*' (the predictive_ml row-embeddings marker) so an approach's starred and
+    unstarred variants sort together."""
+    return str(name).rstrip('*').lower()
+
+
+def sort_columns_by_chart_name(df: pd.DataFrame) -> pd.DataFrame:
+    """Reorder a DataFrame's columns alphabetically by chart_name (case-insensitive)."""
+    return df[sorted(df.columns, key=chart_name_sort_key)]
+
+
+def sort_index_by_chart_name(df: pd.DataFrame) -> pd.DataFrame:
+    """Reorder a DataFrame's index alphabetically by chart_name (case-insensitive)."""
+    return df.reindex(sorted(df.index, key=chart_name_sort_key))
+
+
 def parse_variation(dataset: str) -> tuple[str, str]:
     """Split 'dataset@@vN' into ('dataset', 'vN'). Returns ('dataset', '') if no variation."""
     if '@@' in dataset:
@@ -111,20 +222,31 @@ def write_latex_table(
                         cell_formats[(idx, c)] = (v, v == best_val, v == second_val)
 
     with open(plots_folder / filename, 'w') as f:
+        n_cols = len(value_cols)
+
         if table_env:
             env = 'table*' if star else 'table'
             f.write(f'\\begin{{{env}}}[t]\n')
             f.write('\\centering\n')
+            if not star:
+                f.write('\\resizebox{\\columnwidth}{!}{%\n')
 
-        n_cols = len(value_cols)
-        f.write(f'\\begin{{tabular}}{{l{"c" * n_cols}}}\n')
-        f.write('\\hline\n')
+        if star:
+            # tabular* with @{\extracolsep{\fill}} stretches to fill \textwidth,
+            # spanning both columns (double-column layout)
+            f.write(f'\\begin{{tabular*}}{{\\textwidth}}{{@{{\\extracolsep{{\\fill}}}} l {"c " * n_cols}@{{}}}}\n')
+        else:
+            f.write(f'\\begin{{tabular}}{{l{"c" * n_cols}}}\n')
+        f.write('\\toprule\n')
 
         header = f'{index_name} & ' + ' & '.join(value_cols) + ' \\\\\n'
         f.write(header)
-        f.write('\\hline\n')
+        f.write('\\midrule\n')
 
         for idx, row in df.iterrows():
+            if idx == 'Mean':
+                f.write('\\midrule\n')
+
             formatted = []
             for c in value_cols:
                 v = row[c]
@@ -144,10 +266,12 @@ def write_latex_table(
             row_label = str(idx).replace('_', '\\_')
             f.write(f'{row_label} & ' + ' & '.join(formatted) + ' \\\\\n')
 
-        f.write('\\hline\n')
-        f.write('\\end{tabular}\n')
+        f.write('\\bottomrule\n')
+        f.write('\\end{tabular*}\n' if star else '\\end{tabular}\n')
 
         if table_env:
+            if not star:
+                f.write('}\n')  # close \resizebox
             if caption:
                 f.write(f'\\caption{{{caption}}}\n')
             if label:
