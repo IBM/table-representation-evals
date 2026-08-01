@@ -267,55 +267,23 @@ class SAP_RPT_OSS_Embedder(BaseTabularEmbeddingApproach):
 
     def get_column_embeddings(self, input_table: pd.DataFrame) -> tuple:
         """Generate column embeddings using SAP RPT-1-OSS model.
-        
-        For each column j, treat all other columns as context and column j as the query
-        Run the in-context encoder to obtain contextualized representations
-        Take the representation of the query column (assumed last position) for all rows and
-        average across rows to yield a single embedding per column
-        
+
+        Reuses the same no-labels path as get_row_embeddings/cell embeddings
+        (whole table as its own context, dummy row-level target excluded from
+        the returned tokens): a single forward pass yields one contextualized
+        embedding per (row, column) cell, and a column's embedding is the mean
+        of its cells across rows, symmetric to how a row's embedding is the
+        mean of its cells across columns.
+
         Returns:
             (np.ndarray, list[str]): (column_embeddings [num_cols, hidden], column_names)
         """
         self.load_trained_model()
         table = self.preprocessing(input_table)
         column_names = list(table.columns)
-        num_cols = len(column_names)
 
-        device = next(self.model['classifier'].model.parameters()).device
-        col_embeddings: list[np.ndarray] = []
+        cell_embeddings = self._extract_embeddings_from_model(table, aggregate_tokens=False)  # [rows, cols, dim]
+        column_embeddings = cell_embeddings.mean(axis=0)  # [cols, dim]
 
-        with torch.no_grad():
-            for col_idx, col_name in enumerate(column_names):
-                X_context = table.drop(columns=[col_name])
-                Y_query = table[[col_name]]
-                dummy_labels = pd.Series([0] * len(table), name='target')
-                try:
-                    data, labels, label_classes = self.model['classifier'].tokenizer(
-                        X_context,
-                        dummy_labels.to_frame(),
-                        X_context.copy(),
-                        dummy_labels.to_frame(),
-                        self.model['classifier'].classification_or_regression,
-                    )
-                except AttributeError as e:
-                    logger.error(f"Tokenizer API may differ from ConTextTab: {e}")
-                    logger.error("You may need to adjust this method based on the actual SAP_RPT_OSS API")
-                    raise NotImplementedError(f"SAP_RPT_OSS tokenizer API differs from expected. Error: {e}")
-
-                data = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in data.items()}
-                input_embeds = self.model['classifier'].model.embeddings(data, False)
-                attn_mask = self.model['classifier'].model.build_context_attention_mask(data, input_embeds.device)
-                attn_mask = attn_mask.type(input_embeds.dtype)
-
-                encoder_outputs = input_embeds
-                for layer in self.model['classifier'].model.in_context_encoder:
-                    encoder_outputs = layer(encoder_outputs, attn_mask)
-
-                query_reps = encoder_outputs[:, -1, :]
-                col_emb = query_reps.mean(dim=0)
-                col_embeddings.append(col_emb.detach().cpu().float().numpy())
-
-        column_embeddings = np.vstack(col_embeddings) if col_embeddings else np.zeros((0, 0), dtype=np.float32)
-        
         return column_embeddings, column_names
 
