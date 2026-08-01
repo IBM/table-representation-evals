@@ -47,7 +47,7 @@ def run_task(datalake_folders, table_embedding_component):
         all_table_embeddings = {} # map table filename to embedding
 
         logger.info(f"Creating embeddings for {len(datalake_tables)} tables.")
-        for table_path in tqdm(datalake_tables, desc=f"Embedding tables for {datalake_folder.name}"):
+        for table_path in tqdm(datalake_tables, desc=f"Embedding tables for {datalake_folder.name}", mininterval=2):
             # read the pandas table
             input_table = pd.read_csv(table_path)
 

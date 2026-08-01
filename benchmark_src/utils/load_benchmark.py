@@ -2,6 +2,7 @@ import json
 import pandas as pd
 from pathlib import Path
 import logging
+import warnings
 from io import StringIO
 import os
 
@@ -51,7 +52,9 @@ def robust_csv_loader(dataset_path: "Path | str") -> pd.DataFrame:
     for enc in encodings_to_try:
         for delim in delimiters:
             try:
-                df = pd.read_csv(dataset_path, delimiter=delim, encoding=enc)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=pd.errors.DtypeWarning)
+                    df = pd.read_csv(dataset_path, delimiter=delim, encoding=enc)
                 if len(df.columns) > 1:  # sanity check
                     logger.debug(f"Loaded successfully with encoding='{enc}', delimiter='{delim}'")
                     return df

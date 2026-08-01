@@ -107,7 +107,7 @@ def run_cell_benchmark(cfg, cell_embedding_component, tables_folder: Path, testc
     results = []
     
     # loop over all testcases
-    for testcase_path in tqdm(testcases, desc="Evaluating testcases"):
+    for testcase_path in tqdm(testcases, desc="Evaluating testcases", mininterval=2):
         with open(testcase_path, "r") as f:
             testcase = json.load(f)
         
@@ -181,13 +181,14 @@ def run_cell_benchmark(cfg, cell_embedding_component, tables_folder: Path, testc
         # -------------------- Compute cosine similarity --------------------
         sims = cosine_similarity(query_embedding, candidate_embeddings)[0]  # shape [num_candidates]
 
-        # -------------------- Get top-k nearest neighbors --------------------
+        # -------------------- Rank all candidates by similarity --------------------
         top_k = testcase["top_k"]
-        topk_indices = np.argsort(sims)[::-1][:top_k]
-        topk_uids = [candidate_uids[i] for i in topk_indices]
+        ranked_indices = np.argsort(sims)[::-1]
+        ranked_uids = [candidate_uids[i] for i in ranked_indices]
+        topk_uids = ranked_uids[:top_k]
 
         # -------------------- Compute accuracy against ground truth --------------------
-        ground_truth_uids = set(
+        ground_truth_uids = list(
             f"{cell['paper_id']}/{cell['table_id']}/{cell['row']}/{cell['col']}"
             for cell in testcase["ground_truth"]
         )
@@ -195,11 +196,17 @@ def run_cell_benchmark(cfg, cell_embedding_component, tables_folder: Path, testc
         correct = sum([1 for uid in topk_uids if uid in ground_truth_uids])
         accuracy = correct / top_k if top_k > 0 else 0.0
 
+        testcase_metrics = benchmark_metrics.compute_testcase_metrics(
+            gt_row_ids=ground_truth_uids, predicted_row_ids=ranked_uids
+        )
+
         results.append({
             "testcase_file": str(testcase_path),
             "top_k": top_k,
             "correct": correct,
-            "accuracy": accuracy
+            "accuracy": accuracy,
+            "mrr": testcase_metrics["mrr"],
+            "map": testcase_metrics["map"],
         })
 
     return results
@@ -232,13 +239,19 @@ def main(cfg: DictConfig):
 
     # -------------------- Summary --------------------
     overall_acc = np.mean([r["accuracy"] for r in all_results])
+    overall_mrr = np.mean([r["mrr"] for r in all_results])
+    overall_map = np.mean([r["map"] for r in all_results])
     logger.info(f"accuracy = (# of correct cells in top-k) / k")
     logger.info(f"Mean top-k accuracy over {len(all_results)} testcases: {overall_acc:.3f}")
+    logger.info(f"Mean MRR over {len(all_results)} testcases: {overall_mrr:.3f}")
+    logger.info(f"Mean MAP over {len(all_results)} testcases: {overall_map:.3f}")
 
 
     # compute and save results
     result_metrics = {
-        "accuracy": overall_acc
+        "accuracy": overall_acc,
+        "MRR": overall_mrr,
+        "MAP": overall_map,
     }
 
     result_utils.save_results(cfg=cfg, metrics=result_metrics)

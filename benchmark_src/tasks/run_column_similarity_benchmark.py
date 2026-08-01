@@ -148,7 +148,7 @@ def load_benchmark_data(cfg):
             
             # Validate tables can be loaded (optional check)
             use_tqdm = len(datalake_tables) > 20
-            iterator = tqdm(datalake_tables, desc="Validating Datasets") if use_tqdm else datalake_tables
+            iterator = tqdm(datalake_tables, desc="Validating Datasets", mininterval=2) if use_tqdm else datalake_tables
 
             valid_tables = []
             for table in iterator:
@@ -174,7 +174,7 @@ def load_benchmark_data(cfg):
     else:
         # load valid data from cache
         dataset_cache_path = Path(cfg.cache_dir) / "datasets" / "column_similarity_search" / cfg.dataset_name
-        print(dataset_cache_path)
+        logger.debug(f"Loading cached dataset from: {dataset_cache_path}")
         assert dataset_cache_path.exists(), f"Could not find path: {dataset_cache_path}"
         with open(dataset_cache_path / "valid_data.json") as file:
             cached_data = json.load(file)
@@ -239,7 +239,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
     )
 
     for testcase in test_cases:
-        logger.info(f"Processing testcase: {testcase}")
+        logger.debug(f"Processing testcase: {testcase}")
         table_paths, gt_data, dataset_name = test_cases[testcase]
 
 
@@ -296,7 +296,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             query_embedding_cache = {}  # key: full_col_name -> embedding
             current_id = 0
 
-            for table_path in tqdm(table_paths, desc=f"Embedding tables for {dataset_name}"):
+            for table_path in tqdm(table_paths, desc=f"Embedding tables for {dataset_name}", mininterval=2):
                 full_table_path = Path(cfg.project_root) / table_path
                 df = load_benchmark.load_dataframe(full_table_path, file_format=table_paths[table_path])
                 tname = os.path.basename(table_path).replace('.csv', '').replace('.df', '')
@@ -357,7 +357,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             # save completed file into collection folder
             # Mark collection as complete
             completed_file_path.write_text("All embeddings successfully created.")
-            logger.info(f"Marked collection {collection_name} as complete with COMPLETED file.")
+            logger.debug(f"Marked collection {collection_name} as complete with COMPLETED file.")
 
         # need to bring valentine gt into correct format
         if cfg.dataset_name.lower() == "valentine":
@@ -374,7 +374,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
 
         # Search each query in Qdrant using cached embeddings
         result = {}
-        for query_col in tqdm(search_queries, desc="Searching columns"):
+        for query_col in tqdm(search_queries, desc="Searching columns", mininterval=2):
             if query_col not in query_embedding_cache:
                 logger.warning(f"Query column {query_col} not in query_embedding_cache, skipping.")
                 result[query_col] = []  # ensure all queries have a result
@@ -403,7 +403,7 @@ def run_inference_based_on_column_embeddings(cluster_ranges, cfg):
             Recall = 0.0
             
         else:
-            logger.info(f"Computing metrics for dataset {dataset_name}: based on {len(result)} queries, gt_data has length {len(gt_data)}, top_k={top_k}.")
+            logger.debug(f"Computing metrics for dataset {dataset_name}: based on {len(result)} queries, gt_data has length {len(gt_data)}, top_k={top_k}.")
             MRR = compute_mrr_from_list(gt_data, result, top_k)
             MAP = compute_map_from_list(gt_data, result, top_k)
             Precision, Recall = compute_precision_recall_at_k(gt_data, result, top_k)
