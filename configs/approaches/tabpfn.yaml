@@ -3,8 +3,6 @@ conda_env: benchmark_env
 module_path: approaches/benchmark_approaches_src/tabpfn
 class_name: TabPFNEmbedder
 
-device: cuda
-
 supported_tasks:
   row_similarity_search:
     run_similarity_search_based_on: row_embeddings

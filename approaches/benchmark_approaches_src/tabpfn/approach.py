@@ -3,6 +3,7 @@ import logging
 from omegaconf import DictConfig
 import pandas as pd
 import numpy as np
+import torch
 from tabpfn import TabPFNClassifier, TabPFNRegressor
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,8 @@ class TabPFNEmbedder(BaseTabularEmbeddingApproach):
     def load_trained_model(self):
         if self.model is None:
             logger.info("Loading TabPFN models...")
-            device = getattr(self.cfg.approach, "device", "cuda")
+            default_device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = getattr(self.cfg.approach, "device", default_device)
             self.classifier = TabPFNClassifier(device=device)
             self.regressor = TabPFNRegressor(device=device)
             self.model = self.classifier  # Default to classifier for embeddings
@@ -83,8 +85,8 @@ class TabPFNEmbedder(BaseTabularEmbeddingApproach):
                 # Extract embeddings for the training data itself
                 test_embeddings = self.model.get_embeddings(processed_table, data_source='train')
         else:
-            # Use dummy labels when train_labels not provided
-            # Old behavior: use all data as training with dummy labels
+            # TabPFN requires labels to fit; dummy zero labels stand in when the
+            # caller has no real labels (e.g. unsupervised row-embedding extraction).
             y_dummy = np.zeros(len(processed_table))
             self.model.fit(processed_table, y_dummy)
             # Extract embeddings for all rows
