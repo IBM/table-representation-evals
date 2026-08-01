@@ -4,7 +4,7 @@
 
 task_name: schema_linking
 
-elo_metric: "mean_mrr"
+elo_metric: "mean_map"
 
 # Maximum number of queries to process (for testing/debugging)
 # Set to null or remove to process all queries
