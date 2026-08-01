@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import json
 import gc
+import warnings
 from typing import Union
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
@@ -13,6 +14,38 @@ from sklearn.pipeline import Pipeline
 from skrub import to_datetime
 from tarte_ai.tarte_model import TARTE_Pretrain_NN
 from tarte_ai.tarte_utils import load_tarte_pretrain_model, load_fasttext
+
+# Opts in globally to pandas' future no-silent-downcasting behavior, avoiding the
+# FutureWarning that replace() raises below. Each replace() call is followed by
+# infer_objects() to explicitly reapply the downcasting this option disables.
+pd.set_option("future.no_silent_downcasting", True)
+
+
+def _dedupe_column_labels(columns):
+    """Disambiguate column labels that collide after newline-stripping.
+
+    Two originally distinct labels (e.g. "Confidence Interval.1" and
+    "Confidence\nInterval.1") can become identical once newlines are replaced
+    with spaces, which breaks label-based indexing (X_[col] returns a
+    DataFrame instead of a Series). Mirrors pandas' own ".1"/".2" suffixing,
+    bumping past any suffix that would still collide with an existing label.
+    """
+    seen = set(columns)
+    counts = {}
+    result = []
+    for col in columns:
+        if col not in counts:
+            new_col = col
+        else:
+            counts[col] += 1
+            new_col = f"{col}.{counts[col]}"
+            while new_col in seen:
+                counts[col] += 1
+                new_col = f"{col}.{counts[col]}"
+        counts.setdefault(col, 0)
+        seen.add(new_col)
+        result.append(new_col)
+    return result
 
 
 class TARTE_TablePreprocessor(TransformerMixin, BaseEstimator):
@@ -55,12 +88,14 @@ class TARTE_TablePreprocessor(TransformerMixin, BaseEstimator):
             col_names = [f"Column_{i}" for i in range(X.shape[1])]
             X = X.set_axis(col_names, axis="columns")
 
-        X_ = X.replace("\n", " ", regex=True).copy()
+        X_ = X.replace("\n", " ", regex=True).infer_objects(copy=False).copy()
         # Column labels aren't touched by the replace() above (it only rewrites cell
         # values), but cat/num/dat_col_names_ below are computed from newline-stripped
         # column names. Sanitize the labels too so later X_[self.cat_col_names_]-style
         # lookups (here and in transform()) find the columns they expect.
         X_.columns = X_.columns.str.replace("\n", " ", regex=True)
+        if not X_.columns.is_unique:
+            X_.columns = _dedupe_column_labels(list(X_.columns))
         self.is_fitted_ = False
         self.y_ = y
         if not hasattr(self, "lm_model_"):
@@ -73,9 +108,28 @@ class TARTE_TablePreprocessor(TransformerMixin, BaseEstimator):
         # Preprocess for Datetime information
         dat_col_names = []
         for col in X_:
-            if pd.api.types.is_datetime64_any_dtype(to_datetime(X_[col])):
+            # skrub's to_datetime() heuristic probes each string with pandas' datetime
+            # parser. Non-datetime strings ending in a short uppercase token (e.g.
+            # "3:51.91 CR") are misread as having an unrecognized timezone, which pandas
+            # reports via a FutureWarning even though the column is correctly left
+            # non-datetime.
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=".*un-recognized timezone.*",
+                    category=FutureWarning,
+                )
+                is_datetime_col = pd.api.types.is_datetime64_any_dtype(to_datetime(X_[col]))
+            if is_datetime_col:
                 try:
-                    datetime = pd.to_datetime(X_[col].astype("datetime64[s]"))
+                    # pandas emits a FutureWarning about mixed time zones while parsing
+                    # here, even for values the except clause below already handles
+                    # correctly via the utc=True fallback.
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore", category=FutureWarning, message=".*mixed time zones.*"
+                        )
+                        datetime = pd.to_datetime(X_[col].astype("datetime64[s]"))
                 except (ValueError, TypeError):
                     # timezone-aware strings: convert to UTC then strip tz
                     datetime = pd.to_datetime(X_[col], utc=True).dt.tz_convert(None)
@@ -179,10 +233,12 @@ class TARTE_TablePreprocessor(TransformerMixin, BaseEstimator):
             col_names = [f"Column_{i}" for i in range(X.shape[1])]
             X = X.set_axis(col_names, axis="columns")
 
-        X_ = X.replace("\n", " ", regex=True).copy()
+        X_ = X.replace("\n", " ", regex=True).infer_objects(copy=False).copy()
         # See matching comment in fit(): sanitize column labels the same way
         # cat/num/dat_col_names_ were sanitized when fit() computed them.
         X_.columns = X_.columns.str.replace("\n", " ", regex=True)
+        if not X_.columns.is_unique:
+            X_.columns = _dedupe_column_labels(list(X_.columns))
         num_data = X_.shape[0]
         y_ = (
             torch.tensor(self.y_, dtype=torch.float32).reshape((num_data, 1))
@@ -193,7 +249,14 @@ class TARTE_TablePreprocessor(TransformerMixin, BaseEstimator):
         # Preprocess for year information
         for col in self.dat_col_names_:
             try:
-                datetime = pd.to_datetime(X_[col].astype("datetime64[s]"))
+                # See matching comment in fit(): pandas emits a FutureWarning about mixed
+                # time zones while parsing here, even for values the except clause below
+                # already handles correctly via the utc=True fallback.
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", category=FutureWarning, message=".*mixed time zones.*"
+                    )
+                    datetime = pd.to_datetime(X_[col].astype("datetime64[s]"))
             except (ValueError, TypeError):
                 datetime = pd.to_datetime(X_[col], utc=True).dt.tz_convert(None)
             X_[col] = datetime.dt.strftime("%Y").astype(float)
