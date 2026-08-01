@@ -30,8 +30,8 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         Returns:
             np.ndarray of shape (embedding_dim,), L2-normalised.
         """
-        if len(input_table) == 0:
-            raise ValueError("Input table is empty.")
+        if len(input_table.columns) == 0:
+            raise ValueError("Input table has no columns.")
 
         # Apply optional row limit
         if self.approach_instance.table_row_limit != -1:
