@@ -238,6 +238,106 @@ def extract_literal_values(parsed):
     process_token(parsed)
     return literals
 
+_GROUPBY_CLAUSE_RE = re.compile(r'^(GROUP BY|ORDER BY|HAVING|GROUP|ORDER)\b', re.IGNORECASE)
+_COLUMN_NAME_STOPWORDS = {'id', 'name', 'type', 'date', 'code', 'no', 'num', 'the', 'of'}
+
+
+def _bare_column_name(token):
+    """Unqualified column name for an Identifier token (drops any table/alias qualifier)."""
+    if isinstance(token, Identifier):
+        name = token.get_real_name()
+        return name.lower() if name else None
+    return None
+
+
+def classify_column_roles(parsed):
+    """Map every unqualified column name in the query to the set of syntactic
+    roles it plays: 'select' (SELECT list), 'groupby' (GROUP BY/ORDER BY/
+    HAVING), 'join_cmp' (one side of a column-to-column comparison, e.g. a
+    JOIN...ON condition or an implicit WHERE join), or 'filter_cmp' (compared
+    against a literal value). A column whose only role is 'join_cmp' is a
+    pure structural join key with no other function in the query.
+    """
+    roles = {}
+
+    def add_role(name, role):
+        if name:
+            roles.setdefault(name, set()).add(role)
+
+    def walk_comparison(token):
+        left_name, right_name, right_is_literal = None, None, False
+        for t in token.tokens:
+            if isinstance(t, Identifier):
+                if left_name is None:
+                    left_name = _bare_column_name(t)
+                else:
+                    right_name = _bare_column_name(t)
+            elif t.ttype in (Literal.String.Single, Literal.String.Symbol,
+                             Literal.Number.Integer, Literal.Number.Float):
+                right_is_literal = True
+        if left_name and right_is_literal:
+            add_role(left_name, 'filter_cmp')
+        elif left_name and right_name:
+            add_role(left_name, 'join_cmp')
+            add_role(right_name, 'join_cmp')
+
+    def walk_select_list(token):
+        if isinstance(token, IdentifierList):
+            for ident in token.get_identifiers():
+                add_role(_bare_column_name(ident), 'select')
+        elif isinstance(token, Identifier):
+            add_role(_bare_column_name(token), 'select')
+
+    def recurse_comparisons(token):
+        if isinstance(token, Comparison):
+            walk_comparison(token)
+        if hasattr(token, 'tokens'):
+            for t in token.tokens:
+                recurse_comparisons(t)
+
+    tokens = [t for t in parsed.tokens if not t.is_whitespace]
+    mode = None  # 'select' | 'groupby' | None
+    for tok in tokens:
+        if tok.ttype is DML and tok.value.upper() == 'SELECT':
+            mode = 'select'
+        elif tok.ttype is Keyword:
+            value = tok.value.strip().upper()
+            if value == 'FROM':
+                mode = None
+            elif _GROUPBY_CLAUSE_RE.match(value):
+                mode = 'groupby'
+        elif isinstance(tok, Where):
+            mode = None
+
+        if mode == 'select':
+            walk_select_list(tok)
+        elif mode == 'groupby':
+            if isinstance(tok, IdentifierList):
+                for ident in tok.get_identifiers():
+                    add_role(_bare_column_name(ident), 'groupby')
+            elif isinstance(tok, Identifier):
+                add_role(_bare_column_name(tok), 'groupby')
+
+        recurse_comparisons(tok)
+
+    return roles
+
+
+def has_lexical_trace(col_name, question, evidence):
+    """Whether col_name (or its meaningful word parts) appears anywhere in the
+    question/evidence text -- i.e. whether a lexical/semantic-matching
+    approach could plausibly ever recover this column from the NL query.
+    """
+    text = f"{question} {evidence or ''}".lower()
+    phrase = re.sub(r'[_\-]+', ' ', col_name).strip().lower()
+    if phrase in text:
+        return True
+    tokens = [t for t in phrase.split() if t not in _COLUMN_NAME_STOPWORDS and len(t) > 2]
+    if not tokens:
+        return False
+    return all(t in text for t in tokens)
+
+
 def check_value_in_question(value, question, evidence):
     """Check if a literal value appears in the question or evidence"""
     combined_text = (question + " " + (evidence or "")).lower()
@@ -324,8 +424,22 @@ def categorize_query(entry, schema):
                 matched_values.append(literal)
                 value_dependent_columns.append(col_info)
     
-    # Columns that are NOT value-dependent are concept-only
-    concept_only_columns = [col for col in used_columns if col not in value_dependent_columns]
+    # Columns that are NOT value-dependent are concept-only, except pure
+    # structural JOIN keys (appear only in a column-to-column comparison,
+    # e.g. a foreign key used solely to link two tables) that have no
+    # lexical trace anywhere in the question/evidence -- those can never be
+    # recovered from the NL query by any method and shouldn't count as
+    # "gold" for a concept-mapping task.
+    roles_by_name = classify_column_roles(parsed)
+
+    def is_unguessable_join_key(col):
+        roles = roles_by_name.get(col['column_name_lower'], set())
+        return roles == {'join_cmp'} and not has_lexical_trace(col['column_name'], question, evidence)
+
+    concept_only_columns = [
+        col for col in used_columns
+        if col not in value_dependent_columns and not is_unguessable_join_key(col)
+    ]
     
     # Determine primary category
     has_value_cols = len(value_dependent_columns) > 0
@@ -342,7 +456,7 @@ def categorize_query(entry, schema):
     
     # For benchmarking: only include the relevant gold standard columns
     if category == 'concept_only':
-        gold_columns = [{'table': c['table_name'], 'column': c['column_name']} for c in used_columns]
+        gold_columns = [{'table': c['table_name'], 'column': c['column_name']} for c in concept_only_columns]
     elif category in ['value_only', 'mixed']:
         gold_columns = [{'table': c['table_name'], 'column': c['column_name']} for c in value_dependent_columns]
     else:
@@ -381,11 +495,18 @@ def main():
             continue
         
         analysis = categorize_query(entry, schema)
-        
-        # Add analysis info to entry
+
+        # Add analysis info to entry. '_train_index' is a temporary sort key
+        # (stripped before saving) recording each query's position in
+        # train_data -- used below to keep cell_value_queries in a stable
+        # order that doesn't depend on which category bucket a query landed
+        # in, so a categorization change doesn't reorder unrelated queries
+        # ahead of/behind each other and perturb cap_cell_value_matching.py's
+        # order-dependent per-template/per-db caps.
         entry_with_analysis = entry.copy()
         entry_with_analysis.update(analysis)
-        
+        entry_with_analysis['_train_index'] = idx
+
         if analysis['category'] == 'concept_only':
             concept_only_queries.append(entry_with_analysis)
         elif analysis['category'] == 'value_only':
@@ -401,20 +522,28 @@ def main():
     print(f"Mixed queries (both types of columns): {len(mixed_queries)}")
     print(f"Unknown queries: {len(unknown_queries)}")
     
-    # For the user's request, we want two categories:
+    # The benchmark distinguishes two categories:
     # 1. Queries where columns are linked to concepts (NO cell values needed)
     # 2. Queries where columns can be found by cell values mentioned
-    
+
     # Category 1: Pure concept mapping
     pure_concept_queries = concept_only_queries
     
-    # Category 2: Any query that uses cell values to identify columns
-    cell_value_queries = value_dependent_queries + mixed_queries
-    
+    # Category 2: Any query that uses cell values to identify columns.
+    # Sorted by original train_data position (not by category-bucket
+    # concatenation order) so the result is stable under categorization
+    # changes -- see the '_train_index' comment above.
+    cell_value_queries = sorted(value_dependent_queries + mixed_queries, key=lambda q: q['_train_index'])
+
     print(f"\n=== Final Categorization for Schema Mapping Benchmark ===")
     print(f"Pure Concept Mapping (NO cell values needed): {len(pure_concept_queries)}")
     print(f"Cell Value Matching (cell values help identify columns): {len(cell_value_queries)}")
-    
+
+    for q in pure_concept_queries:
+        q.pop('_train_index', None)
+    for q in cell_value_queries:
+        q.pop('_train_index', None)
+
     # Save categorized queries
     print("\nSaving pure_concept_mapping_queries.json...")
     with open('pure_concept_mapping_queries.json', 'w', encoding='utf-8') as f:
@@ -464,5 +593,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Made with Bob

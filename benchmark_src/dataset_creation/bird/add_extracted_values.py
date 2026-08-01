@@ -18,13 +18,28 @@ def extract_values_from_nl(question: str, evidence: str) -> List[str]:
         r'=\s*"([^"]+)"',  # = "value"
         r"=\s*(\d+)",      # = number
     ]
-    
+
     for pattern in evidence_value_patterns:
         for match in re.finditer(pattern, evidence):
             value = match.group(1)
             if value and value not in ['NULL', 'null', 'Empty', 'empty']:
                 extracted.add(value)
-    
+
+    # 1b. Evidence often states a value via a definition ("X" is the/a/an <column>) rather
+    # than an "=" comparison, e.g. '"ARECIBO" is the county' or 'east is a direction'.
+    definition_patterns = [
+        r'^"([^"]+)"\s+is\s+(?:a|an|the)\b',
+        r"^'([^']+)'\s+is\s+(?:a|an|the)\b",
+        r'^([A-Za-z][\w\-]*)\s+is\s+(?:a|an|the)\b',
+    ]
+    for clause in re.split(r'[;.]', evidence):
+        clause = clause.strip()
+        for pattern in definition_patterns:
+            m = re.match(pattern, clause)
+            if m:
+                extracted.add(m.group(1))
+                break
+
     # 2. Extract dates in various formats from question
     date_patterns = [
         r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})',  # YYYY-MM-DD or YYYY/MM/DD
@@ -55,41 +70,47 @@ def extract_values_from_nl(question: str, evidence: str) -> List[str]:
     for match in re.finditer(id_pattern, question):
         extracted.add(match.group(1))
     
-    # 5. Extract dollar amounts from question
-    dollar_pattern = r'\$(\d+(?:\.\d+)?)'
+    # 5. Extract dollar amounts from question (commas allowed as thousands separators)
+    dollar_pattern = r'\$([\d,]+(?:\.\d+)?)'
     for match in re.finditer(dollar_pattern, question):
-        extracted.add(match.group(1))
-    
-    # 6. Extract numbers mentioned with context in question
+        extracted.add(match.group(1).replace(',', ''))
+
+    # 6. Extract numbers mentioned with context in question (commas allowed)
     contextual_number_patterns = [
         r'user\s+(\d+)',
         r'id\s+(\d+)',
         r'level\s+(\d+)',
-        r'over\s+\$?(\d+)',
-        r'under\s+\$?(\d+)',
-        r'than\s+\$?(\d+)',
+        r'over\s+\$?([\d,]+)',
+        r'under\s+\$?([\d,]+)',
+        r'than\s+\$?([\d,]+)',
     ]
-    
+
     for pattern in contextual_number_patterns:
         for match in re.finditer(pattern, question, re.IGNORECASE):
-            extracted.add(match.group(1))
-    
-    # 7. Extract proper names from question
-    # Look for capitalized sequences that are likely names
-    # Pattern: FirstName MiddleInitial LastName or FirstName LastName
-    name_patterns = [
-        r'\b([A-Z][a-z]+\s+[A-Z]\s+[A-Z][a-z]+)\b',  # First M Last
-        r'\b([A-Z][a-z]+\s+[A-Z][a-z]+)\b',          # First Last
-    ]
-    
-    for pattern in name_patterns:
-        for match in re.finditer(pattern, question):
-            name = match.group(1)
-            # Split the name into parts
-            parts = name.split()
-            for part in parts:
-                if len(part) > 0:
-                    extracted.add(part)
+            extracted.add(match.group(1).replace(',', ''))
+
+    # 6b. Fallback for standalone numbers not caught above: thousands-separated numbers,
+    # decimals (including negative, e.g. coordinates), and other multi-digit integers.
+    general_number_pattern = r'-?\d{1,3}(?:,\d{3})+(?:\.\d+)?|-?\d+\.\d+|-?\d{2,}'
+    for match in re.finditer(general_number_pattern, text):
+        extracted.add(match.group(0).replace(',', ''))
+
+    # 6c. Alphanumeric identifier tokens (e.g. "student829", "word1163") - contain both a
+    # letter and a digit, so none of the numeric or word-based patterns above catch them.
+    alnum_id_pattern = r'\b(?=[a-zA-Z0-9]*[a-zA-Z])(?=[a-zA-Z0-9]*\d)[a-zA-Z0-9]+\b'
+    for match in re.finditer(alnum_id_pattern, text):
+        extracted.add(match.group(0))
+
+    # 7. Extract proper names from question - capitalized sequences that are likely names.
+    # matched_values stores a name as a single string (e.g. "Francis Ford Coppola"), so keep
+    # the whole matched span in addition to its individual word parts.
+    name_pattern = r"\b([A-Z][a-zA-Z'\-]*(?:\s+[A-Z][a-zA-Z'\-]*){1,4})\b"
+    for match in re.finditer(name_pattern, question):
+        name = match.group(1)
+        extracted.add(name)
+        for part in name.split():
+            if len(part) > 0:
+                extracted.add(part)
     
     # 8. Extract country/city names and other proper nouns from question
     # Look for capitalized words that aren't at sentence start
@@ -111,12 +132,19 @@ def extract_values_from_nl(question: str, evidence: str) -> List[str]:
             if len(clean_word) > 1:
                 extracted.add(clean_word)
     
-    # 9. Extract quoted strings from question only (not evidence to avoid SQL fragments)
-    quoted_pattern = r'"([^"]+)"'
-    for match in re.finditer(quoted_pattern, question):
-        value = match.group(1)
-        if value and len(value) > 0:
-            extracted.add(value)
+    # 9. Extract quoted strings from question only (not evidence to avoid SQL fragments).
+    # Requires a non-word character (or string boundary) on both sides of each quote mark,
+    # so an apostrophe inside a contraction/possessive ("don't", "team's") is never treated
+    # as an opening or closing quote.
+    quoted_patterns = [
+        r'(?<!\w)"([^"]{1,300})"(?!\w)',
+        r"(?<!\w)'([^']{1,300})'(?!\w)",
+    ]
+    for pattern in quoted_patterns:
+        for match in re.finditer(pattern, question):
+            value = match.group(1)
+            if value and len(value) > 0:
+                extracted.add(value)
     
     # Remove empty strings
     extracted = {v for v in extracted if v and len(v.strip()) > 0}
@@ -185,5 +213,3 @@ def process_all_queries():
 
 if __name__ == "__main__":
     process_all_queries()
-
-# Made with Bob

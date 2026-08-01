@@ -1,15 +1,15 @@
 {
   "total_queries": 9428,
-  "pure_concept_mapping_count": 2249,
+  "pure_concept_mapping_count": 2157,
   "cell_value_matching_count": 6823,
   "breakdown": {
-    "concept_only": 2249,
-    "value_only": 254,
-    "mixed": 6569,
-    "unknown": 356
+    "concept_only": 2157,
+    "value_only": 609,
+    "mixed": 6214,
+    "unknown": 448
   },
   "percentages": {
-    "pure_concept_mapping": 23.85,
+    "pure_concept_mapping": 22.88,
     "cell_value_matching": 72.37
   },
   "pure_concept_samples": [
@@ -271,34 +271,10 @@
   "cell_value_samples": [
     {
       "db_id": "movie_platform",
-      "question": "How many movie lists were created by user 83373278 when he or she was a subscriber?",
-      "evidence": "the user was a subscriber when he created the list refers to user_subscriber = 1; user 83373278 refers to user_id = 83373278;",
-      "SQL": "SELECT COUNT(*) FROM lists_users WHERE user_id = 83373278 AND user_subscriber = 1",
-      "category": "value_only",
-      "used_tables": [
-        "lists_users"
-      ],
-      "gold_columns": [
-        {
-          "table": "lists_users",
-          "column": "user_id"
-        },
-        {
-          "table": "lists_users",
-          "column": "user_subscriber"
-        }
-      ],
-      "matched_values": [
-        "83373278",
-        "1"
-      ]
-    },
-    {
-      "db_id": "movie_platform",
-      "question": "How many films were released in 2007?",
-      "evidence": "film released in 2007 refers to movie_release_year = 2007; film refers to movie",
-      "SQL": "SELECT COUNT(*) FROM movies WHERE movie_release_year = 2007",
-      "category": "value_only",
+      "question": "Name movie titles released in year 1945. Sort the listing by the descending order of movie popularity.",
+      "evidence": "released in the year 1945 refers to movie_release_year = 1945;",
+      "SQL": "SELECT movie_title FROM movies WHERE movie_release_year = 1945 ORDER BY movie_popularity DESC LIMIT 1",
+      "category": "mixed",
       "used_tables": [
         "movies"
       ],
@@ -309,181 +285,190 @@
         }
       ],
       "matched_values": [
-        "2007"
+        "1945"
       ]
     },
     {
-      "db_id": "retail_complains",
-      "question": "How many clients have an email account other than gmail.com?",
-      "evidence": "email account other than gmail.com refers to email not like '%@gmail.com';",
-      "SQL": "SELECT COUNT(email) FROM client WHERE email NOT LIKE '%@gmail.com'",
-      "category": "value_only",
+      "db_id": "movie_platform",
+      "question": "What is the average number of Mubi users who love movies directed by Stanley Kubrick?",
+      "evidence": "average = AVG(movie_popularity); number of Mubi users who loves the movie refers to movie_popularity;",
+      "SQL": "SELECT AVG(movie_popularity) FROM movies WHERE director_name = 'Stanley Kubrick'",
+      "category": "mixed",
       "used_tables": [
-        "client"
+        "movies"
       ],
       "gold_columns": [
         {
-          "table": "client",
-          "column": "email"
+          "table": "movies",
+          "column": "director_name"
         }
       ],
       "matched_values": [
-        "%@gmail.com"
+        "Stanley Kubrick"
       ]
     },
     {
-      "db_id": "retail_complains",
-      "question": "How many complaints are not in process with an agent?",
-      "evidence": "not in process with an agent refers to outcome ! = 'AGENT';",
-      "SQL": "SELECT COUNT(outcome) FROM callcenterlogs WHERE outcome != 'AGENT'",
-      "category": "value_only",
+      "db_id": "movie_platform",
+      "question": "What is the average rating for movie titled 'When Will I Be Loved'?",
+      "evidence": "average rating = DIVIDE((SUM(rating_score where movie_title = 'When Will I Be Loved')), COUNT(rating_score));",
+      "SQL": "SELECT AVG(T2.rating_score) FROM movies AS T1 INNER JOIN ratings AS T2 ON T1.movie_id = T2.movie_id WHERE T1.movie_title = 'When Will I Be Loved'",
+      "category": "mixed",
       "used_tables": [
-        "callcenterlogs"
+        "movies",
+        "ratings"
       ],
       "gold_columns": [
         {
-          "table": "callcenterlogs",
-          "column": "outcome"
+          "table": "movies",
+          "column": "movie_title"
         }
       ],
       "matched_values": [
-        "AGENT"
+        "When Will I Be Loved"
       ]
     },
     {
-      "db_id": "retail_complains",
-      "question": "How many Credit Card complaints did Sharon handle?",
-      "evidence": "Credit Card refers to Product = 'Credit Card'; Sharon refers to server = 'SHARON';",
-      "SQL": "SELECT COUNT(T1.`Complaint ID`) FROM callcenterlogs AS T1 INNER JOIN events AS T2 ON T1.`Complaint ID` = T2.`Complaint ID` WHERE T2.Product = 'Credit card' AND T1.server = 'SHARON'",
-      "category": "value_only",
+      "db_id": "movie_platform",
+      "question": "What is the user avatar url for user 41579158? What is the latest movie rated by him / her?",
+      "evidence": "user avatar url refers to user_avatar_image_url; latest movie rated refers to latest rating_date;",
+      "SQL": "SELECT T3.user_avatar_image_url, T3.rating_date_utc FROM movies AS T1 INNER JOIN ratings AS T2 ON T1.movie_id = T2.movie_id INNER JOIN ratings_users AS T3 ON T3.user_id = T2.user_id WHERE T3.user_id = 41579158 ORDER BY T3.rating_date_utc DESC LIMIT 1",
+      "category": "mixed",
       "used_tables": [
-        "callcenterlogs",
-        "events"
+        "movies",
+        "ratings",
+        "ratings_users"
       ],
       "gold_columns": [
         {
-          "table": "events",
-          "column": "Product"
+          "table": "ratings_users",
+          "column": "user_id"
+        }
+      ],
+      "matched_values": [
+        "41579158"
+      ]
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "List all movie title rated in April 2020 from user who was a trialist.",
+      "evidence": "movie title rated in April 2020 refers to rating_timestamp_utc LIKE '%2020-04-%'; user is a trial list refers to user_trialist = 1;",
+      "SQL": "SELECT T1.movie_title FROM movies AS T1 INNER JOIN ratings AS T2 ON T1.movie_id = T2.movie_id WHERE T2.user_trialist = 1 AND T2.rating_timestamp_utc LIKE '2020-04%'",
+      "category": "mixed",
+      "used_tables": [
+        "movies",
+        "ratings"
+      ],
+      "gold_columns": [
+        {
+          "table": "ratings",
+          "column": "user_trialist"
+        }
+      ],
+      "matched_values": [
+        "1"
+      ]
+    },
+    {
+      "db_id": "movie_platform",
+      "question": "List ther users who gave the worst rating for movie 'Love Will Tear Us Apart'.",
+      "evidence": "worst rating refers to rating_score = 1;",
+      "SQL": "SELECT T1.user_id FROM ratings AS T1 INNER JOIN movies AS T2 ON T1.movie_id = T2.movie_id WHERE T2.movie_title = 'Love Will Tear Us Apart' AND T1.rating_score = 1",
+      "category": "mixed",
+      "used_tables": [
+        "movies",
+        "ratings"
+      ],
+      "gold_columns": [
+        {
+          "table": "movies",
+          "column": "movie_title"
         },
         {
-          "table": "callcenterlogs",
-          "column": "server"
+          "table": "ratings",
+          "column": "rating_score"
         }
       ],
       "matched_values": [
-        "Credit card",
-        "SHARON"
+        "Love Will Tear Us Apart",
+        "1"
       ]
     },
     {
-      "db_id": "retail_complains",
-      "question": "How many complaints were served in 5 minutes or less by DORIT and responded to the customer with an explanation, were made by phone?",
-      "evidence": "served in 5 minutes or less refers to ser_time < '00:05:00'; DORIT refers to server = 'DORIT'; responded with an explanation refers to \"Company response to consumer\" = 'Closed with explanation'; made by refers to \"Submitted via\";",
-      "SQL": "SELECT COUNT(T1.`Complaint ID`) FROM callcenterlogs AS T1 INNER JOIN events AS T2 ON T1.`Complaint ID` = T2.`Complaint ID` WHERE T1.ser_time < '00:05:00' AND T1.server = 'DORIT' AND T2.`Submitted via` = 'Phone' AND T2.`Company response to consumer` = 'Closed with explanation'",
-      "category": "value_only",
+      "db_id": "movie_platform",
+      "question": "List all movies with the best rating score. State the movie title and number of Mubi user who loves the movie.",
+      "evidence": "best rating score refers to rating_score = 5; number of Mubi user who loves the movie refers to movie_popularity;",
+      "SQL": "SELECT DISTINCT T2.movie_title, T2.movie_popularity FROM ratings AS T1 INNER JOIN movies AS T2 ON T1.movie_id = T2.movie_id WHERE T1.rating_score = 5",
+      "category": "mixed",
       "used_tables": [
-        "callcenterlogs",
-        "events"
+        "movies",
+        "ratings"
       ],
       "gold_columns": [
         {
-          "table": "callcenterlogs",
-          "column": "ser_time"
-        },
-        {
-          "table": "callcenterlogs",
-          "column": "server"
+          "table": "ratings",
+          "column": "rating_score"
         }
       ],
       "matched_values": [
-        "00:05:00",
-        "DORIT"
+        "5"
       ]
     },
     {
-      "db_id": "retail_complains",
-      "question": "How many female clients are there older than 30?",
-      "evidence": "female refers to sex = 'Female'; older than 30 refers to age > 30",
-      "SQL": "SELECT COUNT(sex) FROM client WHERE sex = 'Female' AND age > 30",
-      "category": "value_only",
+      "db_id": "movie_platform",
+      "question": "For movie titled 'Welcome to the Dollhouse', how many percentage of the ratings were rated with highest score.",
+      "evidence": "rated with highest score refers to rating_score = 5; percentage = MULTIPLY(DIVIDE(SUM(rating_score = 5), COUNT(rating_score)), 100)",
+      "SQL": "SELECT CAST(SUM(CASE WHEN T2.rating_score = 5 THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*) FROM movies AS T1 INNER JOIN ratings AS T2 ON T1.movie_id = T2.movie_id WHERE T1.movie_title = 'Welcome to the Dollhouse'",
+      "category": "mixed",
       "used_tables": [
-        "client"
+        "movies",
+        "ratings"
       ],
       "gold_columns": [
         {
-          "table": "client",
-          "column": "sex"
-        },
-        {
-          "table": "client",
-          "column": "age"
+          "table": "movies",
+          "column": "movie_title"
         }
       ],
       "matched_values": [
-        "Female",
-        "30"
+        "Welcome to the Dollhouse"
       ]
     },
     {
-      "db_id": "retail_complains",
-      "question": "Please list all first and last names of clients who live in New York city.",
-      "evidence": "New York City refers to city = 'New York City'",
-      "SQL": "SELECT first, last FROM client WHERE city = 'New York City'",
-      "category": "value_only",
+      "db_id": "movie_platform",
+      "question": "Who is the director of the movie Sex, Drink and Bloodshed?",
+      "evidence": "Sex, Drink and Bloodshed refers to movie title = 'Sex, Drink and Bloodshed';",
+      "SQL": "SELECT director_name FROM movies WHERE movie_title = 'Sex, Drink and Bloodshed'",
+      "category": "mixed",
       "used_tables": [
-        "client"
+        "movies"
       ],
       "gold_columns": [
         {
-          "table": "client",
-          "column": "city"
+          "table": "movies",
+          "column": "movie_title"
         }
       ],
       "matched_values": [
-        "New York City"
+        "Sex, Drink and Bloodshed"
       ]
     },
     {
-      "db_id": "movies_4",
-      "question": "How many animators does Movie No. 129 have?",
-      "evidence": "animators refers to job = 'Animation'; Movie No. 129 refers to movie_id = 129",
-      "SQL": "SELECT COUNT(movie_id) FROM movie_crew WHERE movie_id = 129 AND job = 'Animation'",
-      "category": "value_only",
+      "db_id": "movie_platform",
+      "question": "What is the list ID that was first created by user 85981819?",
+      "evidence": "first created list refers to oldest list_creation_date_utc;",
+      "SQL": "SELECT list_id FROM lists_users WHERE user_id = 85981819 ORDER BY list_creation_date_utc ASC LIMIT 1",
+      "category": "mixed",
       "used_tables": [
-        "movie_crew"
+        "lists_users"
       ],
       "gold_columns": [
         {
-          "table": "movie_crew",
-          "column": "movie_id"
-        },
-        {
-          "table": "movie_crew",
-          "column": "job"
+          "table": "lists_users",
+          "column": "user_id"
         }
       ],
       "matched_values": [
-        "129",
-        "Animation"
-      ]
-    },
-    {
-      "db_id": "movies_4",
-      "question": "List all the keywords with \"christmas\" in them.",
-      "evidence": "keywords with \"christmas\" in them refers to keyword_name LIKE '%christmas%'",
-      "SQL": "SELECT keyword_name FROM keyword WHERE keyword_name LIKE '%christmas%'",
-      "category": "value_only",
-      "used_tables": [
-        "keyword"
-      ],
-      "gold_columns": [
-        {
-          "table": "keyword",
-          "column": "keyword_name"
-        }
-      ],
-      "matched_values": [
-        "%christmas%"
+        "85981819"
       ]
     }
   ]
