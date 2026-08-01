@@ -51,7 +51,9 @@ def _encode_number(text: str) -> Tuple[int, int, int, int]:
         cleaned = cleaned[1:]
 
     parts = [p for p in cleaned.split(".") if p]
-    if not (1 <= len(parts) <= 2) or not all(p.isdigit() for p in parts):
+    # isdecimal(), not isdigit(): isdigit() accepts Unicode superscript/subscript
+    # digits (e.g. "1985¹") that int() below can't parse.
+    if not (1 <= len(parts) <= 2) or not all(p.isdecimal() for p in parts):
         return NON_MAG, NON_PRE, NON_TOP, NON_LOW
 
     magnitude = min(9, len(parts[0]))
@@ -69,6 +71,7 @@ def table_to_tuta_inputs(
     max_cell_tokens: int = 8,
     max_rows: Optional[int] = None,
     row_offset: int = 0,
+    col_offset: int = 0,
 ) -> Tuple[Dict[str, torch.Tensor], Dict[Tuple[int, int], List[int]], int]:
     """
     Serialize a DataFrame into TUTA backbone input tensors.
@@ -95,6 +98,11 @@ def table_to_tuta_inputs(
                          pos_row reflect the row's position in the whole
                          table rather than always restarting at 1 per chunk.
                          Still clamped at TUTA's native row_size=256 vocabulary.
+        col_offset:      Same idea as row_offset, but for pos_col and the tree
+                         column node (not for cell_body_positions' col_idx
+                         keys, which stay local to this call), for a caller
+                         processing one row across several column-chunked
+                         forward passes.
 
     Returns:
         inputs:               Dict of tensors, each shape [1, seq_len] (or
@@ -188,7 +196,8 @@ def table_to_tuta_inputs(
             )
 
             # Tree position: column c maps to a depth-0 node (0..31)
-            col_node = c_idx % 32
+            pos_col_value = c_idx + col_offset
+            col_node = pos_col_value % 32
             pt = [col_node] + [TOTAL_NODE] * (TREE_DEPTH - 1)
             pl = DEFAULT_TREE
 
@@ -199,7 +208,7 @@ def table_to_tuta_inputs(
             _append_token(
                 tokenizer.sep_token_id,
                 NON_MAG, NON_PRE, NON_TOP, NON_LOW,
-                0, pos_row_value, c_idx, pt, pl,
+                0, pos_row_value, pos_col_value, pt, pl,
                 cell_num * 2 - 1,
             )
 
@@ -215,7 +224,7 @@ def table_to_tuta_inputs(
                     pre if t_idx == 0 else NON_PRE,
                     top_d if t_idx == 0 else NON_TOP,
                     low_d if t_idx == 0 else NON_LOW,
-                    min(t_idx + 1, max_cell_tokens - 1), pos_row_value, c_idx, pt, pl,
+                    min(t_idx + 1, max_cell_tokens - 1), pos_row_value, pos_col_value, pt, pl,
                     cell_num * 2,
                 )
 

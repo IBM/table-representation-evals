@@ -124,6 +124,10 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
                           per-column-only path the way e.g. sentence embedders do
                           (see column_embedding_component.py), so without a cap a
                           single large table can take many minutes.
+        table_row_limit:  Max rows passed to create_table_embedding; -1 for no limit
+                          (default: -1). Set to 0 for a schema-only table embedding —
+                          the header row is tokenised independently of data-row
+                          content, so this still produces a genuine embedding.
     """
 
     def __init__(self, cfg: DictConfig):
@@ -136,6 +140,7 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
         self.max_rows: int = int(cfg.approach.get("max_rows", 50))
         self.target: str = cfg.approach.get("target", "tuta")
         self.column_embedding_row_limit: int = int(cfg.approach.get("column_embedding_row_limit", 200))
+        self.table_row_limit: int = int(cfg.approach.get("table_row_limit", -1))
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model: Optional[torch.nn.Module] = None
@@ -249,6 +254,67 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
             inputs_dev["indicator"],
         )
 
+    def _encode_oversized_row(self, table: pd.DataFrame, row_idx: int) -> torch.Tensor:
+        """
+        Encode a single row whose full column set doesn't fit within
+        max_seq_len in one forward pass, by splitting its columns into
+        successive chunks - each sized to whatever fits, via the same
+        per-cell budget tracking table_to_tuta_inputs already uses when
+        packing rows - and writing each chunk's real cell embeddings into
+        the corresponding column range. This mirrors TUTA's own strategy for
+        oversized tables (splitting into smaller tables that share the same
+        header), applied at the single-row level instead of zero-filling
+        whatever columns don't fit in one pass.
+
+        Returns cell_embs of shape (2, n_cols, 768): row 0 = header, row 1 =
+        this data row.
+        """
+        n_cols = len(table.columns)
+        row_df = table.iloc[[row_idx]]
+        cell_embs = torch.zeros(2, n_cols, HIDDEN_SIZE)
+
+        col_start = 0
+        while col_start < n_cols:
+            inputs, cell_body_positions, _ = table_to_tuta_inputs(
+                row_df.iloc[:, col_start:],
+                self.tokenizer,
+                max_seq_len=self.max_seq_len,
+                max_cell_tokens=self.max_cell_tokens,
+                max_rows=1,
+                row_offset=row_idx,
+                col_offset=col_start,
+            )
+
+            # Only count a column as included once its *data* cell (row 1,
+            # not just the header) got packed - if the header row alone ate
+            # the whole budget for this slice, row 1 gets no entries at all,
+            # and advancing col_start past those columns would leave the
+            # data cells zero-filled without ever revisiting them.
+            included_local_cols = {c for (r, c) in cell_body_positions.keys() if r == 1}
+            if not included_local_cols:
+                # Retry with one fewer column; guaranteed to make progress
+                # and eventually let both header and data cell fit together.
+                col_start += 1
+                continue
+            n_included = max(included_local_cols) + 1
+
+            inputs_dev = {k: v.to(self.device) for k, v in inputs.items()}
+            with torch.no_grad():
+                encoded_states = self._forward(inputs_dev)
+            encoded_states = encoded_states.cpu()
+
+            chunk_embs = extract_cell_embeddings(
+                encoded_states,
+                cell_body_positions,
+                num_rows=2,
+                num_cols=n_included,
+                hidden_size=HIDDEN_SIZE,
+            )
+            cell_embs[:, col_start:col_start + n_included, :] = chunk_embs
+            col_start += n_included
+
+        return cell_embs
+
     def _encode_chunk(self, table: pd.DataFrame, row_start: int, row_end: int) -> Tuple[torch.Tensor, int, bool]:
         """
         Encode one chunk of data rows [row_start, row_end) together with the
@@ -256,10 +322,9 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
         cell_embs has shape (n_rows_included + 1, n_cols, 768) (row 0 =
         header) and n_rows_included is however many of the requested rows
         actually fit within max_seq_len tokens. If not even one row fit
-        (undersized=True), n_rows_included is forced to 1 here - before
-        extract_cell_embeddings sizes its output tensor - so the partial
-        content table_to_tuta_inputs still captured for that first row isn't
-        silently dropped by an under-sized output tensor.
+        (undersized=True), that first row is re-encoded via column-chunking
+        (see _encode_oversized_row) instead, and n_rows_included is forced
+        to 1 to reflect that it's now fully covered.
         """
         chunk = table.iloc[row_start:row_end]
         n_cols = len(table.columns)
@@ -275,7 +340,8 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
 
         undersized = n_rows_included == 0 and row_end > row_start
         if undersized:
-            n_rows_included = 1  # take the partial row rather than nothing
+            cell_embs = self._encode_oversized_row(table, row_start)
+            return cell_embs, 1, undersized
 
         inputs_dev = {k: v.to(self.device) for k, v in inputs.items()}
         with torch.no_grad():
@@ -301,10 +367,11 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
         chunk boundary backs off to however many rows actually fit within
         max_seq_len tokens (never a fixed count) so no row is ever silently
         left with a zero embedding because it happened to fall in the tail of
-        an over-full chunk. The only case that can't be avoided is a single
-        row (or the header) alone exceeding max_seq_len - e.g. a table with
-        far more columns than fit in one sequence - which gets included
-        anyway (partially) with a warning, rather than zeroed silently.
+        an over-full chunk. A single row (or the header) whose own columns
+        alone exceed max_seq_len - e.g. a table with far more columns than
+        fit in one sequence - is re-encoded via column-chunking instead
+        (see _encode_oversized_row), at the cost of one extra forward pass
+        per chunk of columns.
         """
         self.load_model()
         n_cols = len(table.columns)
@@ -312,7 +379,7 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
 
         header_embs: Optional[torch.Tensor] = None
         data_embs_list: List[torch.Tensor] = []
-        n_undersized_rows = 0  # rows that didn't fit even alone (partially embedded)
+        n_chunked_rows = 0  # rows whose columns didn't fit in one pass, encoded via column-chunking
 
         row_start = 0
         while row_start < n_data_rows:
@@ -323,17 +390,16 @@ class TUTAEmbedder(BaseTabularEmbeddingApproach):
                 header_embs = chunk_embs[0:1]
 
             if undersized:
-                n_undersized_rows += 1
+                n_chunked_rows += 1
 
             data_embs_list.append(chunk_embs[1:1 + n_rows_included])
             row_start += n_rows_included
 
-        if n_undersized_rows:
-            logger.warning(
-                f"TUTA: {n_undersized_rows}/{n_data_rows} rows (table has {n_cols} columns) "
-                f"didn't fully fit within max_seq_len={self.max_seq_len} tokens even alone - "
-                "their cell embeddings are partially/zero-filled. Consider raising "
-                "max_seq_len or reducing max_cell_tokens."
+        if n_chunked_rows:
+            logger.info(
+                f"TUTA: {n_chunked_rows}/{n_data_rows} rows (table has {n_cols} columns) "
+                f"didn't fit within max_seq_len={self.max_seq_len} tokens in one pass - "
+                "encoded via column-chunking (multiple forward passes per row) instead."
             )
 
         if header_embs is None:

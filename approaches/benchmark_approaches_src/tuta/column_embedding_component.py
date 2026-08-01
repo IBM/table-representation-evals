@@ -62,5 +62,5 @@ class ColumnEmbeddingComponent(ColumnEmbeddingInterface):
         # Mean across rows, including the header row, per column
         column_embs = cell_embs.mean(axis=0)  # (n_cols, 768)
 
-        logger.info(f"TUTA column embeddings: {column_embs.shape}")
+        logger.debug(f"TUTA column embeddings: {column_embs.shape}")
         return column_embs, list(input_table.columns)

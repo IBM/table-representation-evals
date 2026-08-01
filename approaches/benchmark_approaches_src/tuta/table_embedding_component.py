@@ -42,6 +42,8 @@ class TableEmbeddingComponent(TableEmbeddingInterface):
         Returns:
             np.ndarray of shape (768,).
         """
+        if self.approach_instance.table_row_limit != -1:
+            input_table = input_table.head(self.approach_instance.table_row_limit)
         table_emb = self.approach_instance.get_table_embedding(input_table)
         #logger.debug(f"TUTA table embedding: {table_emb.shape}")
         return table_emb
