@@ -32,6 +32,7 @@ performance_cols = {
     'Recall@1': 'higher_is_better',
     # nl2 schema linking
     'mean_mrr': 'higher_is_better',
+    'mean_map': 'higher_is_better',
     # table_retrieval (TARGET-based datasets), one entry per configured top_k
     'MRR@1': 'higher_is_better',
     'MRR@3': 'higher_is_better',

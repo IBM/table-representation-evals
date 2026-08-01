@@ -241,27 +241,27 @@ def get_elo_scores_for_task(
         if not matches:
             logger.debug(f"No valid matches for dataset {dataset}, using initial ratings")
         else:
-            # dataset_hash = int(
-            #     hashlib.md5(f"{task}-{dataset}".encode()).hexdigest(), 16
-            # ) % 10000
-            # rng = random.Random(seed + dataset_hash)
-            # rng.shuffle(matches)
+            dataset_hash = int(
+                hashlib.md5(f"{task}-{dataset}".encode()).hexdigest(), 16
+            ) % 10000
+            rng = random.Random(seed + dataset_hash)
             current_k_factor = k_factor
-            # repeat matches to make relative scores between models more consistent.
+            # Replay all matches over 20 rounds (each in a freshly shuffled order,
+            # with a decaying k-factor) so relative ratings converge instead of
+            # depending on a single random match order.
             for repeat in range(20):
                 # reduce k_factor over time
                 if repeat>0 and repeat%2==0:
                     current_k_factor /= 2
-                # shuffle match order. maybe not too impactful considering the 20 repeats.
-                random.shuffle(matches)
+                rng.shuffle(matches)
 
-            for (a_name, a_cfg), (b_name, b_cfg), sa, sb in matches:
-                ra, rb = ratings[(a_name, a_cfg)], ratings[(b_name, b_cfg)]
-                ra_new, rb_new = update_elo(ra, rb, sa, sb, k_factor=k_factor)
-                ratings[(a_name, a_cfg)] = ra_new
-                ratings[(b_name, b_cfg)] = rb_new
-                comparisons_count[(a_name, a_cfg)] += 1
-                comparisons_count[(b_name, b_cfg)] += 1
+                for (a_name, a_cfg), (b_name, b_cfg), sa, sb in matches:
+                    ra, rb = ratings[(a_name, a_cfg)], ratings[(b_name, b_cfg)]
+                    ra_new, rb_new = update_elo(ra, rb, sa, sb, k_factor=current_k_factor)
+                    ratings[(a_name, a_cfg)] = ra_new
+                    ratings[(b_name, b_cfg)] = rb_new
+                    comparisons_count[(a_name, a_cfg)] += 1
+                    comparisons_count[(b_name, b_cfg)] += 1
 
         for (approach, config), rating in ratings.items():
             per_dataset_records.append(
