@@ -42,6 +42,10 @@
   configuration: "sap_rpt_oss"
   color: "#16a085"
   name: "SAP-RPT-1"
+- approach: sap_rpt_oss
+  configuration: "run_task_based_on=custom_predictiveML_model"
+  color: "#16a085"
+  name: "SAP-RPT-1"
 - approach: sentence_transformer
   configuration: "embedding_model=all-MiniLM-L6-v2"
   color: "#f1c40f"
@@ -81,6 +85,14 @@
   configuration: "tabicl"
   color: "#f39c12"
   name: "TabICL v2"
+- approach: tabicl
+  configuration: "run_task_based_on=custom_predictiveML_model"
+  color: "#f39c12"
+  name: "TabICL v2"
+- approach: tabicl
+  configuration: "run_task_based_on=row_embeddings"
+  color: "#f39c12"
+  name: "TabICL v2*"
 - approach: tabpfn
   configuration: "predML_based_on=custom_predictiveML_model"
   color: "#7f8c8d"
@@ -90,11 +102,20 @@
   color: "#7f8c8d"
   name: "TabPFN v2.5*"
 - approach: tabpfn
+  configuration: "run_task_based_on=custom_predictiveML_model"
+  color: "#7f8c8d"
+  name: "TabPFN v2.5"
+- approach: tabpfn
   configuration: "tabpfn"
   color: "#7f8c8d"
   name: "TabPFN v2.5"
 - approach: tabula_8b
   configuration: "batch_size=1,device=cuda,max_length=512,model_name=mlfoundations_tabula-8b,n_few_shot_examples=10,predML_based_on=row_embeddings"
+  color: "#c0392b"
+  name: "TabuLa-8B*"
+  marker: "^"
+- approach: tabula_8b
+  configuration: "run_task_based_on=row_embeddings"
   color: "#c0392b"
   name: "TabuLa-8B*"
   marker: "^"
@@ -118,8 +139,17 @@
   color: "#27ae60"
   name: "TABBIE"
   marker: "s"
+- approach: tabbie
+  configuration: "table_row_limit=0"
+  color: "#27ae60"
+  name: "TABBIE"
+  marker: "s"
 - approach: tabert
   configuration: "tabert"
+  color: "#d35400"
+  name: "TaBERT"
+- approach: tabert
+  configuration: "table_row_limit=0"
   color: "#d35400"
   name: "TaBERT"
 - approach: tarte
@@ -132,8 +162,23 @@
   color: "#c2185b"
   name: "TUTA"
   marker: "X"
+- approach: tuta
+  configuration: "table_row_limit=0"
+  color: "#c2185b"
+  name: "TUTA"
+  marker: "X"
 - approach: tabdpt
   configuration: "tabdpt"
   color: "#1abc9c"
   name: "TabDPT"
+  marker: "^"
+- approach: tabdpt
+  configuration: "run_task_based_on=custom_predictiveML_model"
+  color: "#1abc9c"
+  name: "TabDPT"
+  marker: "^"
+- approach: tabdpt
+  configuration: "run_task_based_on=row_embeddings"
+  color: "#1abc9c"
+  name: "TabDPT*"
   marker: "^"
