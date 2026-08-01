@@ -6,24 +6,26 @@ A comprehensive benchmark suite for evaluating tabular embeddings across four re
 
 | Task | Level | Description | Interface | Metric |
 |---|---|---|---|---|
-| Row Similarity Search | Row | Find the most similar row in a table to a given query row | `row_embedding` or `row_similarity_search` | Top-1 [%] |
+| Row Similarity Search | Row | Find the most similar row in a table to a given query row | `row_embedding` or `row_similarity_search` | MAP |
 | Row Triplet Test | Row | Determine whether an anchor row is more similar to a positive than to a negative example | `row_embedding` | Accuracy |
-| Tabular Prediction | Row | Use row embeddings as features for classification or regression | `row_embedding` or `predictive_ml` | ROC-AUC / RMSE |
-| Column Similarity Search | Column | Retrieve semantically similar columns from a data lake | `column_embedding` | MRR |
+| Tabular Prediction | Row | Use row embeddings as features for classification or regression | `row_embedding` or `predictive_ml` | XGBoost ROC-AUC / RMSE / Log Loss |
+| Column Similarity Search | Column | Retrieve semantically similar columns from a data lake | `column_embedding` | MAP |
 | Column Type Annotation | Column | Predict the semantic type of a column from a fixed label vocabulary | `column_embedding` | Macro-F1 |
-| NL→Column Mapping | Column | Match natural language query concepts to database columns | `column_embedding` | Recall@k |
-| Cell Semantic Retrieval | Cell | Retrieve the most semantically similar cells across a table collection | `cell_embedding` | — |
-| NL→Cell→Column Mapping | Cell | Map NL-extracted values to database cells and identify relevant columns | `cell_embedding` | Recall@k |
-| Table Retrieval | Table | Retrieve semantically similar tables from a collection | `table_embedding` | Recall@1 |
+| NL→Column Mapping | Column | Match natural language query concepts to database columns | `column_embedding` | MAP |
+| Cell Semantic Retrieval | Cell | Retrieve the most semantically similar cells across a table collection | `cell_embedding` | MAP |
+| NL→Cell→Column Mapping | Cell | Map NL-extracted values to database cells and identify relevant columns | `cell_embedding` | MAP |
+| Table Retrieval | Table | Retrieve the table relevant to a natural-language query (TARGET-derived datasets: fetaqa, tabfact, ottqa, spider, bird) | `table_embedding` | MAP@10 |
+| Table Similarity Search | Table | Retrieve semantically similar tables from a data lake (gitTables) | `table_embedding` | MAP |
 | Table Shuffling Triplet Test | Table | Determine whether an anchor table is more similar to a positive than to a structurally varied negative | `table_embedding` | Triplet Accuracy |
+| Table Type Detection | Table | Classify a table's schema.org semantic type (Product, Person, Event, …) from a WDC-derived corpus | `table_embedding` | XGBoost Macro-F1 |
 
 ---
 
 ## Section 2: Installation
 
-1. Check out this repository (including submodules):
+1. Check out this repository:
    ```bash
-   git clone --recurse-submodules <repo-url>
+   git clone <repo-url>
    ```
 
 2. Copy the setup template and edit the `SETUP_*` flags at the top to select which approaches to install:
@@ -35,7 +37,10 @@ A comprehensive benchmark suite for evaluating tabular embeddings across four re
    ```bash
    bash setup_benchmark.sh
    ```
-   This creates the `benchmark_env` conda environment (Python 3.13) and installs `benchmark_src` and `approaches` as editable packages. If you enabled additional approaches, it also creates per-approach conda environments (`benchmark_env_hytrel`, `benchmark_env_gritlm`, `benchmark_env_tabicl`).
+   This creates the `benchmark_env` conda environment (Python 3.13) and installs `benchmark_src` and `approaches` as editable packages. If you enabled additional approaches, it also creates per-approach conda environments (`benchmark_env_hytrel`, `benchmark_env_gritlm`, `benchmark_env_tabicl`, `benchmark_env_tabert`). With `SETUP_GENERAL=true`, it also initializes the git submodules (needed for join-benchmark dataset creation and for approaches such as TaBERT). To check out submodules manually instead, run:
+   ```bash
+   git submodule update --init --recursive
+   ```
 
 4. (Optional) Create a `.env` file at the repo root for approaches that require Hugging Face model access:
    ```bash
@@ -95,6 +100,11 @@ approaches:
     tasks: [row_similarity_search]  # overrides the run-level tasks for this entry only
     task_datasets:                  # optional: override the global dataset list
       row_similarity_search: [Amazon-Google]
+    task_params:                    # optional: per-task config overrides
+      row_similarity_search:
+        top_k: 10
+    task_exclude_datasets:          # optional: additional per-task dataset exclusions
+      row_similarity_search: [Beer]
 ```
 
 The same approach can appear multiple times with different `params` — output directories are
