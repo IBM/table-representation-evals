@@ -1,7 +1,8 @@
 benchmark_output_dir: revision_experiments
 
+# Run only the column_similarity_search task for all approaches below.
 tasks:
-  - schema_linking
+  - column_similarity_search
 
 approaches:
   - name: sentence_transformer
@@ -22,8 +23,12 @@ approaches:
 
   - name: hytrel
 
+  - name: tabicl
+
   - name: tabbie
 
   - name: tabert
+
+  - name: tarte
 
   - name: tuta

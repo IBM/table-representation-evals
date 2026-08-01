@@ -1,10 +1,8 @@
-benchmark_output_dir: schema_and_value_linking_experiments
+benchmark_output_dir: revision_experiments
 
-# Run only the schema linking and value linking tasks for all approaches below.
-# Remove this to run all tasks each approach supports.
+# Run only the cell_similarity_search task for all approaches below.
 tasks:
-  - schema_linking
-  - value_linking
+  - cell_similarity_search
 
 approaches:
   - name: sentence_transformer
@@ -24,3 +22,13 @@ approaches:
       embedding_model: GritLM/GritLM-7B
 
   - name: hytrel
+
+  - name: tabicl
+
+  - name: tabbie
+
+  - name: tabert
+
+  - name: tarte
+
+  - name: tuta

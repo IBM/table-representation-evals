@@ -1,7 +1,7 @@
 benchmark_output_dir: revision_experiments
 
 tasks:
-  - schema_linking
+  - value_linking
 
 approaches:
   - name: sentence_transformer

@@ -1,0 +1,152 @@
+benchmark_output_dir: revision_experiments
+
+tasks:
+  - table_retrieval
+  - table_shuffling
+  - table_similarity_search
+
+# v0-v8 only (pos_type x magnitude core grid); v9-v14 size ablation left for a follow-up run.
+# ecb has no v2/v5 (lo-neg produces delta~=0 for ECB, see configs/global_datasets.yaml).
+_table_shuffling_datasets: &table_shuffling_v0_v8
+  - fetaqa@@v0
+  - fetaqa@@v1
+  - fetaqa@@v2
+  - fetaqa@@v3
+  - fetaqa@@v4
+  - fetaqa@@v5
+  - fetaqa@@v6
+  - fetaqa@@v7
+  - fetaqa@@v8
+  - tabfact@@v0
+  - tabfact@@v1
+  - tabfact@@v2
+  - tabfact@@v3
+  - tabfact@@v4
+  - tabfact@@v5
+  - tabfact@@v6
+  - tabfact@@v7
+  - tabfact@@v8
+  - ottqa@@v0
+  - ottqa@@v1
+  - ottqa@@v2
+  - ottqa@@v3
+  - ottqa@@v4
+  - ottqa@@v5
+  - ottqa@@v6
+  - ottqa@@v7
+  - ottqa@@v8
+  - spider-train@@v0
+  - spider-train@@v1
+  - spider-train@@v2
+  - spider-train@@v3
+  - spider-train@@v4
+  - spider-train@@v5
+  - spider-train@@v6
+  - spider-train@@v7
+  - spider-train@@v8
+  - ckan_subset@@v0
+  - ckan_subset@@v1
+  - ckan_subset@@v2
+  - ckan_subset@@v3
+  - ckan_subset@@v4
+  - ckan_subset@@v5
+  - ckan_subset@@v6
+  - ckan_subset@@v7
+  - ckan_subset@@v8
+  - ecb@@v0
+  - ecb@@v1
+  - ecb@@v3
+  - ecb@@v4
+  - ecb@@v6
+  - ecb@@v7
+  - ecb@@v8
+
+approaches:
+  - name: GritLM
+    params:
+      embedding_model: GritLM/GritLM-7B
+    tasks: [table_retrieval, table_shuffling, table_similarity_search]
+    task_datasets:
+      table_shuffling: *table_shuffling_v0_v8
+
+  - name: GritLM
+    params:
+      embedding_model: GritLM/GritLM-7B
+      table_row_limit: 0  # "Just Schema" ablation
+    tasks: [table_similarity_search]
+
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+    tasks: [table_retrieval, table_shuffling, table_similarity_search]
+    task_datasets:
+      table_shuffling: *table_shuffling_v0_v8
+
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+      table_row_limit: 0  # "Just Schema" ablation
+    tasks: [table_similarity_search]
+
+  - name: sentence_transformer
+    params:
+      embedding_model: ibm-granite/granite-embedding-english-r2
+    tasks: [table_retrieval, table_shuffling, table_similarity_search]
+    task_datasets:
+      table_shuffling: *table_shuffling_v0_v8
+
+  - name: sentence_transformer
+    params:
+      embedding_model: ibm-granite/granite-embedding-english-r2
+      table_row_limit: 0  # "Just Schema" ablation
+    tasks: [table_similarity_search]
+
+  - name: hytrel
+    tasks: [table_retrieval, table_shuffling, table_similarity_search]
+    task_datasets:
+      table_shuffling: *table_shuffling_v0_v8
+
+  - name: hytrel
+    params:
+      table_row_limit: 0  # "Just Schema" ablation
+    tasks: [table_similarity_search]
+
+  - name: tabbie
+    tasks: [table_retrieval, table_shuffling, table_similarity_search]
+    task_datasets:
+      table_shuffling: *table_shuffling_v0_v8
+
+  - name: tabbie
+    params:
+      table_row_limit: 0  # "Just Schema" ablation
+    tasks: [table_similarity_search]
+
+  - name: tabert
+    tasks: [table_retrieval, table_shuffling, table_similarity_search]
+    task_datasets:
+      table_shuffling: *table_shuffling_v0_v8
+
+  - name: tabert
+    params:
+      table_row_limit: 0  # "Just Schema" ablation
+    tasks: [table_similarity_search]
+
+  - name: tuta
+    tasks: [table_retrieval, table_shuffling, table_similarity_search]
+    task_datasets:
+      table_shuffling: *table_shuffling_v0_v8
+
+  - name: tuta
+    params:
+      table_row_limit: 0  # "Just Schema" ablation
+    tasks: [table_similarity_search]
+
+  - name: tabdpt
+    tasks: [table_shuffling, table_similarity_search]
+    task_datasets:
+      table_shuffling: *table_shuffling_v0_v8
+
+  - name: tarte
+    tasks: [table_shuffling, table_similarity_search]
+    task_datasets:
+      table_shuffling: *table_shuffling_v0_v8

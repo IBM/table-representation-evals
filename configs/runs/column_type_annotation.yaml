@@ -1,4 +1,4 @@
-benchmark_output_dir: cta_experiments
+benchmark_output_dir: revision_experiments
 
 tasks:
   - column_type_annotation
@@ -23,3 +23,11 @@ approaches:
   - name: hytrel
 
   - name: tabicl
+
+  - name: tabbie
+
+  - name: tabert
+
+  - name: tarte
+
+  - name: tuta

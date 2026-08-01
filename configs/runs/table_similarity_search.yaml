@@ -1,0 +1,56 @@
+benchmark_output_dir: revision_experiments
+
+tasks:
+  - table_similarity_search
+
+approaches:
+  - name: GritLM
+    params:
+      embedding_model: GritLM/GritLM-7B
+
+  - name: GritLM
+    params:
+      embedding_model: GritLM/GritLM-7B
+      table_row_limit: 0  # "Just Schema" ablation
+
+  - name: hytrel
+
+  - name: hytrel
+    params:
+      table_row_limit: 0  # "Just Schema" ablation
+
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+
+  - name: sentence_transformer
+    params:
+      embedding_model: all-MiniLM-L6-v2
+      table_row_limit: 0  # "Just Schema" ablation
+
+  - name: sentence_transformer
+    params:
+      embedding_model: ibm-granite/granite-embedding-english-r2
+
+  - name: sentence_transformer
+    params:
+      embedding_model: ibm-granite/granite-embedding-english-r2
+      table_row_limit: 0  # "Just Schema" ablation
+
+  - name: tabbie
+
+  - name: tabert
+
+  - name: tabert
+    params:
+      table_row_limit: 0  # "Just Schema" ablation
+
+  - name: tabdpt
+
+  - name: tarte
+
+  - name: tuta
+
+  - name: tuta
+    params:
+      table_row_limit: 0  # "Just Schema" ablation

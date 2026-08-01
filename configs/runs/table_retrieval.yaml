@@ -1,24 +1,20 @@
 benchmark_output_dir: revision_experiments
 
 tasks:
-  - schema_linking
+  - table_retrieval
 
 approaches:
+  - name: GritLM
+    params:
+      embedding_model: GritLM/GritLM-7B
+
   - name: sentence_transformer
     params:
       embedding_model: all-MiniLM-L6-v2
-      table_row_limit: 100
 
   - name: sentence_transformer
     params:
       embedding_model: ibm-granite/granite-embedding-english-r2
-      table_row_limit: 100
-
-  - name: sap_rpt_oss
-
-  - name: GritLM
-    params:
-      embedding_model: GritLM/GritLM-7B
 
   - name: hytrel
 
