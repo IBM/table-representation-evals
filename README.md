@@ -20,7 +20,7 @@ A unified benchmark for systematically evaluating tabular embeddings across four
 | Table | Table Similarity Search | Given a query table, retrieve the top-k most similar tables from a collection. | 1 | MAP | [GitTables](https://gittables.github.io)* |
 | Table | Table Retrieval † | Given a natural language query, retrieve the top-k most relevant tables. | 7 | MAP@10 | [TARGET](https://target-benchmark.github.io/) |
 | Table | Table Shuffling Evaluation † | Given a triplet of tables (anchor, permuted positive, value-shuffled negative), evaluate whether the anchor is closer to the positive. | 6 | Triplet Accuracy | [TARGET](https://target-benchmark.github.io/), [LakeBench](https://zenodo.org/records/8014643)* |
-| Table | Table Type Detection † | Classify a table's schema.org semantic type (Product, Person, Event, …) from a WDC-derived corpus. | 1 | Macro-F1 | [HyTrel](https://github.com/brickee/HyTrel)* |
+| Table | Table Type Detection † | Classify a table's schema.org semantic type (Product, Person, Event, …) from a WDC-derived corpus. | 1 | Macro-F1 | [HyTrel](https://github.com/awslabs/hypergraph-tabular-lm)* |
 | Cell | Cell Similarity Search | Given a query cell, retrieve the top-k most semantically similar cells across a set of tables. | 2 | MAP | [S2abEL](https://github.com/allenai/S2abEL/tree/main)* |
 | Cell | Value Linking | Given a natural language query mentioning a value, retrieve the top-k database columns whose cell values match it, either verbatim or via a fuzzy/semantic variant. | 2 | MAP | [BIRD](https://bird-bench.github.io)* |
 
