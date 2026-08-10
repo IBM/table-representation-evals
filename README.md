@@ -13,13 +13,15 @@ A comprehensive benchmark suite for evaluating tabular embeddings across four re
 | Column | Column Type Annotation | Use column embeddings as features to train a classifier that predicts each column's semantic type. | 2 | Macro-F1 | [SOTAB](https://webdatacommons.org/structureddata/sotab/), [GitTables](https://gittables.github.io) |
 | Column | Schema Linking | Given a natural language query, retrieve the top-k database columns relevant to answering it. | 1 | MAP | [BIRD](https://bird-bench.github.io)* |
 | Table | Table Similarity Search | Given a query table, retrieve the top-k most similar tables from a collection. | 1 | MAP | [GitTables](https://gittables.github.io)* |
-| Table | Table Retrieval | Given a natural language query, retrieve the top-k most relevant tables. | 7 | MAP@10 | [TARGET](https://target-benchmark.github.io/) |
-| Table | Table Shuffling Evaluation | Given a triplet of tables (anchor, permuted positive, value-shuffled negative), evaluate whether the anchor is closer to the positive. | 6 | Triplet Accuracy | [TARGET](https://target-benchmark.github.io/), [LakeBench](https://zenodo.org/records/8014643)* |
-| Table | Table Type Detection | Classify a table's schema.org semantic type (Product, Person, Event, …) from a WDC-derived corpus. | 1 | Macro-F1 | [HyTrel](https://github.com/brickee/HyTrel)* |
+| Table | Table Retrieval † | Given a natural language query, retrieve the top-k most relevant tables. | 7 | MAP@10 | [TARGET](https://target-benchmark.github.io/) |
+| Table | Table Shuffling Evaluation † | Given a triplet of tables (anchor, permuted positive, value-shuffled negative), evaluate whether the anchor is closer to the positive. | 6 | Triplet Accuracy | [TARGET](https://target-benchmark.github.io/), [LakeBench](https://zenodo.org/records/8014643)* |
+| Table | Table Type Detection † | Classify a table's schema.org semantic type (Product, Person, Event, …) from a WDC-derived corpus. | 1 | Macro-F1 | [HyTrel](https://github.com/brickee/HyTrel)* |
 | Cell | Cell Similarity Search | Given a query cell, retrieve the top-k most semantically similar cells across a set of tables. | 2 | MAP | [S2abEL](https://github.com/allenai/S2abEL/tree/main)* |
 | Cell | Value Linking | Given a natural language query mentioning a value, retrieve the top-k database columns whose cell values match it, either verbatim or via a fuzzy/semantic variant. | 2 | MAP | [BIRD](https://bird-bench.github.io)* |
 
 `*` = we adapted the dataset for our use case.
+
+`†` = these tasks were proposed as an extension to TEmBed in [Poostforoushan et al. 2026](https://tabular-data-analysis.github.io/tada2026/papers/TaDA26_9.pdf) and have since been integrated into the main benchmark.
 
 ---
 
