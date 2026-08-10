@@ -1,6 +1,11 @@
 # TEmBed - Tabular Embedding Test Bed
 
-A comprehensive benchmark suite for evaluating tabular embeddings across four representation levels: **cell**, **row**, **column**, and **table**, using a diverse collection of tasks and datasets.
+<p align="center">
+  <img src="assets/header_figure.png" alt="TEmBed overview" width="600">
+</p>
+
+
+A unified benchmark for systematically evaluating tabular embeddings across four representation levels: **cell**, **row**, **column**, and **table**, using a diverse collection of tasks and datasets.
 
 ## Section 1: Benchmark Tasks
 
@@ -29,7 +34,7 @@ A comprehensive benchmark suite for evaluating tabular embeddings across four re
 
 1. Check out this repository:
    ```bash
-   git clone <repo-url>
+   git clone git@github.com:IBM/table-representation-evals.git
    ```
 
 2. Copy the setup template and edit the `SETUP_*` flags at the top to select which approaches to install:
@@ -177,3 +182,9 @@ python benchmark_src/results_processing/gather_results.py results/<benchmark_out
 ├── run_test_before_commit.sh
 └── run_paper_experiments.sh
 ```
+
+---
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
