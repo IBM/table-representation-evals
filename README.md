@@ -4,20 +4,22 @@ A comprehensive benchmark suite for evaluating tabular embeddings across four re
 
 ## Section 1: Benchmark Tasks
 
-| Task | Level | Description | Interface | Metric |
-|---|---|---|---|---|
-| Row Similarity Search | Row | Find the most similar row in a table to a given query row | `row_embedding` or `row_similarity_search` | MAP |
-| Row Triplet Test | Row | Determine whether an anchor row is more similar to a positive than to a negative example | `row_embedding` | Accuracy |
-| Tabular Prediction | Row | Use row embeddings as features for classification or regression | `row_embedding` or `predictive_ml` | XGBoost ROC-AUC / RMSE / Log Loss |
-| Column Similarity Search | Column | Retrieve semantically similar columns from a data lake | `column_embedding` | MAP |
-| Column Type Annotation | Column | Predict the semantic type of a column from a fixed label vocabulary | `column_embedding` | Macro-F1 |
-| NL→Column Mapping | Column | Match natural language query concepts to database columns | `column_embedding` | MAP |
-| Cell Semantic Retrieval | Cell | Retrieve the most semantically similar cells across a table collection | `cell_embedding` | MAP |
-| NL→Cell→Column Mapping | Cell | Map NL-extracted values to database cells and identify relevant columns | `cell_embedding` | MAP |
-| Table Retrieval | Table | Retrieve the table relevant to a natural-language query (TARGET-derived datasets: fetaqa, tabfact, ottqa, spider, bird) | `table_embedding` | MAP@10 |
-| Table Similarity Search | Table | Retrieve semantically similar tables from a data lake (gitTables) | `table_embedding` | MAP |
-| Table Shuffling Triplet Test | Table | Determine whether an anchor table is more similar to a positive than to a structurally varied negative | `table_embedding` | Triplet Accuracy |
-| Table Type Detection | Table | Classify a table's schema.org semantic type (Product, Person, Event, …) from a WDC-derived corpus | `table_embedding` | XGBoost Macro-F1 |
+| Level | Task | Description | # Datasets | Metric | Source |
+|---|---|---|---|---|---|
+| Row | Row Similarity Search | Given a query row, retrieve the top-k most similar rows. | 9 | MAP | [Köpcke et al. 2010](https://dbs.uni-leipzig.de/research/projects/object_matching/benchmark_datasets_for_entity_resolution), [DeepMatcher/Magellan](https://sites.google.com/site/anhaidgroup/projects/data)* |
+| Row | Triplet-Based Evaluation | Given a triplet of rows (anchor, positive, negative), evaluate whether the anchor is more similar to the positive than the negative. | 2 | Accuracy | [ours](benchmark_src/dataset_creation/wikidata_hierarchies/) |
+| Row | Tabular Prediction | Use row embeddings as features for supervised classification or regression tasks. | 51 | ROC-AUC / RMSE / Log Loss | [TabArena](https://tabarena.ai) |
+| Column | Column Similarity Search | Given a query column, retrieve the top-k most similar columns from a data lake. | 5 | MAP | [NextiaJD](https://github.com/dtim-upc/NextiaJD), [LakeBench](https://zenodo.org/records/8014643)* |
+| Column | Column Type Annotation | Use column embeddings as features to train a classifier that predicts each column's semantic type. | 2 | Macro-F1 | [SOTAB](https://webdatacommons.org/structureddata/sotab/), [GitTables](https://gittables.github.io) |
+| Column | Schema Linking | Given a natural language query, retrieve the top-k database columns relevant to answering it. | 1 | MAP | [BIRD](https://bird-bench.github.io)* |
+| Table | Table Similarity Search | Given a query table, retrieve the top-k most similar tables from a collection. | 1 | MAP | [GitTables](https://gittables.github.io)* |
+| Table | Table Retrieval | Given a natural language query, retrieve the top-k most relevant tables. | 7 | MAP@10 | [TARGET](https://target-benchmark.github.io/) |
+| Table | Table Shuffling Evaluation | Given a triplet of tables (anchor, permuted positive, value-shuffled negative), evaluate whether the anchor is closer to the positive. | 6 | Triplet Accuracy | [TARGET](https://target-benchmark.github.io/), [LakeBench](https://zenodo.org/records/8014643)* |
+| Table | Table Type Detection | Classify a table's schema.org semantic type (Product, Person, Event, …) from a WDC-derived corpus. | 1 | Macro-F1 | [HyTrel](https://github.com/brickee/HyTrel)* |
+| Cell | Cell Similarity Search | Given a query cell, retrieve the top-k most semantically similar cells across a set of tables. | 2 | MAP | [S2abEL](https://github.com/allenai/S2abEL/tree/main)* |
+| Cell | Value Linking | Given a natural language query mentioning a value, retrieve the top-k database columns whose cell values match it, either verbatim or via a fuzzy/semantic variant. | 2 | MAP | [BIRD](https://bird-bench.github.io)* |
+
+`*` = we adapted the dataset for our use case.
 
 ---
 
